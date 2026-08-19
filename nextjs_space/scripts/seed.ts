@@ -4,13 +4,24 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Seed test account
-  const hashedPassword = await bcrypt.hash('Y6*iEIIkzn', 12);
+  // Seed test account.
+  // Credentials come from the environment — never hard-code them here.
+  const seedEmail = process.env.SEED_USER_EMAIL;
+  const seedPassword = process.env.SEED_USER_PASSWORD;
+
+  if (!seedEmail || !seedPassword) {
+    throw new Error(
+      'Seed aborted: SEED_USER_EMAIL and SEED_USER_PASSWORD environment variables are required. ' +
+        'Set them in your local .env (see .env.example). Never commit real credentials.'
+    );
+  }
+
+  const hashedPassword = await bcrypt.hash(seedPassword, 12);
   const testUser = await prisma.user.upsert({
-    where: { email: 'abacus-c2e7d02a@example.com' },
+    where: { email: seedEmail },
     update: {},
     create: {
-      email: 'abacus-c2e7d02a@example.com',
+      email: seedEmail,
       name: 'Test Admin',
       hashedPassword,
     },
