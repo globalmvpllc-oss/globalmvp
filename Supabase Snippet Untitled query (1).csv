@@ -1,0 +1,8 @@
+column_name,data_type
+id,uuid
+user_id,text
+messages,jsonb
+created_at,timestamp with time zone
+company_id,uuid
+session_id,text
+updated_at,timestamp with time zone

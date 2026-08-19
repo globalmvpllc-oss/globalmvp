@@ -1,0 +1,21 @@
+column_name,data_type
+id,uuid
+name,text
+email,text
+system_prompt,text
+knowledge_base,text
+widget_color,text
+plan,text
+created_at,timestamp with time zone
+password,text
+stripe_customer_id,text
+stripe_subscription_id,text
+message_count,integer
+billing_cycle_month,text
+whatsapp_number,text
+whatsapp_company_id,uuid
+telegram_bot_token,text
+telegram_bot_username,text
+telegram_active,boolean
+telegram_subscribed,boolean
+telegram_stripe_subscription_id,text

@@ -1,0 +1,285 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/small_business_finance_saas/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String?
+  email          String          @unique
+  emailVerified  DateTime?
+  hashedPassword String?
+  image          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  companyMembers CompanyMember[]
+  accounts       Account[]
+  sessions       Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Company {
+  id                  String              @id @default(cuid())
+  name                String
+  country             String              @default("US")
+  defaultCurrency     String              @default("USD")
+  timezone            String              @default("America/New_York")
+  locale              String              @default("en-US")
+  businessType        String?
+  address             String?
+  city                String?
+  state               String?
+  postalCode          String?
+  phone               String?
+  email               String?
+  website             String?
+  taxNumber           String?
+  taxOffice           String?
+  legalName           String?
+  logoUrl             String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  members             CompanyMember[]
+  customers           Customer[]
+  vendors             Vendor[]
+  invoices            Invoice[]
+  payments            Payment[]
+  incomeTransactions  IncomeTransaction[]
+  expenseTransactions ExpenseTransaction[]
+  categories          Category[]
+  attachments         Attachment[]
+}
+
+model CompanyMember {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  role      String   @default("owner")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+model Customer {
+  id              String              @id @default(cuid())
+  companyId       String
+  name            String
+  companyName     String?
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  state           String?
+  postalCode      String?
+  country         String?
+  taxId           String?
+  defaultCurrency String?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices        Invoice[]
+  incomeTransactions IncomeTransaction[]
+
+  @@index([companyId])
+}
+
+model Vendor {
+  id              String              @id @default(cuid())
+  companyId       String
+  name            String
+  companyName     String?
+  email           String?
+  phone           String?
+  address         String?
+  country         String?
+  taxId           String?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  expenseTransactions ExpenseTransaction[]
+
+  @@index([companyId])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  companyId     String
+  customerId    String
+  invoiceNumber String
+  status        String        @default("DRAFT")
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime
+  currency      String        @default("USD")
+  subtotal      Decimal       @default(0) @db.Decimal(15, 2)
+  taxTotal      Decimal       @default(0) @db.Decimal(15, 2)
+  discountTotal Decimal       @default(0) @db.Decimal(15, 2)
+  total         Decimal       @default(0) @db.Decimal(15, 2)
+  amountPaid    Decimal       @default(0) @db.Decimal(15, 2)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal @default(1) @db.Decimal(15, 4)
+  unitPrice   Decimal @default(0) @db.Decimal(15, 2)
+  discount    Decimal @default(0) @db.Decimal(15, 2)
+  taxRate     Decimal @default(0) @db.Decimal(7, 4)
+  taxLabel    String  @default("VAT")
+  amount      Decimal @default(0) @db.Decimal(15, 2)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id            String     @id @default(cuid())
+  companyId     String
+  invoiceId     String?
+  expenseId     String?
+  amount        Decimal       @db.Decimal(15, 2)
+  currency      String     @default("USD")
+  paymentDate   DateTime   @default(now())
+  paymentMethod String     @default("bank_transfer")
+  reference     String?
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice       Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  expense       ExpenseTransaction? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([invoiceId])
+  @@index([expenseId])
+}
+
+model IncomeTransaction {
+  id                  String    @id @default(cuid())
+  companyId           String
+  customerId          String?
+  description         String
+  category            String?
+  amount              Decimal   @db.Decimal(15, 2)
+  currency            String    @default("USD")
+  date                DateTime  @default(now())
+  expectedPaymentDate DateTime?
+  status              String    @default("EXPECTED")
+  notes               String?
+  attachmentPath      String?
+  attachmentPublic    Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer            Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model ExpenseTransaction {
+  id               String    @id @default(cuid())
+  companyId        String
+  vendorId         String?
+  description      String
+  category         String?
+  amount           Decimal   @db.Decimal(15, 2)
+  currency         String    @default("USD")
+  date             DateTime  @default(now())
+  dueDate          DateTime?
+  status           String    @default("UNPAID")
+  notes            String?
+  attachmentPath   String?
+  attachmentPublic Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor           Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  payments         Payment[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  type      String   @default("expense")
+  color     String?
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name, type])
+  @@index([companyId])
+}
+
+model Attachment {
+  id               String   @id @default(cuid())
+  companyId        String
+  cloudStoragePath String
+  isPublic         Boolean  @default(false)
+  fileName         String
+  contentType      String
+  size             Int?
+  createdAt        DateTime @default(now())
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
