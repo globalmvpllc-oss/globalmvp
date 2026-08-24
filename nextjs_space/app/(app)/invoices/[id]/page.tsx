@@ -79,7 +79,7 @@ export default function InvoiceDetailPage() {
         body: JSON.stringify({ html_content: html, pdf_options: { format: 'A4', margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } } }),
       });
       const createData = await createRes.json();
-      if (!createData?.success) { toast.error('Failed to generate PDF'); setPdfLoading(false); return; }
+      if (!createData?.success || !createData?.token) { toast.error('Failed to generate PDF'); setPdfLoading(false); return; }
       // Poll for status
       let attempts = 0;
       const pollInterval = setInterval(async () => {
@@ -87,7 +87,7 @@ export default function InvoiceDetailPage() {
         const statusRes = await fetch('/api/generate-pdf/status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ request_id: createData.request_id }),
+          body: JSON.stringify({ token: createData.token }),
         });
         const statusData = await statusRes.json();
         if (statusData?.status === 'SUCCESS' && statusData?.pdf_base64) {
