@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
+import { handleApiError } from '@/lib/api-error';
 import { expenseSchema, expenseUpdateSchema, validateBody } from '@/lib/validation';
 
 export async function GET() {
@@ -16,9 +17,8 @@ export async function GET() {
       orderBy: { date: 'desc' },
     });
     return NextResponse.json(transactions);
-  } catch (error: any) {
-    console.error('Expenses fetch error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('expenses:GET', error, { fallbackMessage: 'Failed' });
   }
 }
 
@@ -51,9 +51,8 @@ export async function POST(request: Request) {
       },
     });
     return NextResponse.json(transaction);
-  } catch (error: any) {
-    console.error('Expense create error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('expenses:POST', error, { fallbackMessage: 'Failed' });
   }
 }
 
@@ -89,9 +88,8 @@ export async function PUT(request: Request) {
       },
     });
     return NextResponse.json(transaction);
-  } catch (error: any) {
-    console.error('Expense update error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('expenses:PUT', error, { fallbackMessage: 'Failed' });
   }
 }
 
@@ -104,13 +102,28 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
-    const existing = await prisma.expenseTransaction.findFirst({ where: { id, companyId } });
+    const existing = await prisma.expenseTransaction.findFirst({
+      where: { id, companyId },
+      select: { id: true, _count: { select: { payments: true } } },
+    });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.expenseTransaction.delete({ where: { id } });
+    // Payment.expenseId is ON DELETE SET NULL, so deleting an expense that has
+    // payments leaves those payment rows attached to nothing — invisible in every
+    // report and impossible to reconcile.
+    if (existing._count.payments > 0) {
+      return NextResponse.json(
+        {
+          error: `Expense has ${existing._count.payments} payment(s) and cannot be deleted. Delete the payments first.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    const deleted = await prisma.expenseTransaction.deleteMany({ where: { id, companyId } });
+    if (deleted.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Expense delete error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('expenses:DELETE', error, { fallbackMessage: 'Failed' });
   }
 }

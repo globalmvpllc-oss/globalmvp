@@ -22,7 +22,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    if (password.length < 6) { setError('Password must be at least 6 characters'); setLoading(false); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters'); setLoading(false); return; }
     try {
       const res = await fetch('/api/signup', {
         method: 'POST',
@@ -79,7 +79,7 @@ export default function SignupPage() {
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input id="password" type="password" placeholder="Min 6 characters" value={password} onChange={(e: any) => setPassword(e.target.value)} className="pl-10" required />
+                  <Input id="password" type="password" placeholder="Min 8 characters" value={password} onChange={(e: any) => setPassword(e.target.value)} className="pl-10" required />
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>

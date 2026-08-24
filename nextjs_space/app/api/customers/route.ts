@@ -4,21 +4,27 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { customerSchema, validateBody } from '@/lib/validation';
+import { handleApiError } from '@/lib/api-error';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { error, companyId } = await requireUserCompany();
     if (error) return error;
+
+    const { searchParams } = new URL(request.url);
+    const take = Math.min(Math.max(Number(searchParams.get('take') ?? 200), 1), 500);
+    const skip = Math.max(Number(searchParams.get('skip') ?? 0), 0);
 
     const customers = await prisma.customer.findMany({
       where: { companyId },
       include: { _count: { select: { invoices: true } } },
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
     });
     return NextResponse.json(customers);
-  } catch (error: any) {
-    console.error('Customers fetch error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('customers:GET', error, { fallbackMessage: 'Failed' });
   }
 }
 
@@ -49,8 +55,7 @@ export async function POST(request: Request) {
       },
     });
     return NextResponse.json(customer);
-  } catch (error: any) {
-    console.error('Customer create error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('customers:POST', error, { fallbackMessage: 'Failed' });
   }
 }

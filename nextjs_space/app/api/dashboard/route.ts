@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
+import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
 
 /**
@@ -15,41 +16,77 @@ export async function GET() {
     if (error) return error;
 
     const now = new Date();
+    // `new Date(y, m + 1, 0)` yields the last day of the month at 00:00:00, so a
+    // `lte` filter silently dropped everything recorded on that final day.
+    // Use a half-open interval [startOfMonth, startOfNextMonth) instead.
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // ---- Revenue by currency (received income this month) ----
-    const incomeGroups = await prisma.incomeTransaction.groupBy({
-      by: ['currency'],
-      where: { companyId, status: 'RECEIVED', date: { gte: startOfMonth, lte: endOfMonth } },
-      _sum: { amount: true },
-    });
+    const thirtyDaysOut = new Date();
+    thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
 
-    // Payments received on invoices this month (grouped by invoice currency)
-    const invoicePayments = await prisma.payment.findMany({
-      where: { companyId, invoiceId: { not: null }, paymentDate: { gte: startOfMonth, lte: endOfMonth } },
-      select: { amount: true, currency: true },
-    });
-
-    // ---- Expenses by currency (paid this month) ----
-    const expenseGroups = await prisma.expenseTransaction.groupBy({
-      by: ['currency'],
-      where: { companyId, status: 'PAID', date: { gte: startOfMonth, lte: endOfMonth } },
-      _sum: { amount: true },
-    });
-
-    // ---- Receivables by currency (outstanding invoices) ----
-    const outstandingInvoices = await prisma.invoice.findMany({
-      where: { companyId, status: { in: ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'] } },
-      select: { total: true, amountPaid: true, currency: true },
-    });
-
-    // ---- Upcoming payments by currency (unpaid expenses) ----
-    const upcomingExpenses = await prisma.expenseTransaction.groupBy({
-      by: ['currency'],
-      where: { companyId, status: 'UNPAID' },
-      _sum: { amount: true },
-    });
+    // These seven reads are independent. Running them sequentially cost one
+    // network round trip each, which dominates total latency when the database
+    // is geographically distant.
+    const [
+      incomeGroups,
+      invoicePayments,
+      expenseGroups,
+      outstandingInvoices,
+      upcomingExpenses,
+      upcomingInvoices,
+      upcomingExpensesList,
+    ] = await Promise.all([
+      // Revenue by currency (received income this month)
+      prisma.incomeTransaction.groupBy({
+        by: ['currency'],
+        where: { companyId, status: 'RECEIVED', date: { gte: startOfMonth, lt: startOfNextMonth } },
+        _sum: { amount: true },
+      }),
+      // Payments received against invoices this month
+      prisma.payment.findMany({
+        where: {
+          companyId,
+          invoiceId: { not: null },
+          paymentDate: { gte: startOfMonth, lt: startOfNextMonth },
+        },
+        select: { amount: true, currency: true },
+      }),
+      // Expenses by currency (paid this month)
+      prisma.expenseTransaction.groupBy({
+        by: ['currency'],
+        where: { companyId, status: 'PAID', date: { gte: startOfMonth, lt: startOfNextMonth } },
+        _sum: { amount: true },
+      }),
+      // Receivables by currency (outstanding invoices)
+      prisma.invoice.findMany({
+        where: { companyId, status: { in: ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'] } },
+        select: { total: true, amountPaid: true, currency: true },
+      }),
+      // Upcoming payments by currency (unpaid expenses)
+      prisma.expenseTransaction.groupBy({
+        by: ['currency'],
+        where: { companyId, status: 'UNPAID' },
+        _sum: { amount: true },
+      }),
+      // Activity feed: invoices due within 30 days
+      prisma.invoice.findMany({
+        where: {
+          companyId,
+          status: { in: ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'] },
+          dueDate: { lte: thirtyDaysOut },
+        },
+        include: { customer: { select: { name: true } } },
+        orderBy: { dueDate: 'asc' },
+        take: 10,
+      }),
+      // Activity feed: expenses due within 30 days
+      prisma.expenseTransaction.findMany({
+        where: { companyId, status: 'UNPAID', dueDate: { not: null, lte: thirtyDaysOut } },
+        orderBy: { dueDate: 'asc' },
+        take: 10,
+      }),
+    ]);
 
     // Build byCurrency map
     const byCurrency: Record<string, { revenue: string; expenses: string; profit: string; receivables: string; upcomingPayments: string }> = {};
@@ -99,31 +136,6 @@ export async function GET() {
       byCurrency[cur].profit = new Decimal(byCurrency[cur].revenue).minus(new Decimal(byCurrency[cur].expenses)).toFixed(2);
     }
 
-    // ---- Activity feed (unchanged — already currency-aware in each item) ----
-    const thirtyDaysOut = new Date();
-    thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
-
-    const upcomingInvoices = await prisma.invoice.findMany({
-      where: {
-        companyId,
-        status: { in: ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'] },
-        dueDate: { lte: thirtyDaysOut },
-      },
-      include: { customer: { select: { name: true } } },
-      orderBy: { dueDate: 'asc' },
-      take: 10,
-    });
-
-    const upcomingExpensesList = await prisma.expenseTransaction.findMany({
-      where: {
-        companyId,
-        status: 'UNPAID',
-        dueDate: { not: null, lte: thirtyDaysOut },
-      },
-      orderBy: { dueDate: 'asc' },
-      take: 10,
-    });
-
     const activities: Array<{
       id: string;
       type: string;
@@ -166,8 +178,7 @@ export async function GET() {
       byCurrency,
       activities: activities.slice(0, 15),
     });
-  } catch (error: any) {
-    console.error('Dashboard error:', error);
-    return NextResponse.json({ error: 'Failed to load dashboard' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('dashboard:GET', error, { fallbackMessage: 'Failed to load dashboard' });
   }
 }

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { vendorSchema, validateBody } from '@/lib/validation';
+import { handleApiError } from '@/lib/api-error';
 
 export async function GET() {
   try {
@@ -12,9 +13,8 @@ export async function GET() {
 
     const vendors = await prisma.vendor.findMany({ where: { companyId }, orderBy: { name: 'asc' } });
     return NextResponse.json(vendors);
-  } catch (error: any) {
-    console.error('Vendors error:', error);
-    return NextResponse.json({ error: 'Failed to load vendors' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('vendors:GET', error, { fallbackMessage: 'Failed to load vendors' });
   }
 }
 
@@ -28,6 +28,19 @@ export async function POST(request: Request) {
     if (parsed.error) return NextResponse.json(parsed.error, { status: 400 });
 
     const { name, companyName, email, phone, address, country, taxId, notes } = parsed.data;
+
+    // Vendor has no unique constraint in the schema (unlike Category), so the
+    // duplicate guard is enforced here. Case-insensitive within the company.
+    const duplicate = await prisma.vendor.findFirst({
+      where: { companyId, name: { equals: name, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'A vendor with this name already exists' },
+        { status: 409 }
+      );
+    }
 
     const vendor = await prisma.vendor.create({
       data: {
@@ -43,8 +56,10 @@ export async function POST(request: Request) {
       },
     });
     return NextResponse.json(vendor, { status: 201 });
-  } catch (error: any) {
-    console.error('Vendor create error:', error);
-    return NextResponse.json({ error: 'Failed to create vendor' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('vendors:POST', error, {
+      conflictMessage: 'A vendor with this name already exists',
+      fallbackMessage: 'Failed to create vendor',
+    });
   }
 }

@@ -4,36 +4,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSessionUser, requireUserCompany } from '@/lib/auth-helpers';
 import { companySchema, validateBody } from '@/lib/validation';
+import { handleApiError } from '@/lib/api-error';
+import { type TxClient } from '@/lib/payment-calc';
 
 export async function POST(request: Request) {
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Prevent duplicate company creation
-    const existingMember = await prisma.companyMember.findFirst({ where: { userId: user.id } });
-    if (existingMember) {
-      return NextResponse.json({ error: 'You already belong to a company' }, { status: 400 });
-    }
-
     const body = await request.json();
     const { data, error } = validateBody(companySchema, body);
     if (error) return NextResponse.json(error, { status: 400 });
-
-    const company = await prisma.company.create({
-      data: {
-        name: data.name,
-        country: data.country ?? 'US',
-        defaultCurrency: data.defaultCurrency ?? 'USD',
-        businessType: data.businessType,
-        address: data.address,
-        city: data.city,
-        postalCode: data.postalCode,
-        taxNumber: data.taxNumber,
-        taxOffice: data.taxOffice,
-        members: { create: { userId: user.id, role: 'owner' } },
-      },
-    });
 
     const defaultCategories = [
       { name: 'Services', type: 'income', color: '#7C3AED' },
@@ -49,14 +30,62 @@ export async function POST(request: Request) {
       { name: 'Insurance', type: 'expense', color: '#F97316' },
       { name: 'Other Expense', type: 'expense', color: '#6B7280' },
     ];
-    await prisma.category.createMany({
-      data: defaultCategories.map((c: any) => ({ ...c, companyId: company.id })),
-    });
+
+    // The duplicate check, the company insert, the membership insert and the
+    // default categories all run in one Serializable transaction. Previously the
+    // check and the insert were separate statements, so two concurrent requests
+    // could each pass the check and create a second, unreachable company.
+    const result = await prisma.$transaction(
+      async (tx: TxClient) => {
+        const existingMember = await tx.companyMember.findFirst({
+          where: { userId: user.id },
+          select: { id: true },
+        });
+        if (existingMember) {
+          return { kind: 'error' as const, status: 409, message: 'You already belong to a company' };
+        }
+
+        const created = await tx.company.create({
+          data: {
+            name: data.name,
+            country: data.country ?? 'US',
+            defaultCurrency: data.defaultCurrency ?? 'USD',
+            // These were accepted by the schema and written by PUT, but silently
+            // dropped on create, so onboarding data was lost.
+            timezone: data.timezone ?? undefined,
+            locale: data.locale ?? undefined,
+            businessType: data.businessType,
+            address: data.address,
+            city: data.city,
+            state: data.state,
+            postalCode: data.postalCode,
+            phone: data.phone,
+            email: data.email || undefined,
+            website: data.website,
+            legalName: data.legalName,
+            taxNumber: data.taxNumber,
+            taxOffice: data.taxOffice,
+            members: { create: { userId: user.id, role: 'owner' } },
+          },
+        });
+
+        await tx.category.createMany({
+          data: defaultCategories.map((c) => ({ ...c, companyId: created.id })),
+        });
+
+        return { kind: 'ok' as const, company: created };
+      },
+      { isolationLevel: 'Serializable' }
+    );
+
+    if (result.kind === 'error') {
+      return NextResponse.json({ error: result.message }, { status: result.status });
+    }
+    const company = result.company;
 
     return NextResponse.json(company);
-  } catch (error: any) {
-    console.error('Company create error:', error);
-    return NextResponse.json({ error: 'Failed to create company' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('company:POST', error, { fallbackMessage: 'Failed to create company' });
   }
 }
 
@@ -71,9 +100,8 @@ export async function GET() {
     });
     if (!member) return NextResponse.json(null);
     return NextResponse.json(member.company);
-  } catch (error: any) {
-    console.error('Company fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch company' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('company:GET', error, { fallbackMessage: 'Failed to fetch company' });
   }
 }
 
@@ -108,8 +136,7 @@ export async function PUT(request: Request) {
       },
     });
     return NextResponse.json(company);
-  } catch (error: any) {
-    console.error('Company update error:', error);
-    return NextResponse.json({ error: 'Failed to update company' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('company:PUT', error, { fallbackMessage: 'Failed to update company' });
   }
 }

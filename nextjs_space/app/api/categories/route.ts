@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { categorySchema, validateBody } from '@/lib/validation';
+import { handleApiError } from '@/lib/api-error';
 
 export async function GET(request: Request) {
   try {
@@ -17,9 +18,8 @@ export async function GET(request: Request) {
 
     const categories = await prisma.category.findMany({ where, orderBy: { name: 'asc' } });
     return NextResponse.json(categories);
-  } catch (error: any) {
-    console.error('Categories error:', error);
-    return NextResponse.json({ error: 'Failed to load categories' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('categories:GET', error, { fallbackMessage: 'Failed to load categories' });
   }
 }
 
@@ -38,8 +38,11 @@ export async function POST(request: Request) {
       data: { companyId, name, type, color: color ?? null },
     });
     return NextResponse.json(category, { status: 201 });
-  } catch (error: any) {
-    console.error('Category create error:', error);
-    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+  } catch (error) {
+    // @@unique([companyId, name, type]) makes duplicates a client conflict, not a 500.
+    return handleApiError('categories:POST', error, {
+      conflictMessage: 'A category with this name and type already exists',
+      fallbackMessage: 'Failed to create category',
+    });
   }
 }
