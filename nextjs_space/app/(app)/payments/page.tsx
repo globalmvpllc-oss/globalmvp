@@ -36,12 +36,23 @@ export default function PaymentsPage() {
 
   const handleCreate = async () => {
     if (!form.amount) { toast.error('Amount required'); return; }
+    if (!form.invoiceId) { toast.error('Select an invoice to link this payment to'); return; }
+    // The API requires the payment currency to match the invoice currency, so it
+    // is taken from the selected invoice rather than chosen independently.
+    const selected = invoices.find((inv: any) => inv?.id === form.invoiceId);
+    const currency = selected?.currency ?? form.currency;
     const res = await fetch('/api/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, amount: Number(form.amount) }),
+      body: JSON.stringify({ ...form, currency, amount: Number(form.amount) }),
     });
-    if (res.ok) { toast.success('Payment recorded!'); setOpen(false); fetchData(); setForm({ amount: '', currency: 'USD', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: 'bank_transfer', invoiceId: '', reference: '', notes: '' }); }
+    if (res.ok) {
+      toast.success('Payment recorded!'); setOpen(false); fetchData();
+      setForm({ amount: '', currency: 'USD', paymentDate: new Date().toISOString().split('T')[0], paymentMethod: 'bank_transfer', invoiceId: '', reference: '', notes: '' });
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error ?? 'Failed to record payment');
+    }
   };
 
   const getMethodLabel = (m: string) => {
@@ -64,10 +75,12 @@ export default function PaymentsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1"><Label>Amount *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
                 <div className="space-y-1"><Label>Currency</Label>
-                  <Select value={form.currency} onValueChange={(v: string) => setForm({ ...form, currency: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem><SelectItem value="GBP">GBP</SelectItem><SelectItem value="TRY">TRY</SelectItem></SelectContent>
-                  </Select>
+                  <Input
+                    readOnly
+                    value={invoices.find((inv: any) => inv?.id === form.invoiceId)?.currency ?? '—'}
+                    placeholder="Select an invoice"
+                    className="bg-muted"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -81,7 +94,7 @@ export default function PaymentsPage() {
               </div>
               <div className="space-y-1"><Label>Link to Invoice</Label>
                 <Select value={form.invoiceId} onValueChange={(v: string) => setForm({ ...form, invoiceId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select invoice (optional)" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select invoice" /></SelectTrigger>
                   <SelectContent>{invoices.map((inv: any) => <SelectItem key={inv?.id} value={inv?.id ?? ''}>{inv?.invoiceNumber ?? ''} - {inv?.customer?.name ?? ''}</SelectItem>)}</SelectContent>
                 </Select>
               </div>

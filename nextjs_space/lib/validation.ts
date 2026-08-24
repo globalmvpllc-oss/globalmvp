@@ -3,14 +3,39 @@ import { z } from 'zod';
 const VALID_CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY'] as const;
 const VALID_PAYMENT_METHODS = ['bank_transfer', 'cash', 'card', 'other'] as const;
 
+/**
+ * Date strings arriving from clients used to be passed straight into `new Date()`,
+ * which silently produces `Invalid Date` and then blows up inside Prisma as a 500.
+ * This validates parseability up front so the caller gets a 400 instead.
+ */
+const dateString = z
+  .string()
+  .max(40)
+  .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'Invalid date' });
+
+/** Category names are free-form strings (no FK), but must not be blank padding. */
+const categoryName = z
+  .string()
+  .max(100)
+  .transform((v) => v.trim())
+  .refine((v) => v.length > 0, { message: 'Category cannot be empty' });
+
 export const signupSchema = z.object({
-  email: z.string().email('Invalid email address').max(255),
-  password: z.string().min(6, 'Password must be at least 6 characters').max(128),
+  email: z
+    .string()
+    .max(255)
+    .transform((v) => v.trim().toLowerCase())
+    .pipe(z.string().email('Invalid email address')),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
   name: z.string().max(255).optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z
+    .string()
+    .max(255)
+    .transform((v) => v.trim().toLowerCase())
+    .pipe(z.string().email('Invalid email address')),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -61,43 +86,54 @@ export const invoiceCreateSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   invoiceNumber: z.string().max(50).optional(),
   status: z.enum(['DRAFT', 'SENT']).optional(),
-  issueDate: z.string().optional(),
-  dueDate: z.string().min(1, 'Due date is required'),
+  issueDate: dateString.optional(),
+  dueDate: dateString,
   currency: z.enum(VALID_CURRENCIES).default('USD'),
   notes: z.string().max(5000).optional(),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
 });
 
+/**
+ * NOTE: `amountPaid` is deliberately NOT accepted here.
+ * It is derived exclusively from Payment records via lib/payment-calc.ts.
+ * Accepting it from a client would let a caller mark an invoice paid for free.
+ */
 export const invoiceUpdateSchema = z.object({
   customerId: z.string().optional(),
   invoiceNumber: z.string().max(50).optional(),
-  status: z.string().optional(),
-  issueDate: z.string().optional(),
-  dueDate: z.string().optional(),
+  status: z.string().max(30).optional(),
+  issueDate: dateString.optional(),
+  dueDate: dateString.optional(),
   currency: z.enum(VALID_CURRENCIES).optional(),
   notes: z.string().max(5000).optional(),
   items: z.array(invoiceItemSchema).optional(),
-  amountPaid: z.number().optional(),
 });
 
-export const paymentSchema = z.object({
-  invoiceId: z.string().optional(),
-  expenseId: z.string().optional(),
-  amount: z.number().positive('Payment amount must be > 0'),
-  currency: z.enum(VALID_CURRENCIES).default('USD'),
-  paymentDate: z.string().optional(),
-  paymentMethod: z.enum(VALID_PAYMENT_METHODS).default('bank_transfer'),
-  reference: z.string().max(255).optional(),
-  notes: z.string().max(2000).optional(),
-});
+export const paymentSchema = z
+  .object({
+    invoiceId: z.string().min(1).max(64).optional(),
+    expenseId: z.string().min(1).max(64).optional(),
+    amount: z.number().positive('Payment amount must be > 0').finite(),
+    currency: z.enum(VALID_CURRENCIES).default('USD'),
+    paymentDate: dateString.optional(),
+    paymentMethod: z.enum(VALID_PAYMENT_METHODS).default('bank_transfer'),
+    reference: z.string().max(255).optional(),
+    notes: z.string().max(2000).optional(),
+  })
+  // A payment with neither target is unreachable data: it never shows in any
+  // report and cannot be corrected. A payment with both is ambiguous.
+  .refine((d) => Boolean(d.invoiceId) !== Boolean(d.expenseId), {
+    message: 'Payment must be linked to exactly one of invoiceId or expenseId',
+    path: ['invoiceId'],
+  });
 
 export const incomeSchema = z.object({
   description: z.string().min(1, 'Description is required').max(500),
-  category: z.string().max(100).optional(),
-  amount: z.number().positive('Amount must be > 0'),
+  category: categoryName.optional(),
+  amount: z.number().positive('Amount must be > 0').finite(),
   currency: z.enum(VALID_CURRENCIES).default('USD'),
-  date: z.string().optional(),
-  expectedPaymentDate: z.string().optional(),
+  date: dateString.optional(),
+  expectedPaymentDate: dateString.optional(),
   status: z.enum(['EXPECTED', 'RECEIVED']).optional(),
   customerId: z.string().optional(),
   notes: z.string().max(2000).optional(),
@@ -106,11 +142,11 @@ export const incomeSchema = z.object({
 export const incomeUpdateSchema = z.object({
   id: z.string().min(1),
   description: z.string().min(1).max(500).optional(),
-  category: z.string().max(100).optional(),
-  amount: z.number().positive().optional(),
+  category: categoryName.optional(),
+  amount: z.number().positive().finite().optional(),
   currency: z.enum(VALID_CURRENCIES).optional(),
-  date: z.string().optional(),
-  expectedPaymentDate: z.string().optional().nullable(),
+  date: dateString.optional(),
+  expectedPaymentDate: dateString.optional().nullable(),
   status: z.enum(['EXPECTED', 'RECEIVED']).optional(),
   customerId: z.string().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
@@ -118,11 +154,11 @@ export const incomeUpdateSchema = z.object({
 
 export const expenseSchema = z.object({
   description: z.string().min(1, 'Description is required').max(500),
-  category: z.string().max(100).optional(),
-  amount: z.number().positive('Amount must be > 0'),
+  category: categoryName.optional(),
+  amount: z.number().positive('Amount must be > 0').finite(),
   currency: z.enum(VALID_CURRENCIES).default('USD'),
-  date: z.string().optional(),
-  dueDate: z.string().optional(),
+  date: dateString.optional(),
+  dueDate: dateString.optional(),
   status: z.enum(['UNPAID', 'PAID']).optional(),
   vendorId: z.string().optional(),
   notes: z.string().max(2000).optional(),
@@ -131,11 +167,11 @@ export const expenseSchema = z.object({
 export const expenseUpdateSchema = z.object({
   id: z.string().min(1),
   description: z.string().min(1).max(500).optional(),
-  category: z.string().max(100).optional(),
-  amount: z.number().positive().optional(),
+  category: categoryName.optional(),
+  amount: z.number().positive().finite().optional(),
   currency: z.enum(VALID_CURRENCIES).optional(),
-  date: z.string().optional(),
-  dueDate: z.string().optional().nullable(),
+  date: dateString.optional(),
+  dueDate: dateString.optional().nullable(),
   status: z.enum(['UNPAID', 'PAID']).optional(),
   vendorId: z.string().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),

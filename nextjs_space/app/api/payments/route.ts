@@ -4,13 +4,23 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { paymentSchema, validateBody } from '@/lib/validation';
-import { recalculateInvoicePaymentState, recalculateExpensePaymentState } from '@/lib/payment-calc';
+import {
+  recalculateInvoicePaymentState,
+  recalculateExpensePaymentState,
+  computePaymentSummary,
+  type TxClient,
+} from '@/lib/payment-calc';
+import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { error, companyId } = await requireUserCompany();
     if (error) return error;
+
+    const { searchParams } = new URL(request.url);
+    const take = Math.min(Math.max(Number(searchParams.get('take') ?? 100), 1), 200);
+    const skip = Math.max(Number(searchParams.get('skip') ?? 0), 0);
 
     const payments = await prisma.payment.findMany({
       where: { companyId },
@@ -19,14 +29,25 @@ export async function GET() {
         expense: { select: { description: true } },
       },
       orderBy: { paymentDate: 'desc' },
+      take,
+      skip,
     });
     return NextResponse.json(payments);
-  } catch (error: any) {
-    console.error('Payments fetch error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+  } catch (error) {
+    return handleApiError('payments:GET', error, { fallbackMessage: 'Failed' });
   }
 }
 
+/**
+ * Creates a payment.
+ *
+ * The whole read-check-write sequence runs inside a Serializable transaction.
+ * Previously the invoice was read, the remaining balance computed, and the
+ * payment created as three independent statements — so two concurrent requests
+ * could each see the same remaining balance and both succeed, overpaying the
+ * invoice. Serializable isolation makes PostgreSQL abort the loser of that race,
+ * which surfaces to the client as a 409 telling them to retry.
+ */
 export async function POST(request: Request) {
   try {
     const { error: authError, companyId } = await requireUserCompany();
@@ -36,61 +57,131 @@ export async function POST(request: Request) {
     const { data, error: validationError } = validateBody(paymentSchema, body);
     if (validationError) return NextResponse.json(validationError, { status: 400 });
 
-    // Verify ownership of linked invoice
-    if (data.invoiceId) {
-      const invoice = await prisma.invoice.findFirst({
-        where: { id: data.invoiceId, companyId },
-      });
-      if (!invoice) return NextResponse.json({ error: 'Invoice not found or not owned by your company' }, { status: 404 });
+    // Zod guarantees exactly one of invoiceId / expenseId is present.
+    const paymentAmount = new Decimal(data.amount);
 
-      // Prevent overpayment
-      const remaining = new Decimal(invoice.total.toString()).minus(new Decimal(invoice.amountPaid.toString()));
-      const paymentAmount = new Decimal(data.amount);
-      if (paymentAmount.gt(remaining)) {
-        return NextResponse.json({
-          error: `Payment amount exceeds remaining balance. Maximum: ${remaining.toFixed(2)}`,
-        }, { status: 400 });
-      }
+    const result = await prisma.$transaction(
+      async (tx: TxClient) => {
+        if (data.invoiceId) {
+          const invoice = await tx.invoice.findFirst({
+            where: { id: data.invoiceId, companyId },
+            select: { id: true, total: true, status: true, currency: true },
+          });
+          if (!invoice) {
+            return { kind: 'error' as const, status: 404, message: 'Invoice not found or not owned by your company' };
+          }
 
-      // Prevent payments on cancelled invoices
-      if (invoice.status === 'CANCELLED' || invoice.status === 'PAID') {
-        return NextResponse.json({ error: `Cannot add payment to ${invoice.status.toLowerCase()} invoice` }, { status: 400 });
-      }
-    }
+          if (invoice.status === 'CANCELLED' || invoice.status === 'PAID') {
+            return {
+              kind: 'error' as const,
+              status: 409,
+              message: `Cannot add payment to ${invoice.status.toLowerCase()} invoice`,
+            };
+          }
 
-    // Verify ownership of linked expense
-    if (data.expenseId) {
-      const expense = await prisma.expenseTransaction.findFirst({
-        where: { id: data.expenseId, companyId },
-      });
-      if (!expense) return NextResponse.json({ error: 'Expense not found or not owned by your company' }, { status: 404 });
-    }
+          // Payment currency must match the invoice currency. Without this a
+          // 1000 TRY invoice could be settled with a 1000 USD payment at 1:1.
+          if (data.currency !== invoice.currency) {
+            return {
+              kind: 'error' as const,
+              status: 400,
+              message: `Payment currency (${data.currency}) must match invoice currency (${invoice.currency})`,
+            };
+          }
 
-    const payment = await prisma.payment.create({
-      data: {
-        companyId,
-        invoiceId: data.invoiceId || null,
-        expenseId: data.expenseId || null,
-        amount: data.amount,
-        currency: data.currency ?? 'USD',
-        paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
-        paymentMethod: data.paymentMethod ?? 'bank_transfer',
-        reference: data.reference,
-        notes: data.notes,
+          // Recompute paid-to-date from actual payment rows inside the transaction,
+          // rather than trusting the denormalised amountPaid column.
+          const existingPayments = await tx.payment.findMany({
+            where: { invoiceId: invoice.id },
+            select: { amount: true },
+          });
+          const { remaining } = computePaymentSummary(invoice.total, existingPayments);
+
+          if (paymentAmount.gt(remaining)) {
+            return {
+              kind: 'error' as const,
+              status: 400,
+              message: `Payment amount exceeds remaining balance. Maximum: ${remaining.toFixed(2)}`,
+            };
+          }
+
+          const payment = await tx.payment.create({
+            data: {
+              companyId,
+              invoiceId: invoice.id,
+              expenseId: null,
+              amount: data.amount,
+              currency: data.currency,
+              paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
+              paymentMethod: data.paymentMethod,
+              reference: data.reference,
+              notes: data.notes,
+            },
+          });
+
+          await recalculateInvoicePaymentState(invoice.id, tx);
+          return { kind: 'ok' as const, payment };
+        }
+
+        // --- Expense payment ---
+        const expense = await tx.expenseTransaction.findFirst({
+          where: { id: data.expenseId, companyId },
+          select: { id: true, amount: true, currency: true },
+        });
+        if (!expense) {
+          return { kind: 'error' as const, status: 404, message: 'Expense not found or not owned by your company' };
+        }
+
+        if (data.currency !== expense.currency) {
+          return {
+            kind: 'error' as const,
+            status: 400,
+            message: `Payment currency (${data.currency}) must match expense currency (${expense.currency})`,
+          };
+        }
+
+        const existingExpensePayments = await tx.payment.findMany({
+          where: { expenseId: expense.id },
+          select: { amount: true },
+        });
+        const { remaining } = computePaymentSummary(expense.amount, existingExpensePayments);
+
+        if (remaining.lte(0)) {
+          return { kind: 'error' as const, status: 409, message: 'Expense is already fully paid' };
+        }
+        if (paymentAmount.gt(remaining)) {
+          return {
+            kind: 'error' as const,
+            status: 400,
+            message: `Payment amount exceeds remaining balance. Maximum: ${remaining.toFixed(2)}`,
+          };
+        }
+
+        const payment = await tx.payment.create({
+          data: {
+            companyId,
+            invoiceId: null,
+            expenseId: expense.id,
+            amount: data.amount,
+            currency: data.currency,
+            paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
+            paymentMethod: data.paymentMethod,
+            reference: data.reference,
+            notes: data.notes,
+          },
+        });
+
+        await recalculateExpensePaymentState(expense.id, tx);
+        return { kind: 'ok' as const, payment };
       },
-    });
+      { isolationLevel: 'Serializable' }
+    );
 
-    // Recalculate linked states from actual payment sums
-    if (data.invoiceId) {
-      await recalculateInvoicePaymentState(data.invoiceId);
+    if (result.kind === 'error') {
+      return NextResponse.json({ error: result.message }, { status: result.status });
     }
-    if (data.expenseId) {
-      await recalculateExpensePaymentState(data.expenseId);
-    }
-
-    return NextResponse.json(payment);
-  } catch (error: any) {
-    console.error('Payment create error:', error);
-    return NextResponse.json({ error: 'Failed' }, { status: 500 });
+    return NextResponse.json(result.payment);
+  } catch (error) {
+    return handleApiError('payments:POST', error, { fallbackMessage: 'Failed' });
   }
 }
