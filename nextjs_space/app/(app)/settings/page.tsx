@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Settings as SettingsIcon, Building2, Globe, Save, Upload } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { COUNTRIES } from '@/lib/countries';
 import { getCompanyInitials } from '@/lib/company-identity';
@@ -41,11 +42,37 @@ export default function SettingsPage() {
     errorField === key ? 'border-destructive focus-visible:ring-destructive' : undefined;
 
   useEffect(() => {
-    fetch('/api/company').then((r: any) => r.json()).then((d: any) => {
-      setCompany(d);
-      setForm(d ?? {});
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    // `r.ok` was never checked, and a null body was treated as a company. A user
+    // with no company therefore got a blank but functional-looking form while
+    // every action behind it failed with 403. The layout now redirects such
+    // users to onboarding; this is the second line of defence and makes a real
+    // load failure visible instead of silent.
+    fetch('/api/company')
+      .then(async (r: any) => {
+        if (r.status === 401) {
+          toast.error('Your session has expired. Please sign in again.');
+          return null;
+        }
+        if (!r.ok) {
+          toast.error('Could not load your company settings. Please refresh the page.');
+          return null;
+        }
+        return r.json();
+      })
+      .then((d: any) => {
+        if (d?.id) {
+          setCompany(d);
+          setForm(d);
+        } else {
+          setCompany(null);
+          setForm({});
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        toast.error('Could not reach the server. Check your connection and refresh.');
+        setLoading(false);
+      });
   }, []);
 
   // Stored logos are private storage keys, so a signed read URL is fetched
@@ -98,6 +125,12 @@ export default function SettingsPage() {
           toast.error('Logo upload failed: Storage is not configured correctly. Please try again later.');
         } else if (presignRes.status === 401) {
           toast.error('Your session has expired. Please sign in again.');
+        } else if (presignRes.status === 403) {
+          // requireUserCompany answers 403 when the account has no company.
+          // "No company access" is accurate but tells the user nothing to do.
+          toast.error(
+            'Logo upload failed: your account is not linked to a business yet. Finish setting up your business first.'
+          );
         } else {
           toast.error(`Logo upload failed: ${err?.error ?? 'The upload could not be prepared.'}`);
         }
@@ -168,6 +201,32 @@ export default function SettingsPage() {
   };
 
   if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
+
+  /**
+   * Without a company nothing here can be saved, so say so rather than showing
+   * inputs that are guaranteed to fail. The layout normally redirects first;
+   * this covers a company disappearing mid-session.
+   */
+  if (!company?.id) {
+    return (
+      <div className="max-w-3xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Set up your business first</CardTitle>
+            <CardDescription>
+              These settings belong to a business, and your account is not linked to one yet.
+              Finish the short setup and you will come straight back here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/onboarding">Set up your business</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
 
   return (
