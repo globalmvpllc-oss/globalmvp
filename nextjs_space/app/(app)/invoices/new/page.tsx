@@ -33,24 +33,71 @@ export default function NewInvoicePage() {
   });
 
   useEffect(() => {
+    // The due date is filled in once the company's payment terms are known
+    // (below); seeding a hardcoded 30 days here would overwrite them.
     setForm((p: any) => ({
       ...p,
       issueDate: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
     }));
   }, []);
   const [items, setItems] = useState<InvoiceItem[]>([
     { description: '', quantity: 1, unitPrice: 0, discount: 0, taxRate: 0, taxLabel: 'VAT' },
   ]);
 
+  /**
+   * Kept in state because it seeds every line item added later, not just the
+   * first one.
+   */
+  const [defaultTaxRate, setDefaultTaxRate] = useState(0);
+
   useEffect(() => {
     fetch('/api/customers').then((r: any) => r.json()).then((d: any) => setCustomers(Array.isArray(d) ? d : []));
-    fetch('/api/company').then((r: any) => r.json()).then((c: any) => {
-      if (c?.defaultCurrency) setForm((p: any) => ({ ...p, currency: c.defaultCurrency }));
-    });
+    fetch('/api/company')
+      .then((r: any) => (r.ok ? r.json() : null))
+      .then((c: any) => {
+        if (!c) return;
+
+        // Due date follows the company's saved payment terms. These are stored
+        // and validated but were never read here, so a business on Net 7 still
+        // got invoices dated 30 days out.
+        //
+        // 0 is a real value ("due on receipt"), so the type check matters:
+        // `c.defaultPaymentTerms || 30` would silently restore net 30.
+        const terms =
+          typeof c.defaultPaymentTerms === 'number' && Number.isFinite(c.defaultPaymentTerms)
+            ? c.defaultPaymentTerms
+            : 30;
+        const due = new Date();
+        due.setDate(due.getDate() + terms);
+
+        setForm((p: any) => ({
+          ...p,
+          currency: c.defaultCurrency ?? p.currency,
+          dueDate: due.toISOString().split('T')[0],
+          // Only prefill notes the user has not already typed into.
+          notes: p.notes || (c.invoiceNotes ?? ''),
+        }));
+
+        // Decimal columns arrive as strings from Prisma, hence the Number().
+        const rate = Number(c.defaultTaxRate ?? 0);
+        if (Number.isFinite(rate) && rate > 0) {
+          setDefaultTaxRate(rate);
+          setItems((prev: InvoiceItem[]) =>
+            prev.map((item: InvoiceItem) =>
+              // Only seeds untouched rows, so nothing already entered is lost.
+              item.description === '' && item.taxRate === 0 ? { ...item, taxRate: rate } : item
+            )
+          );
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const addItem = () => setItems([...items, { description: '', quantity: 1, unitPrice: 0, discount: 0, taxRate: 0, taxLabel: 'VAT' }]);
+  const addItem = () =>
+    setItems([
+      ...items,
+      { description: '', quantity: 1, unitPrice: 0, discount: 0, taxRate: defaultTaxRate, taxLabel: 'VAT' },
+    ]);
   const removeItem = (idx: number) => setItems(items.filter((_: any, i: number) => i !== idx));
   const updateItem = (idx: number, field: string, value: any) => {
     const updated = [...items];

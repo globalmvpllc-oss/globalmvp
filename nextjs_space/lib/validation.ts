@@ -97,6 +97,25 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+/**
+ * An optional numeric setting.
+ *
+ * `z.coerce.number()` alone is unsafe for form input: `Number('')` is 0, so a
+ * user who clears the tax rate box would silently store 0% rather than leaving
+ * the value untouched, and the same for payment terms. Blank and null are
+ * mapped to undefined *before* coercion so they mean "leave unchanged", which
+ * is what the `.nullish().transform()` on each field already intended.
+ *
+ * A genuine 0 still arrives as the number 0 (or the string '0') and is kept —
+ * "due on receipt" and "0% tax" are real values.
+ */
+function optionalNumber(schema: z.ZodType<number, z.ZodTypeDef, unknown>) {
+  return z.preprocess(
+    (value) => (value === '' || value === null || value === undefined ? undefined : value),
+    schema.optional()
+  );
+}
+
 export const companySchema = z.object({
   name: z.string().min(1, 'Business name is required').max(255),
   country: optionalText(3).refine((v) => v === undefined || v.length >= 2, {
@@ -146,30 +165,30 @@ export const companySchema = z.object({
 
   // --- Invoice settings -----------------------------------------------------
   invoicePrefix,
-  invoiceNextNumber: z.coerce
+  invoiceNextNumber: optionalNumber(
+    z.coerce
     .number({ invalid_type_error: 'Next invoice number must be a whole number' })
     .int('Next invoice number must be a whole number')
     .min(1, 'Next invoice number must be 1 or greater')
     .max(999999999, 'Next invoice number is too large')
-    .nullish()
-    .transform((v) => v ?? undefined),
-  defaultPaymentTerms: z.coerce
+  ),
+  defaultPaymentTerms: optionalNumber(
+    z.coerce
     .number({ invalid_type_error: 'Payment terms must be a number of days' })
     .int('Payment terms must be a whole number of days')
     .min(0, 'Payment terms must be between 0 and 365 days')
     .max(365, 'Payment terms must be between 0 and 365 days')
-    .nullish()
-    .transform((v) => v ?? undefined),
+  ),
   /**
    * Arrives as a string, because Prisma serialises Decimal columns that way.
    * `coerce` accepts both that and a number from a form input.
    */
-  defaultTaxRate: z.coerce
+  defaultTaxRate: optionalNumber(
+    z.coerce
     .number({ invalid_type_error: 'Enter the tax rate as a percentage' })
     .min(0, 'Tax rate must be between 0 and 100')
     .max(100, 'Tax rate must be between 0 and 100')
-    .nullish()
-    .transform((v) => v ?? undefined),
+  ),
   invoiceNotes: optionalText(2000),
   paymentInstructions: optionalText(2000),
   invoiceFooter: optionalText(500),

@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Building2, Globe, Save, Upload } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Settings as SettingsIcon, Building2, Globe, Save, Upload, FileText, Palette } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { COUNTRIES } from '@/lib/countries';
@@ -21,6 +23,29 @@ import {
 } from '@/lib/logo';
 import { CURRENCIES } from '@/lib/currencies';
 
+
+/** Layouts the invoice renderer knows how to draw. Mirrors validation.ts. */
+const INVOICE_TEMPLATES = [
+  { value: 'classic', label: 'Classic' },
+  { value: 'modern', label: 'Modern' },
+  { value: 'minimal', label: 'Minimal' },
+];
+
+const PAYMENT_METHODS = [
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'card', label: 'Card' },
+  { value: 'other', label: 'Other' },
+];
+
+/** 0 is "due on receipt" — a real option, not a missing value. */
+const PAYMENT_TERM_PRESETS = [0, 7, 14, 15, 30, 45, 60, 90];
+
+const BRANDING_COLORS = [
+  { key: 'primaryColor', label: 'Primary colour' },
+  { key: 'secondaryColor', label: 'Secondary colour' },
+  { key: 'accentColor', label: 'Accent colour' },
+];
 
 export default function SettingsPage() {
   const [company, setCompany] = useState<any>(null);
@@ -330,6 +355,128 @@ export default function SettingsPage() {
               <Input value={form?.taxNumber ?? ''} onChange={(e: any) => update('taxNumber', e.target.value)} placeholder="Tax identification number" />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Invoice settings.
+          These columns exist on Company and PUT /api/company already persists
+          them, but nothing rendered them — so the values could never be set by
+          a user. This wires the last leg of DB -> API -> UI. */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2"><FileText className="w-5 h-5 text-primary" /><CardTitle className="text-base">Invoice Settings</CardTitle></div>
+          <CardDescription>Defaults applied to every new invoice</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Invoice prefix</Label>
+              <Input value={form?.invoicePrefix ?? ''} onChange={(e: any) => update('invoicePrefix', e.target.value)} className={fieldClass('invoicePrefix')} placeholder="INV-" />
+            </div>
+            <div className="space-y-2">
+              <Label>Next invoice number</Label>
+              <Input type="number" min={1} step={1} value={form?.invoiceNextNumber ?? ''} onChange={(e: any) => update('invoiceNextNumber', e.target.value)} className={fieldClass('invoiceNextNumber')} />
+              <p className="text-xs text-muted-foreground">
+                Next invoice will be {form?.invoicePrefix ?? 'INV-'}{String(Number(form?.invoiceNextNumber) || 1).padStart(4, '0')}.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment terms</Label>
+              <Select value={String(form?.defaultPaymentTerms ?? 30)} onValueChange={(v: string) => update('defaultPaymentTerms', Number(v))}>
+                <SelectTrigger className={fieldClass('defaultPaymentTerms')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_TERM_PRESETS.map((d: number) => (
+                    <SelectItem key={d} value={String(d)}>{d === 0 ? 'Due on receipt' : `Net ${d}`}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Default tax rate (%)</Label>
+              <Input type="number" min={0} max={100} step={0.01} value={form?.defaultTaxRate ?? ''} onChange={(e: any) => update('defaultTaxRate', e.target.value)} className={fieldClass('defaultTaxRate')} />
+            </div>
+            <div className="space-y-2">
+              <Label>Invoice template</Label>
+              <Select value={form?.invoiceTemplate ?? 'classic'} onValueChange={(v: string) => update('invoiceTemplate', v)}>
+                <SelectTrigger className={fieldClass('invoiceTemplate')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {INVOICE_TEMPLATES.map((t: any) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Default payment method</Label>
+              <Select value={form?.defaultPaymentMethod ?? 'bank_transfer'} onValueChange={(v: string) => update('defaultPaymentMethod', v)}>
+                <SelectTrigger className={fieldClass('defaultPaymentMethod')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHODS.map((m: any) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+            <div className="min-w-0">
+              <Label>Show logo on invoices</Label>
+              <p className="text-xs text-muted-foreground">Adds your company logo to the invoice header.</p>
+            </div>
+            <Switch checked={form?.invoiceShowLogo ?? true} onCheckedChange={(v: boolean) => update('invoiceShowLogo', v)} />
+          </div>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+            <div className="min-w-0">
+              <Label>Show tax breakdown</Label>
+              <p className="text-xs text-muted-foreground">Lists tax per line item instead of a single total.</p>
+            </div>
+            <Switch checked={form?.invoiceShowTax ?? true} onCheckedChange={(v: boolean) => update('invoiceShowTax', v)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Default invoice notes</Label>
+            <Textarea rows={3} value={form?.invoiceNotes ?? ''} onChange={(e: any) => update('invoiceNotes', e.target.value)} className={fieldClass('invoiceNotes')} placeholder="Thank you for your business." />
+          </div>
+          <div className="space-y-2">
+            <Label>Payment instructions</Label>
+            <Textarea rows={3} value={form?.paymentInstructions ?? ''} onChange={(e: any) => update('paymentInstructions', e.target.value)} className={fieldClass('paymentInstructions')} placeholder="How customers should pay you." />
+          </div>
+          <div className="space-y-2">
+            <Label>Bank transfer details</Label>
+            <Textarea rows={3} value={form?.bankTransferInstructions ?? ''} onChange={(e: any) => update('bankTransferInstructions', e.target.value)} className={fieldClass('bankTransferInstructions')} placeholder="IBAN / account details shown on invoices." />
+          </div>
+          <div className="space-y-2">
+            <Label>Invoice footer</Label>
+            <Input value={form?.invoiceFooter ?? ''} onChange={(e: any) => update('invoiceFooter', e.target.value)} className={fieldClass('invoiceFooter')} placeholder="Shown at the bottom of every invoice" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Branding */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2"><Palette className="w-5 h-5 text-primary" /><CardTitle className="text-base">Branding</CardTitle></div>
+          <CardDescription>Leave a colour empty to use the default</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {BRANDING_COLORS.map((c: any) => (
+              <div key={c.key} className="space-y-2">
+                <Label>{c.label}</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    aria-label={c.label}
+                    value={/^#[0-9a-fA-F]{6}$/.test(form?.[c.key] ?? '') ? form[c.key] : '#7C3AED'}
+                    onChange={(e: any) => update(c.key, e.target.value)}
+                    className="h-9 w-12 shrink-0 cursor-pointer rounded border border-border bg-transparent"
+                  />
+                  <Input value={form?.[c.key] ?? ''} onChange={(e: any) => update(c.key, e.target.value)} className={fieldClass(c.key)} placeholder="#7C3AED" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label>Industry</Label>
+            <Input value={form?.industry ?? ''} onChange={(e: any) => update('industry', e.target.value)} className={fieldClass('industry')} placeholder="e.g. Consulting" />
+          </div>
         </CardContent>
       </Card>
 
