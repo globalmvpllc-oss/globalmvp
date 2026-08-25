@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, TrendingDown, CheckCircle, MoreVertical, Trash2 } from 'lucide-react';
+import { Plus, TrendingDown, CheckCircle, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
 import { sumAmounts } from '@/lib/payment-math';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 
@@ -27,6 +28,9 @@ export default function ExpensesPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  /** Null while recording a new entry; the id while correcting one. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ description: '', category: '', amount: '', currency: 'USD', date: '', dueDate: '', vendorId: '', status: 'UNPAID', notes: '' });
   useEffect(() => { setForm((p: any) => ({ ...p, date: new Date().toISOString().split('T')[0] })); }, []);
 
@@ -42,14 +46,64 @@ export default function ExpensesPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleCreate = async () => {
-    if (!form.description.trim() || !form.amount) { toast.error('Description and amount required'); return; }
-    const res = await fetch('/api/expenses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, amount: Number(form.amount) }),
+  const emptyForm = () => ({ description: '', category: '', amount: '', currency: 'USD', date: new Date().toISOString().split('T')[0], dueDate: '', vendorId: '', status: 'UNPAID', notes: '' });
+
+  const openCreate = () => { setEditingId(null); setForm(emptyForm()); setOpen(true); };
+
+  /** Seeds the dialog from an existing record so it can be corrected. */
+  const openEdit = (t: any) => {
+    setEditingId(t?.id ?? null);
+    setForm({
+      ...emptyForm(),
+      ...t,
+      amount: String(t?.amount ?? ''),
+      date: t?.date ? new Date(t.date).toISOString().split('T')[0] : '',
+      dueDate: t?.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : '',
+      vendorId: t?.vendorId ?? '',
+      notes: t?.notes ?? '',
+      category: t?.category ?? '',
     });
-    if (res.ok) { toast.success('Expense recorded!'); setOpen(false); fetchData(); setForm({ description: '', category: '', amount: '', currency: 'USD', date: new Date().toISOString().split('T')[0], dueDate: '', vendorId: '', status: 'UNPAID', notes: '' }); }
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.description.trim() || !form.amount) {
+      toast.error('Description and amount are required.');
+      return;
+    }
+    if (Number(form.amount) <= 0) {
+      toast.error('Amount must be greater than zero.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = { ...form, amount: Number(form.amount) };
+      if (editingId) payload.id = editingId;
+
+      const res = await fetch('/api/expenses', {
+        method: editingId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        // The response was previously ignored on create, so a rejected entry
+        // left the dialog open with no explanation at all.
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+
+      toast.success(editingId ? 'Expense updated.' : 'Expense recorded.');
+      setOpen(false);
+      setEditingId(null);
+      setForm(emptyForm());
+      await fetchData();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const markPaid = async (id: string) => {
@@ -112,10 +166,10 @@ export default function ExpensesPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">Expenses</h1>
           <p className="text-muted-foreground">Track and manage your business expenses</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="w-4 h-4 mr-2" /> Add Expense</Button></DialogTrigger>
+        <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
+          <DialogTrigger asChild><Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Add Expense</Button></DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Record Expense</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingId ? 'Edit Expense' : 'Record Expense'}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1"><Label>Description *</Label><Input placeholder="What is this expense for?" value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} /></div>
               <div className="grid grid-cols-2 gap-3">
@@ -175,7 +229,7 @@ export default function ExpensesPage() {
                 </Select>
               </div>
               <div className="space-y-1"><Label>Notes</Label><Textarea placeholder="Notes" value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} /></div>
-              <Button onClick={handleCreate} className="w-full">Add Expense</Button>
+              <Button onClick={handleSave} className="w-full" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save Changes' : 'Record Expense'}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -217,6 +271,7 @@ export default function ExpensesPage() {
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {t?.status === 'UNPAID' && <DropdownMenuItem onClick={() => markPaid(t.id)}><CheckCircle className="w-4 h-4 mr-2" /> Mark paid</DropdownMenuItem>}
+                        <DropdownMenuItem onClick={() => openEdit(t)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(t.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

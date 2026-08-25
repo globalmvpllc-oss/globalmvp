@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { countryLabel } from '@/lib/countries';
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -60,7 +61,7 @@ export default function CustomerDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {customer?.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-muted-foreground" /><span suppressHydrationWarning>{customer.email}</span></div>}
             {customer?.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" /><span suppressHydrationWarning>{customer.phone}</span></div>}
-            {customer?.address && <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{customer.address}{customer?.city ? `, ${customer.city}` : ''}{customer?.country ? `, ${customer.country}` : ''}</span></div>}
+            {customer?.address && <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{customer.address}{customer?.city ? `, ${customer.city}` : ''}{customer?.country ? `, ${countryLabel(customer.country)}` : ''}</span></div>}
             {customer?.taxId && <div><span className="text-muted-foreground">Tax ID: </span>{customer.taxId}</div>}
           </div>
         </CardContent>

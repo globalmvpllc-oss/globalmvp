@@ -276,6 +276,24 @@ export const paymentSchema = z
     path: ['invoiceId'],
   });
 
+/**
+ * Editing an existing payment.
+ *
+ * Every field is optional — an edit that only fixes a reference should not have
+ * to resend the amount. The target (invoiceId / expenseId) is deliberately
+ * absent: a payment cannot be moved between invoices, because that would need
+ * both sides recalculated and correcting a mis-linked payment is better done by
+ * deleting and re-recording it.
+ */
+export const paymentUpdateSchema = z.object({
+  amount: z.number().positive('Payment amount must be > 0').finite().optional(),
+  currency: z.enum(VALID_CURRENCIES).optional(),
+  paymentDate: dateString.optional(),
+  paymentMethod: z.enum(VALID_PAYMENT_METHODS).optional(),
+  reference: z.string().max(255).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
 export const incomeSchema = z.object({
   description: z.string().min(1, 'Description is required').max(500),
   category: categoryName.optional(),

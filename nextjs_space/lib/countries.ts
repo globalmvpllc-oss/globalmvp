@@ -20,3 +20,20 @@ export function getCountryName(code: string): string {
   const c = COUNTRIES.find((c: any) => c.code === code);
   return c?.name ?? code;
 }
+
+/**
+ * Full name for a stored country code.
+ *
+ * Country is stored as an ISO code because application logic depends on it —
+ * settings shows Turkish tax fields on `country === 'TR'` — but a code is not
+ * what a customer should read on an invoice. Displays go through here; storage
+ * keeps the code.
+ *
+ * Unknown or already-expanded values are returned unchanged, so historic rows
+ * holding a full name still render sensibly.
+ */
+export function countryLabel(value?: string | null): string {
+  if (!value) return '';
+  const match = COUNTRIES.find((c) => c.code === value.toUpperCase());
+  return match ? match.name : value;
+}
