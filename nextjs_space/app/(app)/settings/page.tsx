@@ -25,10 +25,11 @@ import { CURRENCIES } from '@/lib/currencies';
 
 
 /** Layouts the invoice renderer knows how to draw. Mirrors validation.ts. */
+/** Kept in step with lib/invoice-templates; the hint says what each one changes. */
 const INVOICE_TEMPLATES = [
-  { value: 'classic', label: 'Classic' },
-  { value: 'modern', label: 'Modern' },
-  { value: 'minimal', label: 'Minimal' },
+  { value: 'classic', label: 'Classic', hint: 'Traditional layout with a shaded table header.' },
+  { value: 'modern', label: 'Modern', hint: 'Coloured header band and cards, using your brand colour.' },
+  { value: 'minimal', label: 'Minimal', hint: 'Quiet, typographic layout with no filled blocks.' },
 ];
 
 const PAYMENT_METHODS = [
@@ -403,6 +404,9 @@ export default function SettingsPage() {
                   {INVOICE_TEMPLATES.map((t: any) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {INVOICE_TEMPLATES.find((t: any) => t.value === (form?.invoiceTemplate ?? 'classic'))?.hint ?? ''}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Default payment method</Label>
