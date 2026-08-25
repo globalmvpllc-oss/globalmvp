@@ -65,3 +65,37 @@ export function toAmount(value: unknown): number {
 export function sumAmounts<T>(rows: T[], pick: (row: T) => unknown): number {
   return rows.reduce<number>((total, row) => total + toAmount(pick(row)), 0);
 }
+
+/**
+ * Sums an amount field per currency.
+ *
+ * `sumAmounts` deliberately knows nothing about currency, which is correct for
+ * a single-currency total but wrong for a list that may hold several: adding a
+ * 1000 TRY row to a 100 USD row produces 1100 of nothing. The income and
+ * expense summaries did exactly that and then labelled the result with the
+ * first row's currency.
+ *
+ * Returns entries sorted by currency code so the order is stable between
+ * renders rather than following insertion order.
+ *
+ * Grouping only — no conversion is implied, matching how the dashboard and
+ * reports already present multi-currency figures.
+ */
+export function sumAmountsByCurrency<T>(
+  rows: T[],
+  pickAmount: (row: T) => unknown,
+  pickCurrency: (row: T) => unknown,
+  fallbackCurrency = 'USD'
+): Array<{ currency: string; total: number }> {
+  const totals = new Map<string, number>();
+
+  for (const row of rows) {
+    const raw = pickCurrency(row);
+    const currency = typeof raw === 'string' && raw.trim() !== '' ? raw : fallbackCurrency;
+    totals.set(currency, (totals.get(currency) ?? 0) + toAmount(pickAmount(row)));
+  }
+
+  return [...totals.entries()]
+    .map(([currency, total]) => ({ currency, total }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}

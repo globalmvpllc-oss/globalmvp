@@ -12,10 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, TrendingUp, CheckCircle, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
-import { sumAmounts } from '@/lib/payment-math';
+import { sumAmounts, sumAmountsByCurrency } from '@/lib/payment-math';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 
@@ -29,6 +33,10 @@ export default function IncomePage() {
   /** Null while recording a new entry; the id while correcting one. */
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Id awaiting delete confirmation. Removing a money record is irreversible. */
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  /** Row with a request in flight, so its actions can be disabled. */
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [form, setForm] = useState({ description: '', category: '', amount: '', currency: 'USD', date: '', expectedPaymentDate: '', customerId: '', status: 'EXPECTED', notes: '' });
   useEffect(() => { setForm((p: any) => ({ ...p, date: new Date().toISOString().split('T')[0] })); }, []);
 
@@ -105,22 +113,56 @@ export default function IncomePage() {
   };
 
   const markReceived = async (id: string) => {
-    await fetch('/api/income', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: 'RECEIVED' }) });
-    toast.success('Marked as received');
-    fetchData();
+    // The response was ignored: a rejected update still reported success, so
+    // the list and the database disagreed until the next reload.
+    setBusyId(id);
+    try {
+      const res = await fetch('/api/income', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'RECEIVED' }),
+      });
+      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
+      toast.success('Marked as received');
+      await fetchData();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    await fetch(`/api/income?id=${id}`, { method: 'DELETE' });
-    toast.success('Deleted');
-    fetchData();
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return;
+    setBusyId(confirmDeleteId);
+    try {
+      const res = await fetch(`/api/income?id=${confirmDeleteId}`, { method: 'DELETE' });
+      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
+      toast.success('Deleted');
+      setConfirmDeleteId(null);
+      await fetchData();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   // Prisma serialises Decimal columns to strings over JSON, so these must be
   // coerced before summing — plain `s + t.amount` concatenates and yields NaN.
-  const totalExpected = sumAmounts(transactions.filter((t: any) => t?.status === 'EXPECTED'), (t: any) => t?.amount);
-  const totalReceived = sumAmounts(transactions.filter((t: any) => t?.status === 'RECEIVED'), (t: any) => t?.amount);
-  const summaryCurrency = transactions[0]?.currency ?? 'USD';
+  // Grouped by currency. Summing across currencies and labelling the result
+  // with the first row's code produced a figure that was not money in any
+  // currency — the dashboard and reports already group the same way.
+  const expectedByCurrency = sumAmountsByCurrency(
+    transactions.filter((t: any) => t?.status === 'EXPECTED'),
+    (t: any) => t?.amount,
+    (t: any) => t?.currency
+  );
+  const receivedByCurrency = sumAmountsByCurrency(
+    transactions.filter((t: any) => t?.status === 'RECEIVED'),
+    (t: any) => t?.amount,
+    (t: any) => t?.currency
+  );
 
   return (
     <div className="space-y-6">
@@ -179,11 +221,11 @@ export default function IncomePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-amber-600" /></div>
-          <div><p className="text-xs text-muted-foreground">Expected</p><p className="text-lg font-mono font-bold">{formatCurrency(totalExpected, summaryCurrency)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Expected</p>{expectedByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : expectedByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold">{formatCurrency(row.total, row.currency)}</p>))}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><CheckCircle className="w-5 h-5 text-green-600" /></div>
-          <div><p className="text-xs text-muted-foreground">Received</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(totalReceived, summaryCurrency)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Received</p>{receivedByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold text-green-600">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : receivedByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold text-green-600">{formatCurrency(row.total, row.currency)}</p>))}</div>
         </CardContent></Card>
       </div>
 
@@ -212,9 +254,9 @@ export default function IncomePage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {t?.status === 'EXPECTED' && <DropdownMenuItem onClick={() => markReceived(t.id)}><CheckCircle className="w-4 h-4 mr-2" /> Mark received</DropdownMenuItem>}
+                        {t?.status === 'EXPECTED' && <DropdownMenuItem onClick={() => markReceived(t.id)} disabled={busyId === t.id}><CheckCircle className="w-4 h-4 mr-2" /> Mark received</DropdownMenuItem>}
                         <DropdownMenuItem onClick={() => openEdit(t)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(t.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirmDeleteId(t.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -224,6 +266,27 @@ export default function IncomePage() {
           ))}
         </div>
       )}
+      <AlertDialog open={Boolean(confirmDeleteId)} onOpenChange={(o: boolean) => { if (!o && !busyId) setConfirmDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this income?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the income record and updates your totals. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(busyId)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={Boolean(busyId)}
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busyId ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

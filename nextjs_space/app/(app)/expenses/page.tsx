@@ -12,10 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, TrendingDown, CheckCircle, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
-import { sumAmounts } from '@/lib/payment-math';
+import { sumAmounts, sumAmountsByCurrency } from '@/lib/payment-math';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 
@@ -31,6 +35,10 @@ export default function ExpensesPage() {
   /** Null while recording a new entry; the id while correcting one. */
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Id awaiting delete confirmation. Removing a money record is irreversible. */
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  /** Row with a request in flight, so its actions can be disabled. */
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [form, setForm] = useState({ description: '', category: '', amount: '', currency: 'USD', date: '', dueDate: '', vendorId: '', status: 'UNPAID', notes: '' });
   useEffect(() => { setForm((p: any) => ({ ...p, date: new Date().toISOString().split('T')[0] })); }, []);
 
@@ -107,15 +115,39 @@ export default function ExpensesPage() {
   };
 
   const markPaid = async (id: string) => {
-    await fetch('/api/expenses', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status: 'PAID' }) });
-    toast.success('Marked as paid');
-    fetchData();
+    // The response was ignored: a rejected update still reported success, so
+    // the list and the database disagreed until the next reload.
+    setBusyId(id);
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'PAID' }),
+      });
+      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
+      toast.success('Marked as paid');
+      await fetchData();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    await fetch(`/api/expenses?id=${id}`, { method: 'DELETE' });
-    toast.success('Deleted');
-    fetchData();
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return;
+    setBusyId(confirmDeleteId);
+    try {
+      const res = await fetch(`/api/expenses?id=${confirmDeleteId}`, { method: 'DELETE' });
+      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
+      toast.success('Deleted');
+      setConfirmDeleteId(null);
+      await fetchData();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setBusyId(null);
+    }
   };
 
   // See income page: Decimal columns arrive as strings and must be coerced.
@@ -155,9 +187,18 @@ export default function ExpensesPage() {
     }
   };
 
-  const totalUnpaid = sumAmounts(transactions.filter((t: any) => t?.status === 'UNPAID'), (t: any) => t?.amount);
-  const totalPaid = sumAmounts(transactions.filter((t: any) => t?.status === 'PAID'), (t: any) => t?.amount);
-  const summaryCurrency = transactions[0]?.currency ?? 'USD';
+  // Grouped by currency — see the income page: a single total across mixed
+  // currencies is not a real figure.
+  const unpaidByCurrency = sumAmountsByCurrency(
+    transactions.filter((t: any) => t?.status === 'UNPAID'),
+    (t: any) => t?.amount,
+    (t: any) => t?.currency
+  );
+  const paidByCurrency = sumAmountsByCurrency(
+    transactions.filter((t: any) => t?.status === 'PAID'),
+    (t: any) => t?.amount,
+    (t: any) => t?.currency
+  );
 
   return (
     <div className="space-y-6">
@@ -238,11 +279,11 @@ export default function ExpensesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center"><TrendingDown className="w-5 h-5 text-red-500" /></div>
-          <div><p className="text-xs text-muted-foreground">Unpaid</p><p className="text-lg font-mono font-bold text-red-600">{formatCurrency(totalUnpaid, summaryCurrency)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Unpaid</p>{unpaidByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold text-red-600">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : unpaidByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold text-red-600">{formatCurrency(row.total, row.currency)}</p>))}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><CheckCircle className="w-5 h-5 text-green-600" /></div>
-          <div><p className="text-xs text-muted-foreground">Paid</p><p className="text-lg font-mono font-bold">{formatCurrency(totalPaid, summaryCurrency)}</p></div>
+          <div><p className="text-xs text-muted-foreground">Paid</p>{paidByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : paidByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold">{formatCurrency(row.total, row.currency)}</p>))}</div>
         </CardContent></Card>
       </div>
 
@@ -270,9 +311,9 @@ export default function ExpensesPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {t?.status === 'UNPAID' && <DropdownMenuItem onClick={() => markPaid(t.id)}><CheckCircle className="w-4 h-4 mr-2" /> Mark paid</DropdownMenuItem>}
+                        {t?.status === 'UNPAID' && <DropdownMenuItem onClick={() => markPaid(t.id)} disabled={busyId === t.id}><CheckCircle className="w-4 h-4 mr-2" /> Mark paid</DropdownMenuItem>}
                         <DropdownMenuItem onClick={() => openEdit(t)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(t.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirmDeleteId(t.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -282,6 +323,27 @@ export default function ExpensesPage() {
           ))}
         </div>
       )}
+      <AlertDialog open={Boolean(confirmDeleteId)} onOpenChange={(o: boolean) => { if (!o && !busyId) setConfirmDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the expense record and updates your totals. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(busyId)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={Boolean(busyId)}
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {busyId ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
