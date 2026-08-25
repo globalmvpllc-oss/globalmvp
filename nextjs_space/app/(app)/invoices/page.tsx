@@ -10,10 +10,13 @@ import { Plus, FileText, MoreVertical, Copy, Send, CheckCircle, Download } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
+import { personalizeEmptyState } from '@/lib/company-identity';
+import { useCompany } from '@/hooks/use-company';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 export default function InvoicesPage() {
+  const company = useCompany();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -39,28 +42,66 @@ export default function InvoicesPage() {
     fetchInvoices();
   };
 
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  /**
+   * Duplicating needs the invoice's line items, and the list endpoint returns
+   * only a count of them (it stays lean on purpose). So fetch the full invoice
+   * first, then post a fresh one.
+   *
+   * The copy is deliberately independent: no payments are carried over, the
+   * status starts at DRAFT and the server assigns a new invoice number, so the
+   * original is untouched.
+   */
   const handleDuplicate = async (invoice: any) => {
-    const res = await fetch('/api/invoices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        customerId: invoice?.customerId,
-        dueDate: new Date(Date.now() + 30 * 86400000).toISOString(),
-        currency: invoice?.currency,
-        notes: invoice?.notes,
-        items: (invoice?.items ?? []).map((item: any) => ({
-          description: item?.description,
-          quantity: item?.quantity,
-          unitPrice: item?.unitPrice,
-          discount: item?.discount,
-          taxRate: item?.taxRate,
-          taxLabel: item?.taxLabel,
-        })),
-      }),
-    });
-    if (res.ok) {
-      toast.success('Invoice duplicated');
-      fetchInvoices();
+    if (duplicatingId) return;
+    setDuplicatingId(invoice?.id ?? null);
+    try {
+      const detailRes = await fetch(`/api/invoices/${invoice?.id}`);
+      if (!detailRes.ok) {
+        toast.error('Could not load the invoice to duplicate');
+        return;
+      }
+      const full = await detailRes.json();
+      const items = (full?.items ?? []).map((item: any) => ({
+        description: item?.description ?? '',
+        quantity: Number(item?.quantity ?? 0),
+        unitPrice: Number(item?.unitPrice ?? 0),
+        discount: Number(item?.discount ?? 0),
+        taxRate: Number(item?.taxRate ?? 0),
+        taxLabel: item?.taxLabel ?? undefined,
+      }));
+
+      if (items.length === 0) {
+        toast.error('This invoice has no line items to duplicate');
+        return;
+      }
+
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: full?.customerId,
+          issueDate: new Date().toISOString(),
+          dueDate: new Date(Date.now() + 30 * 86400000).toISOString(),
+          currency: full?.currency,
+          notes: full?.notes ?? undefined,
+          items,
+        }),
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        toast.success(`Invoice duplicated as ${created?.invoiceNumber ?? 'a new draft'}`);
+        fetchInvoices();
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error ?? 'Failed to duplicate invoice');
+      }
+    } catch {
+      toast.error('Failed to duplicate invoice');
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -103,7 +144,7 @@ export default function InvoicesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">No invoices yet</h3>
+            <h3 className="font-medium mb-1">{personalizeEmptyState('No invoices yet', company?.name)}</h3>
             <p className="text-sm text-muted-foreground mb-4">Create your first invoice to start tracking payments.</p>
             <Link href="/invoices/new"><Button><Plus className="w-4 h-4 mr-2" /> Create Invoice</Button></Link>
           </CardContent>
@@ -149,7 +190,7 @@ export default function InvoicesPage() {
                               <CheckCircle className="w-4 h-4 mr-2" /> Mark as paid
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => handleDuplicate(inv)}>
+                          <DropdownMenuItem disabled={duplicatingId === inv?.id} onClick={() => handleDuplicate(inv)}>
                             <Copy className="w-4 h-4 mr-2" /> Duplicate
                           </DropdownMenuItem>
                         </DropdownMenuContent>

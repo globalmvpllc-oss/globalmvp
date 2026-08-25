@@ -8,20 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart3, Building2, Globe, Coins, Briefcase, MapPin, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { COUNTRIES } from '@/lib/countries';
+import { CURRENCIES } from '@/lib/currencies';
 
-const COUNTRIES = [
-  { code: 'US', name: 'United States' }, { code: 'GB', name: 'United Kingdom' },
-  { code: 'DE', name: 'Germany' }, { code: 'FR', name: 'France' }, { code: 'TR', name: 'Turkey' },
-  { code: 'NL', name: 'Netherlands' }, { code: 'CA', name: 'Canada' }, { code: 'AU', name: 'Australia' },
-  { code: 'IN', name: 'India' }, { code: 'BR', name: 'Brazil' }, { code: 'JP', name: 'Japan' },
-  { code: 'ES', name: 'Spain' }, { code: 'IT', name: 'Italy' }, { code: 'AE', name: 'UAE' },
-  { code: 'SG', name: 'Singapore' },
-];
-
-const CURRENCIES = [
-  { code: 'USD', name: 'US Dollar ($)' }, { code: 'EUR', name: 'Euro (€)' },
-  { code: 'GBP', name: 'British Pound (£)' }, { code: 'TRY', name: 'Turkish Lira (₺)' },
-];
 
 const BUSINESS_TYPES = [
   'Freelancer', 'Sole Proprietor', 'LLC', 'Corporation', 'Partnership', 'Agency', 'E-commerce', 'Consultant', 'Other',
@@ -134,7 +123,7 @@ export default function OnboardingPage() {
                 <Select value={form.defaultCurrency} onValueChange={(v: string) => update('defaultCurrency', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CURRENCIES.map((c: any) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                    {CURRENCIES.map((c: any) => <SelectItem key={c.code} value={c.code}>{`${c.name} (${c.symbol})`}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

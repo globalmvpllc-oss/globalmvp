@@ -12,10 +12,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, TrendingUp, CheckCircle, MoreVertical, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
+import { sumAmounts } from '@/lib/payment-math';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { personalizeEmptyState } from '@/lib/company-identity';
+import { useCompany } from '@/hooks/use-company';
 
 export default function IncomePage() {
+  const company = useCompany();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -58,8 +62,10 @@ export default function IncomePage() {
     fetchData();
   };
 
-  const totalExpected = transactions.filter((t: any) => t?.status === 'EXPECTED').reduce((s: number, t: any) => s + (t?.amount ?? 0), 0);
-  const totalReceived = transactions.filter((t: any) => t?.status === 'RECEIVED').reduce((s: number, t: any) => s + (t?.amount ?? 0), 0);
+  // Prisma serialises Decimal columns to strings over JSON, so these must be
+  // coerced before summing — plain `s + t.amount` concatenates and yields NaN.
+  const totalExpected = sumAmounts(transactions.filter((t: any) => t?.status === 'EXPECTED'), (t: any) => t?.amount);
+  const totalReceived = sumAmounts(transactions.filter((t: any) => t?.status === 'RECEIVED'), (t: any) => t?.amount);
   const summaryCurrency = transactions[0]?.currency ?? 'USD';
 
   return (
@@ -129,7 +135,7 @@ export default function IncomePage() {
 
       {/* List */}
       {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : (transactions?.length ?? 0) === 0 ? (
-        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">No income recorded</h3><p className="text-sm text-muted-foreground">Start tracking your income</p></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{personalizeEmptyState('No income recorded', company?.name)}</h3><p className="text-sm text-muted-foreground">Start tracking your income</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {transactions.map((t: any) => (

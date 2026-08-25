@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Send, CheckCircle, Download, CreditCard, Trash2, Copy } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
+import { resolveStoredFileUrl } from '@/lib/company-identity';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -69,10 +70,38 @@ export default function InvoiceDetailPage() {
     fetchInvoice();
   };
 
+  /**
+   * Inlines the company logo as a data URL.
+   *
+   * The stored logo is a private object reached through a signed URL. The PDF
+   * renderer is a separate service that would not be able to follow that URL,
+   * so the image is embedded in the document instead. Failure is non-fatal: the
+   * invoice simply renders without a logo.
+   */
+  const loadLogoDataUrl = async (): Promise<string | null> => {
+    const signed = await resolveStoredFileUrl(company?.logoUrl);
+    if (!signed) return null;
+    try {
+      const res = await fetch(signed);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (blob.size > 1_500_000) return null; // keep the payload reasonable
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const downloadPdf = async () => {
     setPdfLoading(true);
     try {
-      const html = generateInvoiceHtml(invoice, company);
+      const logoDataUrl = await loadLogoDataUrl();
+      const html = generateInvoiceHtml(invoice, company, logoDataUrl);
       const createRes = await fetch('/api/generate-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -261,7 +290,17 @@ export default function InvoiceDetailPage() {
   );
 }
 
-function generateInvoiceHtml(invoice: any, company?: any): string {
+/** Escapes text before interpolation so invoice content cannot inject markup. */
+function esc(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function generateInvoiceHtml(invoice: any, company?: any, logoDataUrl?: string | null): string {
   const items = invoice?.items ?? [];
   const currency = invoice?.currency ?? 'USD';
   const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'TRY' ? '₺' : currency;
@@ -294,7 +333,8 @@ function generateInvoiceHtml(invoice: any, company?: any): string {
 </style></head><body>
 <div class="container">
   <div class="header">
-    <div class="company-name">${company?.name ?? 'FinanceFlow'}</div>${company?.address ? `<div style="font-size:12px;color:#666;margin-top:4px">${company.address}${company?.city ? `, ${company.city}` : ''}${company?.state ? `, ${company.state}` : ''}${company?.postalCode ? ` ${company.postalCode}` : ''}</div>` : ''}${company?.taxNumber ? `<div style="font-size:11px;color:#888;margin-top:2px">Tax ID: ${company.taxNumber}${company?.taxOffice ? ` • ${company.taxOffice}` : ''}</div>` : ''}
+    ${logoDataUrl ? `<img src="${logoDataUrl}" alt="" style="max-height:56px;max-width:200px;object-fit:contain;margin-bottom:8px;display:block" />` : ''}
+    <div class="company-name">${esc(company?.name ?? '')}</div>${company?.legalName && company.legalName !== company.name ? `<div style="font-size:12px;color:#666;margin-top:2px">${esc(company.legalName)}</div>` : ''}${company?.address ? `<div style="font-size:12px;color:#666;margin-top:4px">${esc(company.address)}${company?.city ? `, ${esc(company.city)}` : ''}${company?.state ? `, ${esc(company.state)}` : ''}${company?.postalCode ? ` ${esc(company.postalCode)}` : ''}</div>` : ''}${company?.country ? `<div style="font-size:12px;color:#666">${esc(company.country)}</div>` : ''}${(company?.email || company?.phone) ? `<div style="font-size:11px;color:#888;margin-top:4px">${[company?.email, company?.phone].filter(Boolean).map(esc).join(' • ')}</div>` : ''}${company?.website ? `<div style="font-size:11px;color:#888">${esc(company.website)}</div>` : ''}${company?.taxNumber ? `<div style="font-size:11px;color:#888;margin-top:2px">Tax ID: ${esc(company.taxNumber)}${company?.taxOffice ? ` • ${esc(company.taxOffice)}` : ''}</div>` : ''}
     <div><div class="invoice-title">INVOICE</div><div class="invoice-number">${invoice?.invoiceNumber ?? ''}</div></div>
   </div>
   <div class="meta">
@@ -312,6 +352,6 @@ function generateInvoiceHtml(invoice: any, company?: any): string {
     <div class="totals-row total"><span>Total</span><span>${fmt(invoice?.total ?? 0)}</span></div>
   </div></div>
   ${invoice?.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
-  <div class="footer">Generated by ${company?.name ?? 'FinanceFlow'}</div>
+  <div class="footer">${company?.name ? esc(company.name) : ''}</div>
 </div></body></html>`;
 }

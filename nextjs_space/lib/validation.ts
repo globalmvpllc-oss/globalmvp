@@ -56,6 +56,12 @@ export const companySchema = z.object({
   taxNumber: z.string().max(100).optional(),
   taxOffice: z.string().max(100).optional(),
   legalName: z.string().max(255).optional(),
+  /**
+   * Company logo. Restricted to a relative path or an https URL so a company
+   * cannot point its logo at an arbitrary origin. The upload flow writes to
+   * uploads/{companyId}/..., and the API rejects paths outside that prefix.
+   */
+  logoUrl: z.string().max(1000).optional().or(z.literal('')),
 });
 
 export const customerSchema = z.object({

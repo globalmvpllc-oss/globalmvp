@@ -42,3 +42,26 @@ export function computePaymentSummary(
     isFullyPaid: paid.gte(totalDec) && totalDec.gt(0),
   };
 }
+
+/**
+ * Converts a value that arrived over JSON into a number safe for display.
+ *
+ * Prisma serialises Decimal columns as strings, so `rows.reduce((s, r) => s + r.amount, 0)`
+ * silently concatenates instead of adding: 0 + "100.00" + "50.00" produces
+ * "0100.0050.00", which formats as NaN. Use this at the boundary where API
+ * data is turned into display totals.
+ *
+ * This is a display helper only. Server-side money arithmetic stays on
+ * Decimal — see invoice-calc.ts and computePaymentSummary above.
+ */
+export function toAmount(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value == null) return 0;
+  const n = Number(String(value));
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Sums an amount field across rows, coercing JSON-serialised Decimals safely. */
+export function sumAmounts<T>(rows: T[], pick: (row: T) => unknown): number {
+  return rows.reduce<number>((total, row) => total + toAmount(pick(row)), 0);
+}

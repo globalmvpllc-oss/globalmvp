@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Users, Mail, Phone } from 'lucide-react';
 import { toast } from 'sonner';
+import { personalizeEmptyState } from '@/lib/company-identity';
+import { useCompany } from '@/hooks/use-company';
 
 export default function CustomersPage() {
+  const company = useCompany();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -82,7 +85,7 @@ export default function CustomersPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">No customers yet</h3>
+            <h3 className="font-medium mb-1">{personalizeEmptyState('No customers yet', company?.name)}</h3>
             <p className="text-sm text-muted-foreground mb-4">Add your first customer to start creating invoices.</p>
             <Button onClick={() => setOpen(true)}><Plus className="w-4 h-4 mr-2" /> Add Customer</Button>
           </CardContent>

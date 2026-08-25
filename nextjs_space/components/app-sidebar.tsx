@@ -7,9 +7,10 @@ import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
   CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { getCompanyInitials, getCompanyDisplayName, resolveStoredFileUrl } from '@/lib/company-identity';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -26,6 +27,29 @@ const NAV_ITEMS = [
 export function AppSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [company, setCompany] = useState<any>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  // The sidebar shows the user's own business rather than the product name.
+  useEffect(() => {
+    let active = true;
+    fetch('/api/company')
+      .then((r: any) => (r.ok ? r.json() : null))
+      .then((d: any) => { if (active) setCompany(d); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    resolveStoredFileUrl(company?.logoUrl).then((url: string | null) => {
+      if (active) setLogoUrl(url);
+    });
+    return () => { active = false; };
+  }, [company?.logoUrl]);
+
+  const companyName = getCompanyDisplayName(company?.name);
+  const initials = getCompanyInitials(company?.name);
 
   return (
     <aside className={cn(
@@ -34,10 +58,24 @@ export function AppSidebar() {
     )}>
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-4 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-          <BarChart3 className="w-5 h-5 text-white" />
+        <div
+          className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 overflow-hidden"
+          title={companyName}
+        >
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt="" className="w-full h-full object-contain" />
+          ) : initials ? (
+            <span className="text-xs font-display font-bold text-white">{initials}</span>
+          ) : (
+            <BarChart3 className="w-5 h-5 text-white" aria-hidden="true" />
+          )}
         </div>
-        {!collapsed && <span className="text-lg font-display font-bold tracking-tight">FinanceFlow</span>}
+        {!collapsed && (
+          <span className="text-lg font-display font-bold tracking-tight truncate" title={companyName}>
+            {companyName}
+          </span>
+        )}
       </div>
 
       {/* Nav */}

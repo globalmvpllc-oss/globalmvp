@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
+import { getMonthRange } from '@/lib/timezone';
 
 /**
  * Dashboard API — currency-safe aggregation.
@@ -16,11 +17,15 @@ export async function GET() {
     if (error) return error;
 
     const now = new Date();
-    // `new Date(y, m + 1, 0)` yields the last day of the month at 00:00:00, so a
-    // `lte` filter silently dropped everything recorded on that final day.
-    // Use a half-open interval [startOfMonth, startOfNextMonth) instead.
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    // Month boundaries follow the company's own time zone. Server processes run
+    // in UTC, so deriving them from the server clock shifted the window for any
+    // company outside UTC — entries near a month edge fell into the wrong month.
+    const companyRecord = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { timezone: true },
+    });
+    const { startOfMonth, startOfNextMonth } = getMonthRange(companyRecord?.timezone, now);
 
     const thirtyDaysOut = new Date();
     thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);

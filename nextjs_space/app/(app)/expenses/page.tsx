@@ -12,12 +12,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, TrendingDown, CheckCircle, MoreVertical, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
+import { sumAmounts } from '@/lib/payment-math';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { personalizeEmptyState } from '@/lib/company-identity';
+import { useCompany } from '@/hooks/use-company';
 
 export default function ExpensesPage() {
+  const company = useCompany();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
+  const [newVendorName, setNewVendorName] = useState('');
+  const [creatingVendor, setCreatingVendor] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -58,8 +64,45 @@ export default function ExpensesPage() {
     fetchData();
   };
 
-  const totalUnpaid = transactions.filter((t: any) => t?.status === 'UNPAID').reduce((s: number, t: any) => s + (t?.amount ?? 0), 0);
-  const totalPaid = transactions.filter((t: any) => t?.status === 'PAID').reduce((s: number, t: any) => s + (t?.amount ?? 0), 0);
+  // See income page: Decimal columns arrive as strings and must be coerced.
+  /**
+   * Creates a vendor from inside the expense dialog.
+   *
+   * The vendor dropdown was previously unreachable: POST /api/vendors existed
+   * but nothing in the UI called it, so the list could never be anything but
+   * empty. This adds the missing path without changing the Vendor model.
+   */
+  const handleCreateVendor = async () => {
+    const name = newVendorName.trim();
+    if (!name) { toast.error('Enter a vendor name'); return; }
+    setCreatingVendor(true);
+    try {
+      const res = await fetch('/api/vendors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) {
+        const vendor = await res.json();
+        // Refetch so the list matches the database rather than local state.
+        const listRes = await fetch('/api/vendors');
+        if (listRes.ok) setVendors(await listRes.json());
+        setForm((f: any) => ({ ...f, vendorId: vendor?.id ?? '' }));
+        setNewVendorName('');
+        toast.success(`Vendor "${name}" added`);
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error ?? 'Failed to add vendor');
+      }
+    } catch {
+      toast.error('Failed to add vendor');
+    } finally {
+      setCreatingVendor(false);
+    }
+  };
+
+  const totalUnpaid = sumAmounts(transactions.filter((t: any) => t?.status === 'UNPAID'), (t: any) => t?.amount);
+  const totalPaid = sumAmounts(transactions.filter((t: any) => t?.status === 'PAID'), (t: any) => t?.amount);
   const summaryCurrency = transactions[0]?.currency ?? 'USD';
 
   return (
@@ -97,9 +140,32 @@ export default function ExpensesPage() {
                 </div>
                 <div className="space-y-1"><Label>Vendor</Label>
                   <Select value={form.vendorId} onValueChange={(v: string) => setForm({ ...form, vendorId: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder={vendors.length ? 'Select' : 'No vendors yet'} />
+                    </SelectTrigger>
                     <SelectContent>{vendors.map((v: any) => <SelectItem key={v?.id} value={v?.id ?? ''}>{v?.name ?? ''}</SelectItem>)}</SelectContent>
                   </Select>
+                  <div className="flex gap-2 pt-1">
+                    <Input
+                      value={newVendorName}
+                      onChange={(e: any) => setNewVendorName(e.target.value)}
+                      placeholder="Add a new vendor"
+                      className="h-9"
+                      onKeyDown={(e: any) => {
+                        if (e.key === 'Enter') { e.preventDefault(); handleCreateVendor(); }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 shrink-0"
+                      disabled={creatingVendor || !newVendorName.trim()}
+                      onClick={handleCreateVendor}
+                    >
+                      {creatingVendor ? 'Adding…' : 'Add'}
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="space-y-1"><Label>Status</Label>
@@ -127,7 +193,7 @@ export default function ExpensesPage() {
       </div>
 
       {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : (transactions?.length ?? 0) === 0 ? (
-        <Card><CardContent className="py-12 text-center"><TrendingDown className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">No expenses recorded</h3><p className="text-sm text-muted-foreground">Start tracking your expenses</p></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><TrendingDown className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{personalizeEmptyState('No expenses recorded', company?.name)}</h3><p className="text-sm text-muted-foreground">Start tracking your expenses</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {transactions.map((t: any) => (

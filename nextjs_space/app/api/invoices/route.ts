@@ -7,37 +7,9 @@ import { invoiceCreateSchema, validateBody } from '@/lib/validation';
 import { calculateInvoice, d2n } from '@/lib/invoice-calc';
 import { type TxClient } from '@/lib/payment-calc';
 import { handleApiError } from '@/lib/api-error';
+import { allocateInvoiceNumber } from '@/lib/invoice-number';
 
 const DUPLICATE_NUMBER_MESSAGE = 'An invoice with this number already exists';
-const NUMBER_PREFIX = 'INV-';
-
-/**
- * Derives the next invoice number from the highest existing one rather than from
- * a row count.
- *
- * The old approach (`count + 1`) regressed whenever an invoice was deleted: the
- * count dropped, and the next invoice reused a number that already existed,
- * burning through retries until it fell back to a timestamp-based number outside
- * the sequence. Reading the maximum instead keeps the series monotonic.
- *
- * Runs inside the caller's Serializable transaction, so two concurrent creates
- * cannot read the same maximum. `@@unique([companyId, invoiceNumber])` remains
- * the backstop and surfaces as a 409.
- */
-async function nextInvoiceNumber(tx: TxClient, companyId: string): Promise<string> {
-  const last = await tx.invoice.findFirst({
-    where: { companyId, invoiceNumber: { startsWith: NUMBER_PREFIX } },
-    orderBy: { invoiceNumber: 'desc' },
-    select: { invoiceNumber: true },
-  });
-
-  let next = 1;
-  if (last?.invoiceNumber) {
-    const parsed = Number.parseInt(last.invoiceNumber.slice(NUMBER_PREFIX.length), 10);
-    if (Number.isFinite(parsed) && parsed >= 0) next = parsed + 1;
-  }
-  return `${NUMBER_PREFIX}${next.toString().padStart(4, '0')}`;
-}
 
 export async function GET(request: Request) {
   try {
@@ -90,9 +62,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Validation failed', details: calcErrors }, { status: 400 });
     }
 
+    /**
+     * Default isolation, deliberately not Serializable.
+     *
+     * allocateInvoiceNumber takes a row lock on the company row via an atomic
+     * increment, and that alone serialises concurrent allocation for this
+     * company: a second request blocks on the lock, then reads the
+     * already-incremented value. Under Serializable, Postgres would abort one of
+     * the two transactions with a write conflict instead, so a user creating an
+     * invoice at the same moment as a colleague would get a 409 and have to
+     * retry — for a case the database can simply queue.
+     *
+     * The lock lasts only as long as this transaction. If the insert fails the
+     * increment rolls back with it, so a failed create burns no number.
+     */
     const invoice = await prisma.$transaction(
       async (tx: TxClient) => {
-        const invoiceNumber = data.invoiceNumber ?? (await nextInvoiceNumber(tx, companyId));
+        const invoiceNumber = data.invoiceNumber ?? (await allocateInvoiceNumber(tx, companyId));
 
         return tx.invoice.create({
           data: {
@@ -122,8 +108,7 @@ export async function POST(request: Request) {
           },
           include: { items: true, customer: true },
         });
-      },
-      { isolationLevel: 'Serializable' }
+      }
     );
 
     return NextResponse.json(invoice);

@@ -6,23 +6,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Building2, Globe, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Globe, Save, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { COUNTRIES } from '@/lib/countries';
+import { getCompanyInitials } from '@/lib/company-identity';
+import { CURRENCIES } from '@/lib/currencies';
 
-const COUNTRIES = [
-  { code: 'US', name: 'United States' }, { code: 'GB', name: 'United Kingdom' },
-  { code: 'DE', name: 'Germany' }, { code: 'FR', name: 'France' }, { code: 'TR', name: 'Turkey' },
-  { code: 'NL', name: 'Netherlands' }, { code: 'CA', name: 'Canada' }, { code: 'AU', name: 'Australia' },
-  { code: 'IN', name: 'India' }, { code: 'BR', name: 'Brazil' }, { code: 'JP', name: 'Japan' },
-  { code: 'ES', name: 'Spain' }, { code: 'IT', name: 'Italy' }, { code: 'AE', name: 'UAE' },
-  { code: 'SG', name: 'Singapore' },
-];
 
 export default function SettingsPage() {
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const update = (key: string, val: any) => setForm((p: any) => ({ ...(p ?? {}), [key]: val }));
 
   useEffect(() => {
     fetch('/api/company').then((r: any) => r.json()).then((d: any) => {
@@ -31,6 +30,54 @@ export default function SettingsPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  // Stored logos are private storage keys, so a signed read URL is fetched
+  // separately whenever the key changes.
+  useEffect(() => {
+    const key = form?.logoUrl;
+    if (!key) { setLogoPreview(null); return; }
+    let active = true;
+    fetch(`/api/upload/view?path=${encodeURIComponent(key)}`)
+      .then((r: any) => (r.ok ? r.json() : null))
+      .then((d: any) => { if (active && d?.url) setLogoPreview(d.url); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [form?.logoUrl]);
+
+  /**
+   * Uploads through the existing presigned flow, then stores the returned key
+   * on the form. Nothing is written to the company until Save is pressed.
+   */
+  const handleLogoUpload = async (file: File) => {
+    setUploadingLogo(true);
+    try {
+      const presignRes = await fetch('/api/upload/presigned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type, fileSize: file.size }),
+      });
+      if (!presignRes.ok) {
+        const err = await presignRes.json().catch(() => null);
+        toast.error(err?.error ?? 'Could not start the upload');
+        return;
+      }
+      const { uploadUrl, cloud_storage_path } = await presignRes.json();
+
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!putRes.ok) { toast.error('Upload failed'); return; }
+
+      update('logoUrl', cloud_storage_path);
+      toast.success('Logo uploaded. Press Save to apply it.');
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -50,7 +97,6 @@ export default function SettingsPage() {
 
   if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
 
-  const update = (key: string, val: any) => setForm((p: any) => ({ ...(p ?? {}), [key]: val }));
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -66,6 +112,60 @@ export default function SettingsPage() {
           <CardDescription>Basic details about your business</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Company logo */}
+          <div className="space-y-2">
+            <Label>Company logo</Label>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                {logoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreview} alt="Company logo" className="h-full w-full object-contain" />
+                ) : (
+                  <span className="font-display text-lg font-bold text-muted-foreground">
+                    {getCompanyInitials(form?.name)}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  id="logo-input"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="sr-only"
+                  onChange={(e: any) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleLogoUpload(file);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingLogo}
+                  onClick={() => document.getElementById('logo-input')?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {uploadingLogo ? 'Uploading…' : form?.logoUrl ? 'Replace logo' : 'Upload logo'}
+                </Button>
+                {form?.logoUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={uploadingLogo}
+                    onClick={() => update('logoUrl', '')}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              PNG, JPEG, WebP or SVG. Shown in the sidebar and on your invoices. Changes apply once you save.
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2"><Label>Business name</Label><Input value={form?.name ?? ''} onChange={(e: any) => update('name', e.target.value)} /></div>
             <div className="space-y-2"><Label>Legal name</Label><Input value={form?.legalName ?? ''} onChange={(e: any) => update('legalName', e.target.value)} placeholder="Legal entity name" /></div>

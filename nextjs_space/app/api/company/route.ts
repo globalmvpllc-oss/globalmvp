@@ -114,6 +114,19 @@ export async function PUT(request: Request) {
     const { data, error } = validateBody(companySchema, body);
     if (error) return NextResponse.json(error, { status: 400 });
 
+    // A logo must be an object this company uploaded. The presigned upload
+    // endpoint always writes to `.../uploads/{companyId}/...`, so requiring that
+    // segment stops one company from pointing its logo at another company's
+    // object, or at an arbitrary external URL.
+    if (data.logoUrl) {
+      if (!data.logoUrl.includes(`uploads/${companyId}/`)) {
+        return NextResponse.json(
+          { error: 'Logo must be a file uploaded to this company' },
+          { status: 400 }
+        );
+      }
+    }
+
     const company = await prisma.company.update({
       where: { id: companyId },
       data: {
@@ -133,6 +146,8 @@ export async function PUT(request: Request) {
         taxNumber: data.taxNumber,
         taxOffice: data.taxOffice,
         legalName: data.legalName,
+        // Empty string clears the logo; undefined leaves the existing one alone.
+        logoUrl: data.logoUrl === '' ? null : data.logoUrl,
       },
     });
     return NextResponse.json(company);
