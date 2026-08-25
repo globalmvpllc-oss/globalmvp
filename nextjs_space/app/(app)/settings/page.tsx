@@ -86,10 +86,11 @@ export default function SettingsPage() {
         if (r.ok) return r.json();
         // A saved logo that will not load is worth saying out loud — otherwise
         // the preview is simply blank and the user cannot tell why.
-        if (r.status === 503) {
-          toast.error('Logo could not be loaded: storage is not configured correctly.');
-        } else if (r.status === 404) {
+        const err = await r.json().catch(() => null);
+        if (r.status === 404) {
           toast.error('The saved logo could not be found in storage. Upload it again.');
+        } else if (err?.error) {
+          toast.error(`Logo could not be loaded: ${err.error}`);
         }
         return null;
       })
@@ -121,13 +122,14 @@ export default function SettingsPage() {
       });
       if (!presignRes.ok) {
         const err = await presignRes.json().catch(() => null);
-        if (presignRes.status === 503) {
-          toast.error('Logo upload failed: Storage is not configured correctly. Please try again later.');
-        } else if (presignRes.status === 401) {
+        // The server now distinguishes missing configuration from unusable
+        // credentials, denied access, a missing bucket and a region mismatch,
+        // so its message is preferred over anything guessed here. Only the two
+        // cases the server cannot phrase in product terms are special-cased.
+        if (presignRes.status === 401) {
           toast.error('Your session has expired. Please sign in again.');
         } else if (presignRes.status === 403) {
           // requireUserCompany answers 403 when the account has no company.
-          // "No company access" is accurate but tells the user nothing to do.
           toast.error(
             'Logo upload failed: your account is not linked to a business yet. Finish setting up your business first.'
           );

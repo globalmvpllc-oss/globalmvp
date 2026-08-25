@@ -4,9 +4,8 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { createS3Client, getBucketConfig, isStorageConfigError } from '@/lib/aws-config';
+import { createS3Client, getBucketConfig, classifyStorageError } from '@/lib/aws-config';
 import { requireUserCompany } from '@/lib/auth-helpers';
-import { handleApiError } from '@/lib/api-error';
 import { z } from 'zod';
 import {
   ALLOWED_CONTENT_TYPES,
@@ -96,17 +95,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ uploadUrl, cloud_storage_path });
   } catch (error) {
-    // A missing bucket or region is an operator problem, not a user one. Saying
-    // so plainly beats surfacing an opaque AWS error as a generic 500.
-    if (isStorageConfigError(error)) {
-      console.error('[upload] storage misconfigured:', error.message);
-      return NextResponse.json(
-        { error: 'Storage is not configured correctly. Please try again later.' },
-        { status: 503 }
-      );
-    }
-    return handleApiError('upload:presigned', error, {
-      fallbackMessage: 'Failed to generate upload URL',
-    });
+    // Storage failures are classified rather than collapsed into one message:
+    // missing configuration, unresolvable credentials, denied access, a missing
+    // bucket and a region mismatch are different problems with different fixes.
+    // The user gets a safe sentence; the log gets the discriminator, and when
+    // credentials are the problem, the names of the variables that are unset.
+    const failure = classifyStorageError(error);
+    console.error('[upload:presigned]', failure.logDetail);
+    return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
 }

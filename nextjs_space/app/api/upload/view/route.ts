@@ -3,8 +3,7 @@ import { NextResponse } from 'next/server';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { requireUserCompany } from '@/lib/auth-helpers';
-import { createS3Client, getBucketConfig, isStorageConfigError } from '@/lib/aws-config';
-import { handleApiError } from '@/lib/api-error';
+import { createS3Client, getBucketConfig, classifyStorageError } from '@/lib/aws-config';
 
 /**
  * Issues a short-lived read URL for an object this company uploaded.
@@ -44,15 +43,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ url });
   } catch (error) {
-    // A missing bucket or region is an operator problem, not a user one. Saying
-    // so plainly beats surfacing an opaque AWS error as a generic 500.
-    if (isStorageConfigError(error)) {
-      console.error('[upload] storage misconfigured:', error.message);
-      return NextResponse.json(
-        { error: 'Storage is not configured correctly. Please try again later.' },
-        { status: 503 }
-      );
-    }
-    return handleApiError('upload:view', error, { fallbackMessage: 'Failed to load file' });
+    // Storage failures are classified rather than collapsed into one message:
+    // missing configuration, unresolvable credentials, denied access, a missing
+    // bucket and a region mismatch are different problems with different fixes.
+    // The user gets a safe sentence; the log gets the discriminator, and when
+    // credentials are the problem, the names of the variables that are unset.
+    const failure = classifyStorageError(error);
+    console.error('[upload:view]', failure.logDetail);
+    return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
 }
