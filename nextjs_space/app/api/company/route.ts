@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSessionUser, requireUserCompany } from '@/lib/auth-helpers';
-import { companySchema, validateBody } from '@/lib/validation';
+import { companySchema, validateBody, describeValidationError } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { type TxClient } from '@/lib/payment-calc';
 
@@ -111,8 +111,15 @@ export async function PUT(request: Request) {
     if (authError) return authError;
 
     const body = await request.json();
-    const { data, error } = validateBody(companySchema, body);
-    if (error) return NextResponse.json(error, { status: 400 });
+    const parsed = companySchema.safeParse(body);
+    if (!parsed.success) {
+      // Return the offending field and its message, not just "Validation failed".
+      // The settings screen highlights the field and shows the message.
+      const described = describeValidationError(parsed.error);
+      console.error('[company:PUT] validation failed:', described.field, described.error);
+      return NextResponse.json(described, { status: 400 });
+    }
+    const data = parsed.data;
 
     // A logo must be an object this company uploaded. The presigned upload
     // endpoint always writes to `.../uploads/{companyId}/...`, so requiring that
@@ -121,7 +128,7 @@ export async function PUT(request: Request) {
     if (data.logoUrl) {
       if (!data.logoUrl.includes(`uploads/${companyId}/`)) {
         return NextResponse.json(
-          { error: 'Logo must be a file uploaded to this company' },
+          { error: 'That logo was not uploaded by this company. Upload it again.', field: 'logoUrl' },
           { status: 400 }
         );
       }
@@ -148,10 +155,35 @@ export async function PUT(request: Request) {
         legalName: data.legalName,
         // Empty string clears the logo; undefined leaves the existing one alone.
         logoUrl: data.logoUrl === '' ? null : data.logoUrl,
+
+        // Branding. These were added to the schema but never persisted, so a user
+        // could fill them in, see "saved", and find the values gone on reload.
+        primaryColor: data.primaryColor,
+        secondaryColor: data.secondaryColor,
+        accentColor: data.accentColor,
+        industry: data.industry,
+
+        // Invoice settings.
+        invoicePrefix: data.invoicePrefix,
+        invoiceNextNumber: data.invoiceNextNumber,
+        defaultPaymentTerms: data.defaultPaymentTerms,
+        defaultTaxRate: data.defaultTaxRate,
+        invoiceNotes: data.invoiceNotes,
+        paymentInstructions: data.paymentInstructions,
+        invoiceFooter: data.invoiceFooter,
+        invoiceShowLogo: data.invoiceShowLogo,
+        invoiceShowTax: data.invoiceShowTax,
+        invoiceTemplate: data.invoiceTemplate,
+
+        // Payment settings.
+        defaultPaymentMethod: data.defaultPaymentMethod,
+        bankTransferInstructions: data.bankTransferInstructions,
       },
     });
     return NextResponse.json(company);
   } catch (error) {
-    return handleApiError('company:PUT', error, { fallbackMessage: 'Failed to update company' });
+    return handleApiError('company:PUT', error, {
+      fallbackMessage: 'Unable to save settings right now. Please try again.',
+    });
   }
 }

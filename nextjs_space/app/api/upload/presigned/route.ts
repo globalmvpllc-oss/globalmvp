@@ -4,39 +4,24 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { createS3Client, getBucketConfig } from '@/lib/aws-config';
+import { createS3Client, getBucketConfig, isStorageConfigError } from '@/lib/aws-config';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { z } from 'zod';
+import {
+  ALLOWED_CONTENT_TYPES,
+  ALLOWED_EXTENSIONS,
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_MB,
+  extensionOf,
+} from '@/lib/upload-constraints';
 
 /**
- * MIME allowlist.
- *
- * The endpoint exists so users can attach receipts and supporting documents to
- * income/expense records. Anything that a browser will execute or render as a
- * document in our own origin (html, svg, js, wasm) is excluded, as are archives
- * and executables.
+ * The allowlist and size limit now live in lib/upload-constraints so the
+ * browser can apply the same rules before uploading. Anything a browser would
+ * execute or render as a document in our own origin stays excluded.
  */
-const ALLOWED_CONTENT_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'application/pdf',
-]);
-
-/** Extension allowlist, cross-checked against the declared content type. */
-const ALLOWED_EXTENSIONS: Record<string, string[]> = {
-  'image/jpeg': ['jpg', 'jpeg'],
-  'image/png': ['png'],
-  'image/webp': ['webp'],
-  'image/heic': ['heic'],
-  'image/heif': ['heif'],
-  'application/pdf': ['pdf'],
-};
-
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB — ample for a receipt scan
+const ALLOWED_TYPES = new Set<string>(ALLOWED_CONTENT_TYPES);
 
 const uploadSchema = z.object({
   fileName: z.string().min(1).max(255),
@@ -45,7 +30,7 @@ const uploadSchema = z.object({
     .number()
     .int()
     .positive()
-    .max(MAX_FILE_BYTES, `File must be ${MAX_FILE_BYTES / (1024 * 1024)}MB or smaller`),
+    .max(MAX_UPLOAD_BYTES, `File must be ${MAX_UPLOAD_MB}MB or smaller`),
   // NOTE: `isPublic` is intentionally NOT accepted from the client. It used to
   // let any caller write into the bucket's public prefix, which turns our own
   // storage into a host for phishing pages or malware. All uploads are private.
@@ -69,9 +54,9 @@ export async function POST(request: Request) {
 
     // Normalise the declared content type (strip any ";charset=" parameters).
     const normalizedType = contentType.split(';')[0].trim().toLowerCase();
-    if (!ALLOWED_CONTENT_TYPES.has(normalizedType)) {
+    if (!ALLOWED_TYPES.has(normalizedType)) {
       return NextResponse.json(
-        { error: `Unsupported file type. Allowed: ${[...ALLOWED_CONTENT_TYPES].join(', ')}` },
+        { error: `Unsupported file type. Allowed: ${[...ALLOWED_TYPES].join(', ')}` },
         { status: 400 }
       );
     }
@@ -111,6 +96,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ uploadUrl, cloud_storage_path });
   } catch (error) {
+    // A missing bucket or region is an operator problem, not a user one. Saying
+    // so plainly beats surfacing an opaque AWS error as a generic 500.
+    if (isStorageConfigError(error)) {
+      console.error('[upload] storage misconfigured:', error.message);
+      return NextResponse.json(
+        { error: 'Storage is not configured correctly. Please try again later.' },
+        { status: 503 }
+      );
+    }
     return handleApiError('upload:presigned', error, {
       fallbackMessage: 'Failed to generate upload URL',
     });

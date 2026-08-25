@@ -20,6 +20,63 @@ const categoryName = z
   .transform((v) => v.trim())
   .refine((v) => v.length > 0, { message: 'Category cannot be empty' });
 
+/**
+ * An optional field that also tolerates null.
+ *
+ * Prisma returns `null` for unset nullable columns, and the settings screen
+ * sends the company object it just fetched straight back on save. Plain
+ * `.optional()` accepts `undefined` but rejects `null`, so every company with an
+ * unset phone, website or legal name failed validation and the user saw
+ * "Failed to save settings" with nothing they could act on. Null is normalised
+ * to undefined, which Prisma treats as "leave unchanged".
+ */
+function optionalText(max: number, message?: string) {
+  return z
+    .string()
+    .max(max, message)
+    .nullish()
+    .transform((v) => v ?? undefined);
+}
+
+/** Hex colour such as #7C3AED, with or without the shorthand form. */
+const hexColor = z
+  .string()
+  .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Enter a colour as a hex value, for example #7C3AED')
+  .nullish()
+  .transform((v) => v ?? undefined);
+
+/** Invoice prefixes appear in document numbers, so keep them printable and short. */
+const invoicePrefix = z
+  .string()
+  .max(10, 'Invoice prefix must be 10 characters or fewer')
+  .regex(/^[A-Za-z0-9\-_/.]*$/, 'Invoice prefix may only contain letters, numbers, - _ / and .')
+  .nullish()
+  .transform((v) => v ?? undefined);
+
+/** Templates the invoice renderer knows how to draw. */
+export const INVOICE_TEMPLATES = ['classic', 'modern', 'minimal'] as const;
+
+/** Methods offered as a payment default. */
+export const PAYMENT_METHODS = ['bank_transfer', 'cash', 'card', 'other'] as const;
+
+/**
+ * Maps a Zod failure to something worth showing a person.
+ *
+ * The API already returned the full issue list, but the settings screen ignored
+ * it and printed a fixed string. Returning a lead message plus the offending
+ * field lets the UI say what is wrong and highlight where.
+ */
+export function describeValidationError(error: z.ZodError): {
+  error: string;
+  field?: string;
+  details: z.ZodIssue[];
+} {
+  const first = error.issues[0];
+  const field = first?.path?.length ? String(first.path[0]) : undefined;
+  const message = first?.message ?? 'Some values could not be saved';
+  return { error: message, field, details: error.issues };
+}
+
 export const signupSchema = z.object({
   email: z
     .string()
@@ -41,27 +98,83 @@ export const loginSchema = z.object({
 
 export const companySchema = z.object({
   name: z.string().min(1, 'Business name is required').max(255),
-  country: z.string().min(2).max(3).optional(),
-  defaultCurrency: z.enum(VALID_CURRENCIES).optional(),
-  timezone: z.string().max(100).optional(),
-  locale: z.string().max(20).optional(),
-  businessType: z.string().max(100).optional(),
-  address: z.string().max(500).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(100).optional(),
-  postalCode: z.string().max(20).optional(),
-  phone: z.string().max(50).optional(),
-  email: z.string().email().max(255).optional().or(z.literal('')),
-  website: z.string().max(255).optional(),
-  taxNumber: z.string().max(100).optional(),
-  taxOffice: z.string().max(100).optional(),
-  legalName: z.string().max(255).optional(),
+  country: optionalText(3).refine((v) => v === undefined || v.length >= 2, {
+    message: 'Select a country',
+  }),
+  defaultCurrency: z.enum(VALID_CURRENCIES).nullish().transform((v) => v ?? undefined),
+  timezone: optionalText(100),
+  locale: optionalText(20),
+  businessType: optionalText(100),
+  address: optionalText(500),
+  city: optionalText(100),
+  state: optionalText(100),
+  postalCode: optionalText(20),
+  phone: optionalText(50),
+  email: z
+    .string()
+    .max(255)
+    .email('Enter a valid email address')
+    .or(z.literal(''))
+    .nullish()
+    .transform((v) => v ?? undefined),
+  website: optionalText(255),
+  taxNumber: optionalText(100),
+  taxOffice: optionalText(100),
+  legalName: optionalText(255),
   /**
-   * Company logo. Restricted to a relative path or an https URL so a company
-   * cannot point its logo at an arbitrary origin. The upload flow writes to
-   * uploads/{companyId}/..., and the API rejects paths outside that prefix.
+   * Company logo. Restricted to a key inside this company's upload prefix; the
+   * route re-checks that so one company cannot point at another's object.
    */
-  logoUrl: z.string().max(1000).optional().or(z.literal('')),
+  logoUrl: z.string().max(1000).or(z.literal('')).nullish().transform((v) => v ?? undefined),
+
+  // --- Branding -------------------------------------------------------------
+  primaryColor: hexColor,
+  secondaryColor: hexColor,
+  accentColor: hexColor,
+  industry: optionalText(100),
+
+  // --- Invoice settings -----------------------------------------------------
+  invoicePrefix,
+  invoiceNextNumber: z.coerce
+    .number({ invalid_type_error: 'Next invoice number must be a whole number' })
+    .int('Next invoice number must be a whole number')
+    .min(1, 'Next invoice number must be 1 or greater')
+    .max(999999999, 'Next invoice number is too large')
+    .nullish()
+    .transform((v) => v ?? undefined),
+  defaultPaymentTerms: z.coerce
+    .number({ invalid_type_error: 'Payment terms must be a number of days' })
+    .int('Payment terms must be a whole number of days')
+    .min(0, 'Payment terms must be between 0 and 365 days')
+    .max(365, 'Payment terms must be between 0 and 365 days')
+    .nullish()
+    .transform((v) => v ?? undefined),
+  /**
+   * Arrives as a string, because Prisma serialises Decimal columns that way.
+   * `coerce` accepts both that and a number from a form input.
+   */
+  defaultTaxRate: z.coerce
+    .number({ invalid_type_error: 'Enter the tax rate as a percentage' })
+    .min(0, 'Tax rate must be between 0 and 100')
+    .max(100, 'Tax rate must be between 0 and 100')
+    .nullish()
+    .transform((v) => v ?? undefined),
+  invoiceNotes: optionalText(2000),
+  paymentInstructions: optionalText(2000),
+  invoiceFooter: optionalText(500),
+  invoiceShowLogo: z.boolean().nullish().transform((v) => v ?? undefined),
+  invoiceShowTax: z.boolean().nullish().transform((v) => v ?? undefined),
+  invoiceTemplate: z
+    .enum(INVOICE_TEMPLATES, { invalid_type_error: 'Invoice template is not supported' })
+    .nullish()
+    .transform((v) => v ?? undefined),
+
+  // --- Payment settings -----------------------------------------------------
+  defaultPaymentMethod: z
+    .enum(PAYMENT_METHODS, { invalid_type_error: 'Payment method is not supported' })
+    .nullish()
+    .transform((v) => v ?? undefined),
+  bankTransferInstructions: optionalText(2000),
 });
 
 export const customerSchema = z.object({

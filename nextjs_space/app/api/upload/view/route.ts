@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { requireUserCompany } from '@/lib/auth-helpers';
-import { createS3Client, getBucketConfig } from '@/lib/aws-config';
+import { createS3Client, getBucketConfig, isStorageConfigError } from '@/lib/aws-config';
 import { handleApiError } from '@/lib/api-error';
 
 /**
@@ -44,6 +44,15 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ url });
   } catch (error) {
+    // A missing bucket or region is an operator problem, not a user one. Saying
+    // so plainly beats surfacing an opaque AWS error as a generic 500.
+    if (isStorageConfigError(error)) {
+      console.error('[upload] storage misconfigured:', error.message);
+      return NextResponse.json(
+        { error: 'Storage is not configured correctly. Please try again later.' },
+        { status: 503 }
+      );
+    }
     return handleApiError('upload:view', error, { fallbackMessage: 'Failed to load file' });
   }
 }
