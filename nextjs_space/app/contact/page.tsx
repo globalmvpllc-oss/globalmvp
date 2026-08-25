@@ -8,28 +8,31 @@ import { Container } from '@/components/marketing/section';
 
 export const metadata: Metadata = {
   title: 'Contact',
-  description: 'Get in touch with the FinanceFlow team.',
+  description: 'How to reach the FinanceFlow team and what each type of enquiry covers.',
   alternates: { canonical: '/contact' },
 };
 
+/**
+ * Contact channels are described by topic only. No email address, postal
+ * address or registration number appears here, because none is recorded
+ * anywhere in this repository and inventing one would be worse than
+ * publishing nothing.
+ */
 const CHANNELS = [
   {
     icon: Mail,
     title: 'General enquiries',
-    body: 'Questions about the product, pricing or your account.',
-    value: '[CONTACT EMAIL]',
+    body: 'Questions about what FinanceFlow does, whether it fits how you work, or pricing.',
   },
   {
     icon: LifeBuoy,
     title: 'Support',
-    body: 'Something not working as expected? Tell us what you were doing when it happened.',
-    value: '[SUPPORT EMAIL]',
+    body: 'Something not behaving as expected. Tell us what you were doing when it happened and what you saw instead.',
   },
   {
     icon: ShieldQuestion,
     title: 'Privacy and data requests',
-    body: 'Access, correction, export or deletion requests under applicable data protection law.',
-    value: '[PRIVACY EMAIL]',
+    body: 'Access, correction, export or deletion requests under the data protection law that applies to you.',
   },
 ];
 
@@ -45,7 +48,8 @@ export default function ContactPage() {
               Contact
             </h1>
             <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-              Pick whichever route fits your question and we will get back to you.
+              FinanceFlow is early, and we would rather hear from you than not. Here is what each
+              kind of enquiry covers.
             </p>
 
             <ul className="mt-12 space-y-4">
@@ -55,18 +59,26 @@ export default function ContactPage() {
                   <div>
                     <h2 className="font-semibold text-foreground">{channel.title}</h2>
                     <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{channel.body}</p>
-                    <p className="mt-3 font-mono text-sm text-foreground">{channel.value}</p>
                   </div>
                 </li>
               ))}
             </ul>
 
             <div className="mt-12 rounded-xl border border-border bg-muted/40 p-6">
-              <h2 className="font-semibold text-foreground">Registered business details</h2>
+              <h2 className="font-semibold text-foreground">How to reach us</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                [LEGAL ENTITY NAME]<br />
-                [REGISTERED ADDRESS]<br />
-                Registration number: [REGISTRATION NUMBER]
+                Our published contact channels are being finalised and will appear on this page. Until
+                they do, this page describes the kinds of enquiry we handle rather than listing an
+                address we cannot yet stand behind.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-6">
+              <h2 className="font-semibold text-foreground">Business details</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                FinanceFlow is operated by the entity responsible for providing the service.
+                Registered business information will be published here once it is confirmed, alongside
+                the contact channels above.
               </p>
             </div>
 
@@ -74,6 +86,10 @@ export default function ContactPage() {
               Looking for something specific? Read the{' '}
               <Link href="/#faq" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                 frequently asked questions
+              </Link>
+              , or see how we handle information in the{' '}
+              <Link href="/privacy" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                Privacy Policy
               </Link>
               .
             </p>
