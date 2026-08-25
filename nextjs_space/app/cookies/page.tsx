@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 
 export const metadata: Metadata = {
   title: 'Cookie Policy',
-  description: 'How FinanceFlow uses cookies and similar technologies.',
+  description: 'The cookies FinanceFlow sets, what each one does, and what happens if you block them.',
   alternates: { canonical: '/cookies' },
 };
 
@@ -11,47 +12,74 @@ export default function CookiesPage() {
   return (
     <LegalPage
       title="Cookie Policy"
-      updated="[DATE]"
-      intro="This page explains the cookies FinanceFlow sets and what they are used for."
+      updated="25 August 2026"
+      intro="This page lists every cookie FinanceFlow sets and explains what each one is for. The list is short, because the service only uses cookies it needs in order to work."
     >
-      <LegalSection heading="What we use">
+      <LegalSection heading="Cookies we set">
         <p>
-          FinanceFlow uses a small number of cookies, all of them necessary for the application to
-          function. We do not use advertising cookies.
+          All of the cookies below are strictly necessary: they are what makes signing in possible and
+          keeps that sign-in secure. They are set by the application itself, not by anyone else.
         </p>
         <ul>
           <li>
-            <strong>Session cookie.</strong> Set when you log in, so the application knows who you
-            are between requests. Removing it signs you out.
+            <strong>Session cookie.</strong> Created when you sign in and holds your signed session
+            token. It is what tells the application, on each request, that you are you. Deleting it
+            signs you out.
           </li>
           <li>
-            <strong>Security token.</strong> Used to protect sign-in and form submissions against
-            cross-site request forgery.
+            <strong>CSRF token cookie.</strong> Set on the sign-in and sign-out forms. It protects
+            those forms against cross-site request forgery, where another site tries to submit a
+            request as you.
           </li>
           <li>
-            <strong>Theme preference.</strong> Remembers whether you chose the light or dark
-            appearance.
+            <strong>Callback URL cookie.</strong> Short-lived. It remembers the page you were trying to
+            reach when you were asked to sign in, so you can be returned there afterwards.
           </li>
         </ul>
       </LegalSection>
 
-      <LegalSection heading="Analytics and advertising">
+      <LegalSection heading="What we do not use">
         <p>
-          [STATE WHETHER ANY ANALYTICS OR ADVERTISING TOOLS ARE IN USE. IF ANY ARE ADDED LATER, LIST
-          THE PROVIDER, THE PURPOSE AND THE RETENTION PERIOD HERE, AND ADD A CONSENT MECHANISM WHERE
-          REQUIRED BY LAW.]
+          FinanceFlow sets <strong>no analytics cookies, no advertising cookies and no tracking
+          pixels</strong>. There is no Google Analytics, no advertising network and no social media
+          tracker in the application. Nobody outside the service is given the ability to set a cookie
+          through it.
+        </p>
+        <p>
+          Because every cookie we set is strictly necessary for a service you asked for, no consent
+          banner is presented. If analytics or similar tools are added in future, this page will be
+          updated first and consent will be requested where the law requires it.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Other browser storage">
+        <p>
+          Your choice of light or dark appearance is kept in your browser&rsquo;s local storage rather
+          than in a cookie. It never leaves your device and is not sent to the service with your
+          requests. Clearing your browser&rsquo;s site data resets it to the default.
         </p>
       </LegalSection>
 
       <LegalSection heading="Managing cookies">
         <p>
-          Every browser lets you view and delete cookies. Because the cookies listed above are
-          required for sign-in, blocking them will prevent you from using the application.
+          Every browser lets you view, block and delete cookies through its settings. Because the
+          cookies listed above are what carry your sign-in, blocking or deleting them will sign you out
+          and prevent you from using the application until they are allowed again.
         </p>
       </LegalSection>
 
-      <LegalSection heading="Contact">
-        <p>Questions about this policy: [CONTACT EMAIL].</p>
+      <LegalSection heading="More information">
+        <p>
+          For how information is handled once you are signed in, see the{' '}
+          <Link href="/privacy" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            Privacy Policy
+          </Link>
+          . For questions about this page, use our{' '}
+          <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            contact page
+          </Link>
+          .
+        </p>
       </LegalSection>
     </LegalPage>
   );

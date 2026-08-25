@@ -1,78 +1,189 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 
 export const metadata: Metadata = {
-  title: 'KVKK Notice',
+  title: 'KVKK Aydınlatma Metni',
   description:
-    'Information notice for data subjects under Turkish Personal Data Protection Law No. 6698 (KVKK).',
+    '6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında FinanceFlow kullanıcıları için aydınlatma metni.',
   alternates: { canonical: '/kvkk' },
 };
 
 export default function KvkkPage() {
   return (
     <LegalPage
-      title="KVKK Information Notice"
-      updated="[DATE]"
-      intro="This notice is provided under Article 10 of Turkish Personal Data Protection Law No. 6698 (KVKK) for data subjects in Türkiye."
+      title="KVKK Aydınlatma Metni"
+      updated="25 Ağustos 2026"
+      intro="Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun 10. maddesi uyarınca, FinanceFlow hizmetini kullanan ilgili kişileri bilgilendirmek amacıyla hazırlanmıştır."
     >
-      <LegalSection heading="Data controller">
+      <LegalSection heading="Veri sorumlusu">
         <p>
-          The data controller is [LEGAL ENTITY NAME], registered at [REGISTERED ADDRESS], Mersis /
-          registration number [REGISTRATION NUMBER], contact [CONTACT EMAIL]. [STATE WHETHER THE
-          CONTROLLER IS REGISTERED WITH VERBIS AND, IF SO, THE REGISTRATION NUMBER.]
+          Kişisel verileriniz, FinanceFlow hizmetini sunmaktan sorumlu olan tüzel kişi tarafından, veri
+          sorumlusu sıfatıyla işlenmektedir. Bu metinde geçen &ldquo;biz&rdquo; ifadesi bu tüzel kişiyi
+          belirtir. Başvuru ve iletişim yolları için{' '}
+          <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            iletişim sayfamıza
+          </Link>{' '}
+          bakabilirsiniz.
         </p>
       </LegalSection>
 
-      <LegalSection heading="Personal data processed">
+      <LegalSection heading="İşlenen kişisel veriler">
         <ul>
-          <li><strong>Identity data:</strong> name.</li>
-          <li><strong>Contact data:</strong> email address, and any phone or address you enter for your business.</li>
-          <li><strong>Customer transaction data:</strong> invoices, payments, income and expense records you create.</li>
-          <li><strong>Transaction security data:</strong> hashed password and session records.</li>
+          <li>
+            <strong>Kimlik verisi:</strong> ad ve soyad.
+          </li>
+          <li>
+            <strong>İletişim verisi:</strong> e-posta adresi; işletmeniz için girdiğiniz telefon,
+            adres ve ülke bilgisi.
+          </li>
+          <li>
+            <strong>Müşteri işlem verisi:</strong> oluşturduğunuz fatura, fatura kalemleri, tahsilat ve
+            ödeme kayıtları, gelir ve gider kayıtları, müşteri ve tedarikçi bilgileri.
+          </li>
+          <li>
+            <strong>İşlem güvenliği verisi:</strong> parolanızın kriptografik özeti ve oturum
+            kayıtları. Parolanız hiçbir zaman okunabilir biçimde saklanmaz.
+          </li>
+          <li>
+            <strong>Diğer:</strong> hizmetin çalışması sırasında oluşan sunucu ve hata kayıtları.
+          </li>
         </ul>
-      </LegalSection>
-
-      <LegalSection heading="Purposes of processing">
-        <ul>
-          <li>Delivering and operating the FinanceFlow service.</li>
-          <li>Establishing and maintaining your account and session security.</li>
-          <li>Fulfilling contractual and legal obligations.</li>
-          <li>Diagnosing faults and maintaining service continuity.</li>
-        </ul>
-      </LegalSection>
-
-      <LegalSection heading="Legal grounds">
         <p>
-          Processing is carried out under Article 5/2(c) of the KVKK, as it is directly necessary for
-          the performance of a contract, and Article 5/2(f), the legitimate interests of the data
-          controller, provided the fundamental rights of the data subject are not harmed.
+          FinanceFlow banka hesaplarına bağlanmaz ve bankacılık kimlik bilgilerinizi talep etmez.
+          Kişisel verileriniz üzerinde otomatik sistemlerle profilleme veya otomatik karar verme
+          yapılmaz.
         </p>
       </LegalSection>
 
-      <LegalSection heading="Transfer abroad">
+      <LegalSection heading="İşleme amaçları">
+        <ul>
+          <li>Hizmetin sunulması, kayıtlarınızın saklanması, hesaplanması ve görüntülenmesi.</li>
+          <li>Hesabınızın oluşturulması, kimliğinizin doğrulanması ve oturum güvenliğinin sağlanması.</li>
+          <li>Talep etmeniz hâlinde fatura PDF'i gibi belgelerin oluşturulması.</li>
+          <li>Bilgi güvenliğinin sağlanması, hata tespiti ve hizmet sürekliliğinin korunması.</li>
+          <li>Tabi olduğumuz mevzuattan doğan yükümlülüklerin yerine getirilmesi.</li>
+        </ul>
+      </LegalSection>
+
+      <LegalSection heading="Hukuki sebepler">
+        <p>Kişisel verileriniz aşağıdaki hukuki sebeplere dayanılarak işlenmektedir:</p>
+        <ul>
+          <li>
+            <strong>KVKK m.5/2(c):</strong> Sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili
+            olması — hesap ve işletme verileriniz ile oluşturduğunuz kayıtlar bakımından.
+          </li>
+          <li>
+            <strong>KVKK m.5/2(ç):</strong> Hukuki yükümlülüğün yerine getirilmesi — mevzuatın
+            saklamamızı gerektirdiği hâllerde.
+          </li>
+          <li>
+            <strong>KVKK m.5/2(f):</strong> İlgili kişinin temel hak ve özgürlüklerine zarar vermemek
+            kaydıyla meşru menfaat — güvenlik ve hata kayıtları bakımından.
+          </li>
+        </ul>
+      </LegalSection>
+
+      <LegalSection heading="Kendi müşterilerinize ait veriler">
         <p>
-          Application and database infrastructure is provided by [HOSTING PROVIDER] and [DATABASE
-          PROVIDER], with servers located in [REGION]. Where this involves transfer of personal data
-          abroad, it is carried out in accordance with Article 9 of the KVKK. [DESCRIBE THE
-          APPLICABLE TRANSFER MECHANISM.]
+          FinanceFlow'a girdiğiniz verilerin önemli bir bölümü kendi müşterilerinize ve
+          tedarikçilerinize aittir. Bu veriler bakımından veri sorumlusu <strong>sizsiniz</strong>; biz
+          bu verileri hizmeti sunmak amacıyla sizin adınıza işleriz.
+        </p>
+        <p>
+          Bu verileri işlemeye yetkili olduğunuzu, ilgili kişilere gerekli aydınlatmayı yaptığınızı ve
+          mevzuata uygun davrandığınızı temin etmek sizin sorumluluğunuzdadır.
         </p>
       </LegalSection>
 
-      <LegalSection heading="Your rights under Article 11">
-        <p>As a data subject you have the right to:</p>
+      <LegalSection heading="Veri aktarımı ve yurt dışına aktarım">
+        <p>
+          Kişisel verileriniz, hizmetin sunulabilmesi için gerekli olan altyapı sağlayıcılarına, yalnızca
+          kendi işlevlerini yerine getirebilecekleri ölçüde aktarılır: uygulama barındırma sağlayıcısı,
+          yönetilen PostgreSQL veritabanı sağlayıcısı, dosya depolama için Amazon S3 ve fatura PDF'i
+          talep ettiğinizde belge dönüştürme hizmeti için Abacus AI.
+        </p>
+        <p>
+          Bu sağlayıcıların sunucuları Türkiye dışında bulunabilir. Bu durumda aktarım, KVKK'nın 9.
+          maddesi çerçevesinde ve sağlayıcıların uluslararası veri aktarımı için sunduğu güvenceler
+          esas alınarak gerçekleştirilir.
+        </p>
+        <p>
+          Verileriniz başka kullanıcılarla paylaşılmaz. Her işletme çalışma alanı diğerlerinden
+          ayrıştırılmıştır.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Saklama süresi">
+        <p>
+          Kayıtlarınız, hesabınız açık olduğu sürece saklanır. Hesabınızın kapatılması hâlinde veriler,
+          yalnızca tabi olduğumuz hukuki ve mali yükümlülüklerin gerektirdiği süre boyunca tutulur ve bu
+          sürenin sonunda silinir veya anonim hâle getirilir.
+        </p>
+        <p>
+          Sabit bir saklama süresi henüz belirlenmemiştir; gerçeğe uymayan bir süre yayımlamak yerine
+          bunu açıkça belirtmeyi tercih ediyoruz.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Veri güvenliği">
+        <p>Uygulamada fiilen uygulanan teknik tedbirler şunlardır:</p>
         <ul>
-          <li>learn whether your personal data is processed;</li>
-          <li>request information about the processing;</li>
-          <li>learn the purpose of processing and whether data is used accordingly;</li>
-          <li>know the third parties to whom data is transferred, at home or abroad;</li>
-          <li>request correction of incomplete or inaccurate data;</li>
-          <li>request erasure or destruction under the conditions of Article 7;</li>
-          <li>object to a result produced solely by automated analysis;</li>
-          <li>claim compensation for damage arising from unlawful processing.</li>
+          <li>Parolalar yalnızca tuzlanmış kriptografik özet olarak saklanır.</li>
+          <li>Oturumlar imzalı belirteçlerle taşınır; geçerli belirteci olmayan istekler reddedilir.</li>
+          <li>
+            Her sorgu, oturum açan kullanıcının çalışma alanıyla sınırlandırılır; bir işletme başka bir
+            işletmenin kayıtlarına erişemez.
+          </li>
+          <li>Tarayıcı ile hizmet ve hizmet ile veritabanı arasındaki trafik şifrelenir.</li>
         </ul>
         <p>
-          Applications may be submitted in writing to [REGISTERED ADDRESS] or to [CONTACT EMAIL]. We
-          respond within thirty days at the latest.
+          Herhangi bir güvenlik sertifikasyonumuz bulunmamaktadır ve böyle bir iddiada bulunmuyoruz.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="İlgili kişinin hakları (KVKK m.11)">
+        <p>Kanunun 11. maddesi uyarınca aşağıdaki haklara sahipsiniz:</p>
+        <ul>
+          <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme;</li>
+          <li>İşlenmişse buna ilişkin bilgi talep etme;</li>
+          <li>İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme;</li>
+          <li>Yurt içinde veya yurt dışında verilerin aktarıldığı üçüncü kişileri bilme;</li>
+          <li>Eksik veya yanlış işlenmiş verilerin düzeltilmesini isteme;</li>
+          <li>Kanunun 7. maddesindeki şartlar çerçevesinde silinmesini veya yok edilmesini isteme;</li>
+          <li>Düzeltme, silme ve yok etme işlemlerinin verilerin aktarıldığı üçüncü kişilere bildirilmesini isteme;</li>
+          <li>
+            Münhasıran otomatik sistemlerle analiz edilmesi suretiyle aleyhinize bir sonuç ortaya
+            çıkmasına itiraz etme;
+          </li>
+          <li>Hukuka aykırı işleme sebebiyle zarara uğramanız hâlinde zararın giderilmesini talep etme.</li>
+        </ul>
+        <p>
+          Çalışma alanınızdaki bilgilerin çoğunu uygulama üzerinden doğrudan görüntüleyebilir ve
+          düzeltebilirsiniz.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Başvuru yöntemi">
+        <p>
+          Haklarınıza ilişkin taleplerinizi, Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ'e
+          uygun şekilde, kimliğinizi tevsik eden bilgilerle birlikte{' '}
+          <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            iletişim sayfamızda
+          </Link>{' '}
+          yayımlanan kanallar aracılığıyla iletebilirsiniz.
+        </p>
+        <p>
+          Talebiniz, niteliğine göre en kısa sürede ve her hâlükârda en geç otuz gün içinde
+          sonuçlandırılır. İşlemin ayrıca bir maliyet gerektirmesi hâlinde Kurul tarafından belirlenen
+          tarifedeki ücret talep edilebilir.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Değişiklikler">
+        <p>
+          Bu aydınlatma metni güncellenebilir. Yürürlükteki sürüm, sayfanın başında belirtilen tarihle
+          gösterilir.
         </p>
       </LegalSection>
     </LegalPage>
