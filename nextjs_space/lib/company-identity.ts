@@ -50,6 +50,9 @@ export function personalizeEmptyState(base: string, companyName?: string | null)
  */
 export async function resolveStoredFileUrl(key?: string | null): Promise<string | null> {
   if (!key) return null;
+  // Logos are stored inline as data URLs and are already renderable. Only
+  // legacy S3 keys need a signed URL fetched for them.
+  if (key.startsWith('data:')) return key;
   try {
     const res = await fetch(`/api/upload/view?path=${encodeURIComponent(key)}`);
     if (!res.ok) return null;

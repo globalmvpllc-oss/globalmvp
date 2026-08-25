@@ -12,13 +12,13 @@ import { toast } from 'sonner';
 import { COUNTRIES } from '@/lib/countries';
 import { getCompanyInitials } from '@/lib/company-identity';
 import {
-  checkUpload,
-  describeStorageFailure,
-  LOGO_CONTENT_TYPES,
+  checkLogoFile,
+  optimizeLogo,
   LOGO_ACCEPT_ATTRIBUTE,
   LOGO_FORMATS_LABEL,
-  MAX_UPLOAD_MB,
-} from '@/lib/upload-constraints';
+  MAX_LOGO_FILE_MB,
+  MAX_LOGO_DATA_URL_CHARS,
+} from '@/lib/logo';
 import { CURRENCIES } from '@/lib/currencies';
 
 
@@ -75,17 +75,25 @@ export default function SettingsPage() {
       });
   }, []);
 
-  // Stored logos are private storage keys, so a signed read URL is fetched
-  // separately whenever the key changes.
+  /**
+   * Resolves the stored logo into something an <img> can display.
+   *
+   * New logos are data URLs and are already displayable. Logos saved before the
+   * move off S3 are storage keys and still need a signed read URL, so both are
+   * handled rather than breaking existing companies.
+   */
   useEffect(() => {
-    const key = form?.logoUrl;
-    if (!key) { setLogoPreview(null); return; }
+    const stored = form?.logoUrl;
+    if (!stored) { setLogoPreview(null); return; }
+    if (typeof stored === 'string' && stored.startsWith('data:')) {
+      setLogoPreview(stored);
+      return;
+    }
+
     let active = true;
-    fetch(`/api/upload/view?path=${encodeURIComponent(key)}`)
+    fetch(`/api/upload/view?path=${encodeURIComponent(stored)}`)
       .then(async (r: any) => {
         if (r.ok) return r.json();
-        // A saved logo that will not load is worth saying out loud — otherwise
-        // the preview is simply blank and the user cannot tell why.
         const err = await r.json().catch(() => null);
         if (r.status === 404) {
           toast.error('The saved logo could not be found in storage. Upload it again.');
@@ -100,61 +108,37 @@ export default function SettingsPage() {
   }, [form?.logoUrl]);
 
   /**
-   * Uploads through the existing presigned flow, then stores the returned key
-   * on the form. Nothing is written to the company until Save is pressed.
+   * Prepares the logo entirely in the browser.
+   *
+   * The image is decoded, shrunk to fit 256px and re-encoded, then held on the
+   * form as a data URL until Save. No upload endpoint, no bucket, no
+   * credentials — a sidebar mark does not need object storage, and requiring it
+   * meant the feature could not work at all without an AWS account.
+   *
+   * Decoding is also the real format check: a file renamed to .png fails here
+   * rather than being trusted from its declared type.
    */
   const handleLogoUpload = async (file: File) => {
-    // Checked in the browser first, with the same rules the API applies, so an
-    // oversized or wrong-format file is rejected instantly instead of after a
-    // round trip.
-    const check = checkUpload(file, LOGO_CONTENT_TYPES, LOGO_FORMATS_LABEL);
+    const check = checkLogoFile(file);
     if (!check.ok) {
-      toast.error(`Logo upload failed: ${check.message}`);
+      toast.error(check.message ?? 'That image could not be used.');
       return;
     }
 
     setUploadingLogo(true);
     try {
-      const presignRes = await fetch('/api/upload/presigned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, contentType: file.type, fileSize: file.size }),
-      });
-      if (!presignRes.ok) {
-        const err = await presignRes.json().catch(() => null);
-        // The server now distinguishes missing configuration from unusable
-        // credentials, denied access, a missing bucket and a region mismatch,
-        // so its message is preferred over anything guessed here. Only the two
-        // cases the server cannot phrase in product terms are special-cased.
-        if (presignRes.status === 401) {
-          toast.error('Your session has expired. Please sign in again.');
-        } else if (presignRes.status === 403) {
-          // requireUserCompany answers 403 when the account has no company.
-          toast.error(
-            'Logo upload failed: your account is not linked to a business yet. Finish setting up your business first.'
-          );
-        } else {
-          toast.error(`Logo upload failed: ${err?.error ?? 'The upload could not be prepared.'}`);
-        }
-        return;
-      }
-      const { uploadUrl, cloud_storage_path } = await presignRes.json();
+      const optimized = await optimizeLogo(file);
 
-      const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!putRes.ok) {
-        // This PUT goes straight to S3, so the status comes from AWS.
-        toast.error(`Logo upload failed: ${describeStorageFailure(putRes.status)}`);
+      if (optimized.dataUrl.length > MAX_LOGO_DATA_URL_CHARS) {
+        toast.error('Logo is too large after optimization. Please choose a simpler image.');
         return;
       }
 
-      update('logoUrl', cloud_storage_path);
-      toast.success('Logo uploaded. Press Save to apply it.');
+      update('logoUrl', optimized.dataUrl);
+      const kb = Math.max(1, Math.round(optimized.bytes / 1024));
+      toast.success(`Logo ready (${optimized.width}×${optimized.height}, ${kb} KB). Press Save to apply it.`);
     } catch {
-      toast.error('Logo upload failed: could not reach the storage service. Check your connection.');
+      toast.error('The selected image could not be read. Try a different file.');
     } finally {
       setUploadingLogo(false);
     }
@@ -279,7 +263,7 @@ export default function SettingsPage() {
                   onClick={() => document.getElementById('logo-input')?.click()}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  {uploadingLogo ? 'Uploading…' : form?.logoUrl ? 'Replace logo' : 'Upload logo'}
+                  {uploadingLogo ? 'Optimizing…' : form?.logoUrl ? 'Replace logo' : 'Upload logo'}
                 </Button>
                 {form?.logoUrl ? (
                   <Button
@@ -295,7 +279,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              {`${LOGO_FORMATS_LABEL}, up to ${MAX_UPLOAD_MB} MB. Shown in the sidebar and on your invoices. Changes apply once you save.`}
+              {`${LOGO_FORMATS_LABEL}. Maximum ${MAX_LOGO_FILE_MB} MB. The logo is optimized automatically and shown in the sidebar and on your invoices. Changes apply once you save.`}
             </p>
           </div>
 

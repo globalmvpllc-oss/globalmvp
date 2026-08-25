@@ -79,6 +79,10 @@ export default function InvoiceDetailPage() {
    * invoice simply renders without a logo.
    */
   const loadLogoDataUrl = async (): Promise<string | null> => {
+    // Already inline: nothing to fetch or convert.
+    if (typeof company?.logoUrl === 'string' && company.logoUrl.startsWith('data:')) {
+      return company.logoUrl;
+    }
     const signed = await resolveStoredFileUrl(company?.logoUrl);
     if (!signed) return null;
     try {

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { getSessionUser, requireUserCompany } from '@/lib/auth-helpers';
 import { companySchema, validateBody, describeValidationError } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
+import { isAcceptableLogoValue } from '@/lib/logo';
 import { type TxClient } from '@/lib/payment-calc';
 
 export async function POST(request: Request) {
@@ -125,10 +126,17 @@ export async function PUT(request: Request) {
     // endpoint always writes to `.../uploads/{companyId}/...`, so requiring that
     // segment stops one company from pointing its logo at another company's
     // object, or at an arbitrary external URL.
+    // A logo is either an image data URL produced in the browser, or — for
+    // logos saved before the move off S3 — a key under this company's own
+    // upload prefix. Anything else is refused: an arbitrary URL, an SVG (which
+    // is a document and can carry script), or a data URL of another type.
     if (data.logoUrl) {
-      if (!data.logoUrl.includes(`uploads/${companyId}/`)) {
+      if (!isAcceptableLogoValue(data.logoUrl, companyId)) {
         return NextResponse.json(
-          { error: 'That logo was not uploaded by this company. Upload it again.', field: 'logoUrl' },
+          {
+            error: 'That logo could not be accepted. Upload a PNG, JPG, JPEG or WebP image.',
+            field: 'logoUrl',
+          },
           { status: 400 }
         );
       }

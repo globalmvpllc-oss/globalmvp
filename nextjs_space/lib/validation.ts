@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_LOGO_DATA_URL_CHARS } from '@/lib/logo';
 
 const VALID_CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY'] as const;
 const VALID_PAYMENT_METHODS = ['bank_transfer', 'cash', 'card', 'other'] as const;
@@ -125,7 +126,17 @@ export const companySchema = z.object({
    * Company logo. Restricted to a key inside this company's upload prefix; the
    * route re-checks that so one company cannot point at another's object.
    */
-  logoUrl: z.string().max(1000).or(z.literal('')).nullish().transform((v) => v ?? undefined),
+  /**
+   * Company logo: either an image data URL or, for logos saved before the move
+   * off S3, a storage key. The route checks the value against the caller's own
+   * company; the length cap here is what an optimised 256px image can occupy.
+   */
+  logoUrl: z
+    .string()
+    .max(MAX_LOGO_DATA_URL_CHARS, 'Logo is too large after optimization. Please choose a simpler image.')
+    .or(z.literal(''))
+    .nullish()
+    .transform((v) => v ?? undefined),
 
   // --- Branding -------------------------------------------------------------
   primaryColor: hexColor,
