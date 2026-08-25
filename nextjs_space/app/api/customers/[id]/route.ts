@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { customerSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
+import { buildCustomerUpdateData } from '@/lib/customer-fields';
 import Decimal from 'decimal.js';
 
 interface CurrencyTotals {
@@ -101,26 +102,23 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { data, error } = validateBody(customerSchema, body);
     if (error) return NextResponse.json(error, { status: 400 });
 
-    const customer = await prisma.customer.update({
-      where: { id: params.id },
-      data: {
-        name: data.name,
-        companyName: data.companyName,
-        email: data.email || undefined,
-        phone: data.phone,
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        postalCode: data.postalCode,
-        country: data.country,
-        taxId: data.taxId,
-        defaultCurrency: data.defaultCurrency || undefined,
-        notes: data.notes,
-      },
+    // Scoped by companyId as well as id. The ownership check above already
+    // ran, but keeping the scope on the write means a row that changed hands
+    // between the two statements still cannot be updated.
+    const updated = await prisma.customer.updateMany({
+      where: { id: params.id, companyId },
+      data: buildCustomerUpdateData(data),
     });
+    if (updated.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    const customer = await prisma.customer.findFirst({ where: { id: params.id, companyId } });
     return NextResponse.json(customer);
   } catch (error) {
-    return handleApiError('customers:PUT', error, { fallbackMessage: 'Failed' });
+    return handleApiError('customers:PUT', error, {
+      conflictMessage: 'Another customer already uses these details.',
+      notFoundMessage: 'That customer no longer exists.',
+      fallbackMessage: 'This customer could not be saved. Please try again.',
+    });
   }
 }
 
