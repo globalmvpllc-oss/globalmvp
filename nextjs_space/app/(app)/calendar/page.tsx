@@ -1,28 +1,122 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, FileText, CreditCard, TrendingDown } from 'lucide-react';
-import { formatCurrency } from '@/lib/currencies';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, getDay, isSameMonth } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ChevronLeft, ChevronRight, FileText, CreditCard, TrendingDown, CalendarDays, Plus, Pencil,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { formatCurrency, CURRENCIES } from '@/lib/currencies';
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
+  addMonths, subMonths, getDay,
+} from 'date-fns';
 
-interface CalendarEvent {
-  id: string;
-  type: 'invoice_due' | 'expense_due' | 'payment';
+/**
+ * Two kinds of entry share this calendar.
+ *
+ * `derived` entries are computed from invoices, expenses and payments at read
+ * time. They are never written into the Event table: duplicating them would
+ * give a due date two sources of truth that drift the moment one changes.
+ *
+ * `manual` entries are real Event rows and are the only ones editable here.
+ */
+type DerivedKind = 'invoice_due' | 'expense_due' | 'payment';
+
+interface CalendarEntry {
+  key: string;
+  origin: 'derived' | 'manual';
+  kind: DerivedKind | 'manual';
   title: string;
-  amount: number;
-  currency: string;
+  subtitle?: string;
+  amount?: number | string | null;
+  currency?: string | null;
   date: Date;
+  timeLabel?: string;
+  raw?: any;
+}
+
+const EVENT_TYPES = ['MEETING', 'REMINDER', 'PAYMENT', 'INVOICE', 'EXPENSE', 'OTHER'] as const;
+const EVENT_STATUSES = ['PLANNED', 'DONE', 'CANCELLED'] as const;
+
+const EMPTY_FORM = {
+  title: '', description: '', date: '', startTime: '', endTime: '', allDay: false,
+  type: 'OTHER', status: 'PLANNED', amount: '', currency: '',
+  customerId: '', invoiceId: '', reminderAt: '',
+};
+
+/** Radix Select cannot hold an empty string value, so "none" needs a sentinel. */
+const NONE = '__none__';
+
+function dotClass(entry: CalendarEntry): string {
+  if (entry.origin === 'manual') return 'bg-primary';
+  if (entry.kind === 'invoice_due') return 'bg-blue-500';
+  if (entry.kind === 'expense_due') return 'bg-red-500';
+  return 'bg-green-500';
+}
+
+function entryIcon(entry: CalendarEntry) {
+  if (entry.origin === 'manual') return <CalendarDays className="w-4 h-4 text-primary" />;
+  if (entry.kind === 'invoice_due') return <FileText className="w-4 h-4 text-blue-500" />;
+  if (entry.kind === 'expense_due') return <TrendingDown className="w-4 h-4 text-red-500" />;
+  return <CreditCard className="w-4 h-4 text-green-500" />;
+}
+
+function entryLabel(entry: CalendarEntry): string {
+  if (entry.origin === 'manual') return String(entry.raw?.type ?? 'OTHER').toLowerCase();
+  return entry.kind.replace('_', ' ');
+}
+
+/** Splits an ISO timestamp into the date and time values the form inputs expect. */
+function splitIso(iso?: string | null): { date: string; time: string } {
+  if (!iso) return { date: '', time: '' };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: '', time: '' };
+  return { date: format(d, 'yyyy-MM-dd'), time: format(d, 'HH:mm') };
+}
+
+/** Combines a date input and an optional time input into an ISO string. */
+function joinIso(date: string, time: string, allDay: boolean): string {
+  if (!date) return '';
+  if (allDay || !time) return new Date(`${date}T00:00:00`).toISOString();
+  return new Date(`${date}T${time}`).toISOString();
 }
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [todayDate, setTodayDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const [derived, setDerived] = useState<CalendarEntry[]>([]);
+  const [manual, setManual] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [form, setForm] = useState<any>(EMPTY_FORM);
+
+  // Guards against a slow response for a month the user has already left
+  // overwriting the data for the month they are now looking at.
+  const requestRef = useRef(0);
 
   useEffect(() => {
     const now = new Date();
@@ -30,75 +124,252 @@ export default function CalendarPage() {
     setTodayDate(now);
   }, []);
 
+  /** Financial records, fetched once — they are not month-scoped upstream. */
   useEffect(() => {
+    let active = true;
     Promise.all([
-      fetch('/api/invoices').then((r: any) => r.json()),
-      fetch('/api/expenses').then((r: any) => r.json()),
-      fetch('/api/payments').then((r: any) => r.json()),
-    ]).then(([invoices, expenses, payments]: any) => {
-      const evts: CalendarEvent[] = [];
-      for (const inv of (invoices ?? [])) {
-        if (inv?.dueDate && ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(inv?.status)) {
-          evts.push({ id: inv.id, type: 'invoice_due', title: `${inv?.invoiceNumber ?? ''} - ${inv?.customer?.name ?? ''}`, amount: inv?.total ?? 0, currency: inv?.currency ?? 'USD', date: new Date(inv.dueDate) });
+      fetch('/api/invoices').then((r: any) => (r.ok ? r.json() : [])),
+      fetch('/api/expenses').then((r: any) => (r.ok ? r.json() : [])),
+      fetch('/api/payments').then((r: any) => (r.ok ? r.json() : [])),
+      fetch('/api/customers').then((r: any) => (r.ok ? r.json() : [])),
+    ])
+      .then(([inv, exp, pay, cust]: any) => {
+        if (!active) return;
+        const entries: CalendarEntry[] = [];
+
+        for (const i of inv ?? []) {
+          if (i?.dueDate && ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(i?.status)) {
+            entries.push({
+              key: `inv-${i.id}`, origin: 'derived', kind: 'invoice_due',
+              title: `${i?.invoiceNumber ?? ''} — ${i?.customer?.name ?? ''}`.trim(),
+              amount: i?.total, currency: i?.currency ?? 'USD', date: new Date(i.dueDate),
+            });
+          }
         }
-      }
-      for (const exp of (expenses ?? [])) {
-        if (exp?.dueDate && exp?.status === 'UNPAID') {
-          evts.push({ id: exp.id, type: 'expense_due', title: exp?.description ?? '', amount: exp?.amount ?? 0, currency: exp?.currency ?? 'USD', date: new Date(exp.dueDate) });
+        for (const e of exp ?? []) {
+          if (e?.dueDate && e?.status === 'UNPAID') {
+            entries.push({
+              key: `exp-${e.id}`, origin: 'derived', kind: 'expense_due',
+              title: e?.description ?? 'Expense',
+              amount: e?.amount, currency: e?.currency ?? 'USD', date: new Date(e.dueDate),
+            });
+          }
         }
-      }
-      for (const pay of (payments ?? [])) {
-        if (pay?.paymentDate) {
-          evts.push({ id: pay.id, type: 'payment', title: pay?.invoice?.invoiceNumber ? `Payment: ${pay.invoice.invoiceNumber}` : 'Payment', amount: pay?.amount ?? 0, currency: pay?.currency ?? 'USD', date: new Date(pay.paymentDate) });
+        for (const p of pay ?? []) {
+          if (p?.paymentDate) {
+            entries.push({
+              key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
+              title: p?.invoice?.invoiceNumber ? `Payment — ${p.invoice.invoiceNumber}` : 'Payment',
+              amount: p?.amount, currency: p?.currency ?? 'USD', date: new Date(p.paymentDate),
+            });
+          }
         }
-      }
-      setEvents(evts);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+
+        setDerived(entries);
+        setCustomers(cust ?? []);
+        setInvoices(inv ?? []);
+      })
+      .catch(() => { if (active) setLoadError('Could not load financial records'); })
+      .finally(() => { if (active) setLoading(false); });
+
+    return () => { active = false; };
   }, []);
 
+  /** Manual events, refetched whenever the visible month changes. */
+  const loadEvents = useCallback(async (month: Date) => {
+    const token = ++requestRef.current;
+    const from = startOfMonth(month).toISOString();
+    // Half-open window: the first instant of the following month.
+    const to = startOfMonth(addMonths(month, 1)).toISOString();
+    try {
+      const res = await fetch(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      if (token !== requestRef.current) return; // a newer month is already in flight
+      if (!res.ok) { setLoadError('Could not load events'); return; }
+      setManual(await res.json());
+      setLoadError(null);
+    } catch {
+      if (token === requestRef.current) setLoadError('Could not load events');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentMonth) loadEvents(currentMonth);
+  }, [currentMonth, loadEvents]);
+
   if (!currentMonth) {
-    return <div className="space-y-6"><div className="h-8 w-48 bg-muted rounded animate-pulse" /><div className="h-96 bg-muted rounded-lg animate-pulse" /></div>;
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+        <div className="h-96 bg-muted rounded-lg animate-pulse" />
+      </div>
+    );
   }
 
+  const manualEntries: CalendarEntry[] = manual.map((e: any) => {
+    const start = new Date(e.startAt);
+    const end = e.endAt ? new Date(e.endAt) : null;
+    return {
+      key: `evt-${e.id}`,
+      origin: 'manual' as const,
+      kind: 'manual' as const,
+      title: e.title,
+      subtitle: e.description ?? undefined,
+      amount: e.amount,
+      currency: e.currency,
+      date: start,
+      timeLabel: e.allDay
+        ? 'All day'
+        : end ? `${format(start, 'HH:mm')} - ${format(end, 'HH:mm')}` : format(start, 'HH:mm'),
+      raw: e,
+    };
+  });
+
+  const allEntries = [...derived, ...manualEntries];
   const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const days = eachDayOfInterval({ start: monthStart, end: endOfMonth(currentMonth) });
   const startPadding = getDay(monthStart);
 
-  const getEventsForDay = (day: Date) => events.filter((e: CalendarEvent) => isSameDay(e.date, day));
-  const selectedEvents = selectedDate ? getEventsForDay(selectedDate) : [];
+  const entriesFor = (day: Date) => allEntries.filter((e: CalendarEntry) => isSameDay(e.date, day));
+  const selectedEntries = selectedDate ? entriesFor(selectedDate) : [];
 
-  const getEventColor = (type: string) => {
-    if (type === 'invoice_due') return 'bg-blue-500';
-    if (type === 'expense_due') return 'bg-red-500';
-    return 'bg-green-500';
+  const openCreate = (day?: Date | null) => {
+    const target = day ?? selectedDate ?? todayDate ?? new Date();
+    setEditingId(null);
+    setForm({ ...EMPTY_FORM, date: format(target, 'yyyy-MM-dd') });
+    setDialogOpen(true);
   };
 
-  const getEventIcon = (type: string) => {
-    if (type === 'invoice_due') return <FileText className="w-4 h-4 text-blue-500" />;
-    if (type === 'expense_due') return <TrendingDown className="w-4 h-4 text-red-500" />;
-    return <CreditCard className="w-4 h-4 text-green-500" />;
+  const openEdit = (event: any) => {
+    const start = splitIso(event?.startAt);
+    const end = splitIso(event?.endAt);
+    setEditingId(event?.id ?? null);
+    setForm({
+      title: event?.title ?? '',
+      description: event?.description ?? '',
+      date: start.date,
+      startTime: event?.allDay ? '' : start.time,
+      endTime: event?.allDay ? '' : end.time,
+      allDay: Boolean(event?.allDay),
+      type: event?.type ?? 'OTHER',
+      status: event?.status ?? 'PLANNED',
+      amount: event?.amount != null ? String(event.amount) : '',
+      currency: event?.currency ?? '',
+      customerId: event?.customerId ?? '',
+      invoiceId: event?.invoiceId ?? '',
+      reminderAt: event?.reminderAt ? splitIso(event.reminderAt).date : '',
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.title.trim()) { toast.error('Title is required'); return; }
+    if (!form.date) { toast.error('Date is required'); return; }
+
+    const startAt = joinIso(form.date, form.startTime, form.allDay);
+    const endAt = form.allDay || !form.endTime ? '' : joinIso(form.date, form.endTime, false);
+    if (endAt && new Date(endAt) < new Date(startAt)) {
+      toast.error('End time cannot be before the start time');
+      return;
+    }
+
+    const payload: any = {
+      title: form.title.trim(),
+      description: form.description || '',
+      startAt,
+      endAt,
+      allDay: form.allDay,
+      type: form.type,
+      status: form.status,
+      customerId: form.customerId || '',
+      invoiceId: form.invoiceId || '',
+      reminderAt: form.reminderAt ? new Date(`${form.reminderAt}T09:00:00`).toISOString() : '',
+    };
+    if (form.amount !== '') {
+      const n = Number(form.amount);
+      if (!Number.isFinite(n) || n < 0) { toast.error('Amount must be a positive number'); return; }
+      payload.amount = n;
+      if (form.currency) payload.currency = form.currency;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(editingId ? `/api/events/${editingId}` : '/api/events', {
+        method: editingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        toast.success(editingId ? 'Event updated' : 'Event created');
+        setDialogOpen(false);
+        loadEvents(currentMonth);
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error ?? 'Could not save the event');
+      }
+    } catch {
+      toast.error('Could not save the event');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/events/${confirmDeleteId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Event deleted');
+        setConfirmDeleteId(null);
+        setDialogOpen(false);
+        loadEvents(currentMonth);
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error ?? 'Could not delete the event');
+      }
+    } catch {
+      toast.error('Could not delete the event');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">Calendar</h1>
-        <p className="text-muted-foreground">See your financial events at a glance</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Calendar</h1>
+          <p className="text-muted-foreground">See your financial events at a glance</p>
+        </div>
+        <Button onClick={() => openCreate()}>
+          <Plus className="w-4 h-4 mr-2" /> Add event
+        </Button>
       </div>
 
+      {loadError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {loadError}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" aria-label="Previous month"
+                  onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" aria-label="Next month"
+                  onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
               <CardTitle className="text-base">{format(currentMonth, 'MMMM yyyy')}</CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-                <ChevronRight className="w-4 h-4" />
+              <Button variant="outline" size="sm"
+                onClick={() => { const n = todayDate ?? new Date(); setCurrentMonth(n); setSelectedDate(n); }}>
+                Today
               </Button>
             </div>
           </CardHeader>
@@ -108,56 +379,95 @@ export default function CalendarPage() {
                 <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
               ))}
               {Array.from({ length: startPadding }, (_: any, i: number) => (
-                <div key={`pad-${i}`} className="p-2 min-h-[80px]" />
+                <div key={`pad-${i}`} className="p-1 min-h-[84px]" />
               ))}
               {days.map((day: Date) => {
-                const dayEvents = getEventsForDay(day);
+                const dayEntries = entriesFor(day);
                 const isSelected = selectedDate && isSameDay(day, selectedDate);
                 const isToday = todayDate ? isSameDay(day, todayDate) : false;
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={day.toISOString()}
-                    className={`p-2 min-h-[80px] border rounded-lg cursor-pointer transition-colors ${
-                      isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
-                    } ${isToday ? 'bg-primary/5' : ''}`}
                     onClick={() => setSelectedDate(day)}
+                    onDoubleClick={() => openCreate(day)}
+                    aria-label={`${format(day, 'MMMM d')}, ${dayEntries.length} entries`}
+                    className={`p-1.5 min-h-[84px] border rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
+                    } ${isToday && !isSelected ? 'bg-primary/5' : ''}`}
                   >
-                    <p className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{format(day, 'd')}</p>
+                    <span className={`text-sm ${isToday ? 'font-bold text-primary' : ''}`}>{format(day, 'd')}</span>
                     <div className="mt-1 space-y-0.5">
-                      {dayEvents.slice(0, 3).map((e: CalendarEvent) => (
-                        <div key={e.id} className={`w-full h-1.5 rounded-full ${getEventColor(e.type)}`} />
+                      {dayEntries.slice(0, 2).map((e: CalendarEntry) => (
+                        <div key={e.key} className="flex items-center gap-1">
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass(e)}`} />
+                          <span className="truncate text-[10px] leading-tight text-muted-foreground">{e.title}</span>
+                        </div>
                       ))}
-                      {dayEvents.length > 3 && <p className="text-[10px] text-muted-foreground">+{dayEvents.length - 3}</p>}
+                      {dayEntries.length > 2 && (
+                        <p className="text-[10px] text-muted-foreground">+{dayEntries.length - 2} more</p>
+                      )}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Selected Day Events */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              {selectedDate ? format(selectedDate, 'MMM d, yyyy') : 'Select a day'}
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">
+                {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a day'}
+              </CardTitle>
+              {selectedDate ? (
+                <Button variant="ghost" size="sm" aria-label="Add event on this day"
+                  onClick={() => openCreate(selectedDate)}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              ) : null}
+            </div>
           </CardHeader>
           <CardContent>
-            {!selectedDate ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Click on a day to see events</p>
-            ) : selectedEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No events on this day</p>
+            {loading ? (
+              <div className="space-y-2">
+                <div className="h-12 bg-muted rounded animate-pulse" />
+                <div className="h-12 bg-muted rounded animate-pulse" />
+              </div>
+            ) : !selectedDate ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Click a day to see what is on it</p>
+            ) : selectedEntries.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground">Nothing scheduled for this day</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => openCreate(selectedDate)}>
+                  <Plus className="w-4 h-4 mr-2" /> Add event
+                </Button>
+              </div>
             ) : (
               <div className="space-y-3">
-                {selectedEvents.map((e: CalendarEvent) => (
-                  <div key={e.id} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-muted/50">
-                    {getEventIcon(e.type)}
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{e.title}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{e.type.replace('_', ' ')}</p>
+                {selectedEntries.map((e: CalendarEntry) => (
+                  <div key={e.key} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-muted/50">
+                    {entryIcon(e)}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{e.title}</p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {entryLabel(e)}{e.timeLabel ? ` - ${e.timeLabel}` : ''}
+                      </p>
+                      {e.subtitle ? (
+                        <p className="text-xs text-muted-foreground truncate">{e.subtitle}</p>
+                      ) : null}
                     </div>
-                    <p className="font-mono text-sm font-medium">{formatCurrency(e.amount, e.currency)}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {e.amount != null && e.currency ? (
+                        <p className="font-mono text-sm font-medium">{formatCurrency(e.amount as any, e.currency)}</p>
+                      ) : null}
+                      {e.origin === 'manual' ? (
+                        <Button variant="ghost" size="icon-sm" aria-label="Edit event" onClick={() => openEdit(e.raw)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -166,12 +476,165 @@ export default function CalendarPage() {
         </Card>
       </div>
 
-      {/* Legend */}
-      <div className="flex gap-6">
+      <div className="flex flex-wrap gap-x-6 gap-y-2">
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-sm text-muted-foreground">Invoice due</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-sm text-muted-foreground">Expense due</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-muted-foreground">Payment</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary" /><span className="text-sm text-muted-foreground">Your event</span></div>
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Edit event' : 'Add event'}</DialogTitle>
+            <DialogDescription>
+              {editingId ? 'Update this calendar entry.' : 'Add something to your calendar.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Title *</Label>
+              <Input value={form.title} onChange={(e: any) => setForm({ ...form, title: e.target.value })} placeholder="Client meeting" />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Textarea rows={2} value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Date *</Label>
+                <Input type="date" value={form.date} onChange={(e: any) => setForm({ ...form, date: e.target.value })} />
+              </div>
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={form.allDay} onCheckedChange={(v: any) => setForm({ ...form, allDay: Boolean(v) })} />
+                  All day
+                </label>
+              </div>
+            </div>
+
+            {!form.allDay && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Start time</Label>
+                  <Input type="time" value={form.startTime} onChange={(e: any) => setForm({ ...form, startTime: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>End time</Label>
+                  <Input type="time" value={form.endTime} onChange={(e: any) => setForm({ ...form, endTime: e.target.value })} />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={(v: string) => setForm({ ...form, type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPES.map((t: string) => <SelectItem key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v: string) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EVENT_STATUSES.map((t: string) => <SelectItem key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Amount</Label>
+                <Input type="number" min="0" step="0.01" value={form.amount}
+                  onChange={(e: any) => setForm({ ...form, amount: e.target.value })} placeholder="Optional" />
+              </div>
+              <div className="space-y-1">
+                <Label>Currency</Label>
+                <Select value={form.currency || NONE}
+                  onValueChange={(v: string) => setForm({ ...form, currency: v === NONE ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None</SelectItem>
+                    {CURRENCIES.map((c: any) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Customer</Label>
+                <Select value={form.customerId || NONE}
+                  onValueChange={(v: string) => setForm({ ...form, customerId: v === NONE ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None</SelectItem>
+                    {customers.map((c: any) => <SelectItem key={c?.id} value={c?.id ?? ''}>{c?.name ?? ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Invoice</Label>
+                <Select value={form.invoiceId || NONE}
+                  onValueChange={(v: string) => setForm({ ...form, invoiceId: v === NONE ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None</SelectItem>
+                    {invoices.map((i: any) => <SelectItem key={i?.id} value={i?.id ?? ''}>{i?.invoiceNumber ?? ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Reminder</Label>
+              <Input type="date" value={form.reminderAt} onChange={(e: any) => setForm({ ...form, reminderAt: e.target.value })} />
+              <p className="text-xs text-muted-foreground">Stored with the event. No notifications are sent yet.</p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-between">
+            {editingId ? (
+              <Button variant="ghost" className="text-destructive hover:text-destructive"
+                disabled={saving} onClick={() => setConfirmDeleteId(editingId)}>
+                Delete
+              </Button>
+            ) : <span />}
+            <div className="flex gap-2">
+              <Button variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button disabled={saving} onClick={handleSave}>
+                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Create event'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={Boolean(confirmDeleteId)} onOpenChange={(o: boolean) => !o && setConfirmDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the calendar entry permanently. Invoices, expenses and payments are not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={saving} onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

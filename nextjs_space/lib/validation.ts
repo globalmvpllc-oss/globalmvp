@@ -194,6 +194,84 @@ export const vendorSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+/** Calendar event types. Strings rather than an enum, matching how invoice and
+ *  transaction statuses are already modelled in this schema. */
+export const EVENT_TYPES = [
+  'MEETING',
+  'REMINDER',
+  'PAYMENT',
+  'INVOICE',
+  'EXPENSE',
+  'OTHER',
+] as const;
+
+/** Lifecycle marker for an event. */
+export const EVENT_STATUSES = ['PLANNED', 'DONE', 'CANCELLED'] as const;
+
+const eventBase = {
+  title: z.string().min(1, 'Title is required').max(255),
+  description: z.string().max(2000).optional().or(z.literal('')),
+  startAt: dateString,
+  endAt: dateString.optional().or(z.literal('')),
+  allDay: z.boolean().optional(),
+  type: z.enum(EVENT_TYPES).optional(),
+  status: z.enum(EVENT_STATUSES).optional(),
+  customerId: z.string().min(1).max(64).optional().or(z.literal('')),
+  invoiceId: z.string().min(1).max(64).optional().or(z.literal('')),
+  amount: z.number().finite().nonnegative().optional(),
+  currency: z.enum(VALID_CURRENCIES).optional(),
+  reminderAt: dateString.optional().or(z.literal('')),
+};
+
+/**
+ * An event that ends before it starts is a data-entry mistake, not something to
+ * store and render as a negative-width block on the calendar.
+ */
+const endsAfterItStarts = (data: { startAt?: string; endAt?: string | null }) => {
+  if (!data.startAt || !data.endAt) return true;
+  return Date.parse(data.endAt) >= Date.parse(data.startAt);
+};
+
+const END_BEFORE_START = {
+  message: 'End time cannot be before the start time',
+  path: ['endAt'],
+};
+
+export const eventCreateSchema = z
+  .object(eventBase)
+  .refine(endsAfterItStarts, END_BEFORE_START);
+
+/**
+ * Every field optional for a partial update, but the start/end ordering rule
+ * still applies whenever both are supplied.
+ *
+ * `source` is deliberately absent: it records how a row came into existence and
+ * is set by the server, so a client cannot relabel its own entry as
+ * system-generated.
+ */
+export const eventUpdateSchema = z
+  .object({
+    title: eventBase.title.optional(),
+    description: eventBase.description,
+    startAt: dateString.optional(),
+    endAt: eventBase.endAt,
+    allDay: eventBase.allDay,
+    type: eventBase.type,
+    status: eventBase.status,
+    customerId: eventBase.customerId,
+    invoiceId: eventBase.invoiceId,
+    amount: eventBase.amount,
+    currency: eventBase.currency,
+    reminderAt: eventBase.reminderAt,
+  })
+  .refine(endsAfterItStarts, END_BEFORE_START);
+
+/** Date-range filter for listing events, e.g. one month of the calendar. */
+export const eventRangeSchema = z.object({
+  from: dateString.optional(),
+  to: dateString.optional(),
+});
+
 /**
  * Helper: parse body with a Zod schema; return parsed data or error response.
  */
