@@ -9,12 +9,26 @@ import { getToken } from 'next-auth/jwt';
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Public marketing and legal pages. Exact matches only — these must not
+  // widen access to any protected application route.
+  const PUBLIC_PAGES = new Set([
+    '/',
+    '/pricing',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/cookies',
+    '/kvkk',
+    '/robots.txt',
+    '/sitemap.xml',
+  ]);
+
   // Allow public routes
   if (
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/signup') ||
-    pathname === '/' ||
+    PUBLIC_PAGES.has(pathname) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/og-image')
