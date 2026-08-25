@@ -4,9 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -18,9 +18,22 @@ model User {
   image          String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+
+  // --- Personal preferences ----------------------------------------------
+  // These follow the person, not the company: someone who reads dates as
+  // 25.08.2026 wants that in every workspace they belong to, and a sidebar
+  // width preference is a habit rather than a property of a business.
+  theme            String  @default("system")
+  language         String  @default("en")
+  dateFormat       String?
+  numberFormat     String?
+  firstDayOfWeek   Int?
+  sidebarCollapsed Boolean @default(false)
+
   companyMembers CompanyMember[]
   accounts       Account[]
   sessions       Session[]
+  createdEvents  Event[]
 }
 
 model Account {
@@ -76,9 +89,42 @@ model Company {
   taxOffice           String?
   legalName           String?
   logoUrl             String?
+
+  // --- Branding -------------------------------------------------------------
+  // Hex colours such as "#7C3AED". Null means "use the product default", so
+  // existing companies keep today's appearance with no backfill required.
+  primaryColor        String?
+  secondaryColor      String?
+  accentColor         String?
+  industry            String?
+
+  // --- Invoice settings -----------------------------------------------------
+  // invoiceNextNumber is the next number to hand out. It is allocated with an
+  // atomic UPDATE ... RETURNING so two concurrent invoices cannot claim the
+  // same value; @@unique([companyId, invoiceNumber]) on Invoice stays as the
+  // backstop. Backfilled from existing invoice numbers by the migration.
+  invoicePrefix       String              @default("INV-")
+  invoiceNextNumber   Int                 @default(1)
+  // Payment terms in days. 0 means "due on receipt", which covers the
+  // 7/15/30/60/custom options without introducing an enum.
+  defaultPaymentTerms Int                 @default(30)
+  // Same precision as InvoiceItem.taxRate so a default round-trips exactly.
+  defaultTaxRate      Decimal             @default(0) @db.Decimal(7, 4)
+  invoiceNotes        String?
+  paymentInstructions String?
+  invoiceFooter       String?
+  invoiceShowLogo     Boolean             @default(true)
+  invoiceShowTax      Boolean             @default(true)
+  invoiceTemplate     String              @default("classic")
+
+  // --- Payment settings -----------------------------------------------------
+  defaultPaymentMethod     String?
+  bankTransferInstructions String?
+
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   members             CompanyMember[]
+  events              Event[]
   customers           Customer[]
   vendors             Vendor[]
   invoices            Invoice[]
@@ -94,6 +140,16 @@ model CompanyMember {
   userId    String
   companyId String
   role      String   @default("owner")
+
+  // --- Company-scoped preferences ------------------------------------------
+  // Kept here rather than on User because they only mean anything inside one
+  // company's context: which widgets belong on *this* company's dashboard, and
+  // which of *this* company's events should notify this member. The existing
+  // @@unique([userId, companyId]) already makes this row the natural home for
+  // per-membership state, so no new table is needed.
+  dashboardPreferences    Json?
+  notificationPreferences Json?
+
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -121,6 +177,7 @@ model Customer {
   company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices        Invoice[]
   incomeTransactions IncomeTransaction[]
+  events          Event[]
 
   @@index([companyId])
 }
@@ -165,6 +222,7 @@ model Invoice {
   customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items         InvoiceItem[]
   payments      Payment[]
+  events        Event[]
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
@@ -282,4 +340,71 @@ model Attachment {
   company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+}
+
+/// Calendar entries a user creates by hand: meetings, reminders, and notes
+/// attached to a customer or invoice.
+///
+/// Deliberately NOT a mirror of financial records. Invoice due dates, expense
+/// due dates and payment dates are already derived at query time from the
+/// Invoice / ExpenseTransaction / Payment tables, and duplicating them here
+/// would create two sources of truth that drift the moment a due date changes
+/// — plus exactly the orphan rows that would need cleaning up after a delete.
+/// `source` records the distinction so a future job could store derived events
+/// if that decision is ever revisited.
+model Event {
+  id          String    @id @default(cuid())
+  companyId   String
+  /// Who created it. Nullable so removing a user does not delete the company's
+  /// calendar; the entry survives its author.
+  createdById String?
+
+  title       String
+  description String?
+
+  /// Start is required — an event without a time cannot be placed on a calendar.
+  startAt     DateTime
+  /// End is optional: a reminder is a point in time, a meeting is a range.
+  endAt       DateTime?
+  allDay      Boolean   @default(false)
+
+  /// PAYMENT_DUE | PAYMENT_RECEIVED | INVOICE_CREATED | INVOICE_DUE |
+  /// EXPENSE_DUE | INCOME | MEETING | REMINDER | OTHER
+  /// Stored as a string to match how Invoice.status and the transaction
+  /// statuses are already modelled in this schema.
+  type        String    @default("OTHER")
+  /// Free-form lifecycle marker, e.g. PLANNED | DONE | CANCELLED.
+  status      String?
+  /// MANUAL for user-created entries. Reserved for a future derived-event job.
+  source      String    @default("MANUAL")
+
+  /// Optional links. Both use SetNull rather than Cascade: deleting an invoice
+  /// should not silently remove a meeting a user scheduled about it. Title and
+  /// description live on the event itself, so it stays readable once unlinked.
+  customerId  String?
+  invoiceId   String?
+
+  /// Money shown on the entry, when it represents one. Same precision as every
+  /// other monetary column. Currency is stored alongside it and never mixed —
+  /// no conversion is implied.
+  amount      Decimal?  @db.Decimal(15, 2)
+  currency    String?
+
+  reminderAt  DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  invoice   Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  /// The calendar's only hot query: one company's events inside a date window.
+  @@index([companyId, startAt])
+  /// Filtering a month view by event type.
+  @@index([companyId, type])
+  /// "Show everything scheduled about this invoice / customer."
+  @@index([invoiceId])
+  @@index([customerId])
 }
