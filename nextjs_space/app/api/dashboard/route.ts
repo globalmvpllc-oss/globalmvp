@@ -30,9 +30,9 @@ export async function GET() {
     const thirtyDaysOut = new Date();
     thirtyDaysOut.setDate(thirtyDaysOut.getDate() + 30);
 
-    // These seven reads are independent. Running them sequentially cost one
-    // network round trip each, which dominates total latency when the database
-    // is geographically distant.
+    // These reads are independent. Running them sequentially cost one network
+    // round trip each, which dominates total latency when the database is
+    // geographically distant.
     const [
       incomeGroups,
       invoicePayments,
@@ -41,6 +41,9 @@ export async function GET() {
       upcomingExpenses,
       upcomingInvoices,
       upcomingExpensesList,
+      invoiceCount,
+      incomeCount,
+      expenseCount,
     ] = await Promise.all([
       // Revenue by currency (received income this month)
       prisma.incomeTransaction.groupBy({
@@ -91,7 +94,25 @@ export async function GET() {
         orderBy: { dueDate: 'asc' },
         take: 10,
       }),
+
+      // --- Record existence, for the dashboard empty state -------------------
+      // Deliberately NOT derived from byCurrency or activities above. Those are
+      // month-scoped, status-filtered and aggregated, so they come back empty
+      // for a company that has traded for years but simply had no movement this
+      // month — and for one whose only invoice is still a draft. Telling such a
+      // user "you have not added anything yet" would be worse than showing
+      // zeros.
+      //
+      // These three are unfiltered existence checks scoped only by company, so
+      // they answer the question actually being asked: has this business ever
+      // recorded anything? Payments are not counted separately — a payment
+      // always belongs to an invoice or an expense, both covered here.
+      prisma.invoice.count({ where: { companyId } }),
+      prisma.incomeTransaction.count({ where: { companyId } }),
+      prisma.expenseTransaction.count({ where: { companyId } }),
     ]);
+
+    const hasRecords = invoiceCount > 0 || incomeCount > 0 || expenseCount > 0;
 
     // Build byCurrency map
     const byCurrency: Record<string, { revenue: string; expenses: string; profit: string; receivables: string; upcomingPayments: string }> = {};
@@ -182,6 +203,7 @@ export async function GET() {
     return NextResponse.json({
       byCurrency,
       activities: activities.slice(0, 15),
+      hasRecords,
     });
   } catch (error) {
     return handleApiError('dashboard:GET', error, { fallbackMessage: 'Failed to load dashboard' });

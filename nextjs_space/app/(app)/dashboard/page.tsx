@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, TrendingDown, Clock, AlertCircle, FileText, CreditCard } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { format } from 'date-fns';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 interface CurrencyMetrics {
   revenue: string;
@@ -17,6 +19,14 @@ interface CurrencyMetrics {
 
 interface DashboardData {
   byCurrency: Record<string, CurrencyMetrics>;
+  /**
+   * Whether this business has ever recorded an invoice, income or expense.
+   *
+   * Computed server-side from unfiltered counts rather than from the metrics
+   * below: those are month-scoped and status-filtered, so they are empty for an
+   * established company that simply had a quiet month.
+   */
+  hasRecords: boolean;
   activities: Array<{
     id: string;
     type: string;
@@ -32,16 +42,39 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
+  /**
+   * Set when the dashboard request itself failed.
+   *
+   * Kept strictly separate from "no records yet": a failed request and an empty
+   * business are different situations, and showing the onboarding empty state
+   * after a 500 would tell the user their data is gone.
+   */
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const fetchDashboard = () => {
+    Promise.all([
+      // The status is checked rather than parsing whatever came back, so only a
+      // genuinely successful response can drive the empty state.
+      fetch('/api/dashboard').then(async (r: Response) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      }),
+      fetch('/api/company').then((r: any) => (r.ok ? r.json() : null)),
+    ])
+      .then(([d, c]: any) => {
+        setData(d);
+        setCompany(c);
+        setLoadError(null);
+      })
+      .catch(() => {
+        setData(null);
+        setLoadError('Could not load your dashboard. Please try again.');
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/dashboard').then((r: any) => r.json()),
-      fetch('/api/company').then((r: any) => r.json()),
-    ]).then(([d, c]: any) => {
-      setData(d);
-      setCompany(c);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    fetchDashboard();
   }, []);
 
   const defaultCurrency = company?.defaultCurrency ?? 'USD';
@@ -59,6 +92,9 @@ export default function DashboardPage() {
 
   const byCurrency = data?.byCurrency ?? {};
   const currencies = Object.keys(byCurrency);
+
+  // Only a response that actually arrived may say the business is empty.
+  const isEmpty = data !== null && data.hasRecords === false;
 
   // If no data at all, show zeros in company default currency
   const displayCurrencies = currencies.length > 0 ? currencies : [defaultCurrency];
@@ -92,8 +128,49 @@ export default function DashboardPage() {
         <p className="text-muted-foreground">Your business at a glance this month</p>
       </div>
 
-      {/* Metrics per currency */}
-      {displayCurrencies.map((cur) => {
+      {loadError ? (
+        /* The request failed. This is not the same as having no records, so it
+           gets its own state and a way to retry. */
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <h3 className="font-medium mb-1">Could not load your dashboard</h3>
+            <p className="text-sm text-muted-foreground mb-4">{loadError}</p>
+            <Button variant="outline" onClick={() => { setLoading(true); fetchDashboard(); }}>
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      ) : isEmpty ? (
+        /* A business with no invoices, income or expenses at all. Five zeroed
+           cards here read as "you earned nothing" rather than "you have not
+           entered anything yet". */
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <h3 className="font-medium mb-1">No financial records yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your revenue, expenses and upcoming activity will appear here once you record your first
+              invoice, income or expense.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button asChild>
+                <Link href="/invoices/new">Create Invoice</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/income">Add Income</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/expenses">Add Expense</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Metrics per currency. Unchanged: same values, same grouping, same
+          formatting — only hidden while there is nothing recorded to show. */}
+      {!loadError && !isEmpty && displayCurrencies.map((cur) => {
         const m = byCurrency[cur] ?? { revenue: '0', expenses: '0', profit: '0', receivables: '0', upcomingPayments: '0' };
         return (
           <div key={cur}>
@@ -126,6 +203,7 @@ export default function DashboardPage() {
       })}
 
       {/* Activity Feed */}
+      {!loadError && !isEmpty ? (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Upcoming Activity</CardTitle>
@@ -162,6 +240,7 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      ) : null}
     </div>
   );
 }

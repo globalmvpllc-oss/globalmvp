@@ -22,6 +22,25 @@ const securityHeaders = [
     key: 'Referrer-Policy',
     value: 'strict-origin-when-cross-origin',
   },
+  {
+    /**
+     * Browser capabilities this application never uses, switched off for every
+     * origin including our own — an empty allowlist means not even a
+     * same-origin script can prompt for them.
+     *
+     * Checked against the codebase before adding: no getUserMedia,
+     * mediaDevices, geolocation, PaymentRequest, navigator.usb or motion /
+     * orientation sensor use anywhere under app/, lib/, components/ or hooks/.
+     *
+     * fullscreen is deliberately absent. Nothing uses it today either, but the
+     * browser's own print preview and chart interactions may legitimately want
+     * it, and disabling something we might later rely on buys nothing.
+     */
+    key: 'Permissions-Policy',
+    value:
+      'camera=(), microphone=(), geolocation=(), payment=(), usb=(), ' +
+      'accelerometer=(), gyroscope=(), magnetometer=()',
+  },
 ];
 
 /** @type {import('next').NextConfig} */
