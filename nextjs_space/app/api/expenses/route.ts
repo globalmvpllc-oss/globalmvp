@@ -15,15 +15,33 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
 
-    // Range filters on dueDate, which is the field the calendar derives its
-    // expense entries from.
+    /**
+     * Optional calendar window.
+     *
+     * The calendar places an expense on its due date, falling back to the
+     * transaction date when none was set — `dueDate ?? date`. The filter mirrors
+     * that, so a record cannot be selected on one date and drawn on another.
+     *
+     * Previously only `dueDate` was matched, which meant an expense without a
+     * due date could never appear in any month: it was filtered out server-side
+     * before the calendar ever saw it. The `dueDate: null` guard on the second
+     * branch keeps a row from matching both branches.
+     */
     const { range, error: rangeError } = parseCalendarRange(searchParams);
     if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 });
 
     const take = boundedTake(searchParams);
 
     const transactions = await prisma.expenseTransaction.findMany({
-      where: range ? { companyId, dueDate: range } : { companyId },
+      where: range
+        ? {
+            companyId,
+            OR: [
+              { dueDate: range },
+              { dueDate: null, date: range },
+            ],
+          }
+        : { companyId },
       include: { vendor: { select: { name: true } } },
       orderBy: { date: 'desc' },
       // One extra row is fetched purely to detect truncation.

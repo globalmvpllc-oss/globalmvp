@@ -5,26 +5,32 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
-  CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight,
+  CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getCompanyInitials, getCompanyDisplayName, resolveStoredFileUrl } from '@/lib/company-identity';
+import { useI18n } from '@/components/i18n-provider';
+import { LanguageSelector } from '@/components/language-selector';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/invoices', label: 'Invoices', icon: FileText },
-  { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/income', label: 'Income', icon: TrendingUp },
-  { href: '/expenses', label: 'Expenses', icon: TrendingDown },
-  { href: '/payments', label: 'Payments', icon: CreditCard },
-  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
-  { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  // The label is a translation key, resolved at render time so switching
+  // language re-labels the navigation without remounting it.
+  { href: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { href: '/invoices', labelKey: 'nav.invoices', icon: FileText },
+  { href: '/customers', labelKey: 'nav.customers', icon: Users },
+  { href: '/income', labelKey: 'nav.income', icon: TrendingUp },
+  { href: '/expenses', labelKey: 'nav.expenses', icon: TrendingDown },
+  { href: '/payments', labelKey: 'nav.payments', icon: CreditCard },
+  { href: '/calendar', labelKey: 'nav.calendar', icon: CalendarDays },
+  { href: '/reports', labelKey: 'nav.reports', icon: BarChart3 },
+  { href: '/settings', labelKey: 'nav.settings', icon: Settings },
+  { href: '/settings/billing', labelKey: 'nav.billing', icon: Wallet },
 ];
 
 export function AppSidebar() {
+  const { t } = useI18n();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [company, setCompany] = useState<any>(null);
@@ -82,7 +88,16 @@ export function AppSidebar() {
       <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
         {NAV_ITEMS.map((item: any) => {
           const Icon = item.icon;
-          const active = pathname === item.href || pathname?.startsWith(item.href + '/');
+          /**
+           * Exact match, or a descendant that is not itself a navigation item.
+           *
+           * /settings/billing is its own entry, so the prefix rule alone would
+           * light up Settings as well and show two active items at once.
+           */
+          const active =
+            pathname === item.href ||
+            (pathname?.startsWith(item.href + '/') &&
+              !NAV_ITEMS.some((other: { href: string }) => other.href !== item.href && pathname === other.href));
           return (
             <Link
               key={item.href}
@@ -95,7 +110,7 @@ export function AppSidebar() {
               )}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{t(item.labelKey)}</span>}
             </Link>
           );
         })}
@@ -103,12 +118,16 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="border-t border-border p-2">
+        {/* Hidden when collapsed: the trigger has no room for a readable
+            language name, and an icon alone would be ambiguous. */}
+        {!collapsed ? <LanguageSelector /> : null}
+
         <button
           onClick={() => signOut({ callbackUrl: '/auth/login' })}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground w-full transition-colors"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span>Sign out</span>}
+          {!collapsed && <span>{t('nav.signOut')}</span>}
         </button>
         <Button
           variant="ghost"

@@ -133,6 +133,8 @@ model Company {
   expenseTransactions ExpenseTransaction[]
   categories          Category[]
   attachments         Attachment[]
+  /// At most one paid subscription per company. Absence means the Free plan.
+  subscription        Subscription?
 }
 
 model CompanyMember {
@@ -420,4 +422,69 @@ model Event {
   /// "Show everything scheduled about this invoice / customer."
   @@index([invoiceId])
   @@index([customerId])
+}
+
+
+/// The company's paid plan, mirrored from Polar.
+///
+/// Deliberately separate from `Payment`, which records money this business
+/// collects from *its own* customers. A subscription charge is money flowing
+/// the other way — to us — and writing it into Payment, IncomeTransaction or
+/// ExpenseTransaction would corrupt the user's own bookkeeping: dashboard
+/// revenue, reports and the calendar all read those tables.
+///
+/// Billing history and payment methods are not mirrored here at all; they stay
+/// in Polar's customer portal, which avoids duplicate records and keeps card
+/// data outside this system entirely.
+///
+/// There is no `Plan` or `Price` table. Two plans and four prices are mapped in
+/// lib/billing/plans.ts against the ids configured in the environment, so Polar
+/// remains the single source of truth for pricing.
+model Subscription {
+  id                  String    @id @default(cuid())
+
+  /// One subscription per company. The Free plan is the absence of this row,
+  /// not a row with a "free" status: that keeps every row traceable to a real
+  /// Polar subscription and avoids a write path the webhook does not own.
+  companyId           String    @unique
+
+  /// Polar's identifier. Unique so a redelivered webhook upserts the same row
+  /// instead of creating a second one.
+  polarSubscriptionId String    @unique
+  polarCustomerId     String
+  polarProductId      String
+  polarPriceId        String
+
+  /// 'pro' | 'business' — resolved from polarPriceId, never sent by a client.
+  plan                String
+  /// See lib/billing/access.ts for the statuses and what each one grants.
+  status              String
+  /// 'month' | 'year'
+  interval            String
+
+  currency            String
+  /// Decimal, matching every other money column in this schema. A float here
+  /// would be the one place in the application where money is approximate.
+  amount              Decimal   @db.Decimal(15, 2)
+
+  currentPeriodStart  DateTime
+  /// What the UI shows as the renewal date, and what access is measured against.
+  currentPeriodEnd    DateTime
+
+  cancelAtPeriodEnd   Boolean   @default(false)
+  canceledAt          DateTime?
+  trialEndsAt         DateTime?
+
+  /// Timestamp of the last Polar event applied to this row. Webhooks can arrive
+  /// out of order, so an event older than this is ignored rather than allowed
+  /// to overwrite a newer state.
+  lastEventAt         DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([currentPeriodEnd])
 }

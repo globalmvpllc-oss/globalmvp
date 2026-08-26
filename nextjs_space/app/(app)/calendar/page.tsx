@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ChevronLeft, ChevronRight, FileText, CreditCard, TrendingDown, CalendarDays, Plus, Pencil,
+  ChevronLeft, ChevronRight, FileText, CreditCard, TrendingDown, TrendingUp, CalendarDays, Plus, Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, CURRENCIES } from '@/lib/currencies';
@@ -25,6 +25,7 @@ import {
   addMonths, subMonths, getDay,
 } from 'date-fns';
 import { toCalendarDay } from '@/lib/calendar-date';
+import Link from 'next/link';
 
 /**
  * Two kinds of entry share this calendar.
@@ -35,7 +36,7 @@ import { toCalendarDay } from '@/lib/calendar-date';
  *
  * `manual` entries are real Event rows and are the only ones editable here.
  */
-type DerivedKind = 'invoice_due' | 'expense_due' | 'payment';
+type DerivedKind = 'invoice_due' | 'expense_due' | 'payment' | 'income';
 
 interface CalendarEntry {
   key: string;
@@ -47,8 +48,26 @@ interface CalendarEntry {
   currency?: string | null;
   date: Date;
   timeLabel?: string;
+  /**
+   * Where this entry came from, when a detail page for it actually exists.
+   * Only invoices have one today, so everything else stays unlinked rather
+   * than pointing at a route that would 404.
+   */
+  href?: string;
   raw?: any;
 }
+
+/**
+ * Invoice statuses that represent a due date the business is working towards.
+ *
+ * PAID is included so history survives: a settled invoice still had a due date,
+ * and leaving it out meant the calendar emptied itself as invoices were paid.
+ * DRAFT and CANCELLED are excluded — one was never issued, the other was
+ * withdrawn, so neither has a date anyone is waiting on.
+ */
+const INVOICE_DUE_STATUSES: readonly string[] = [
+  'SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE', 'PAID',
+];
 
 const EVENT_TYPES = ['MEETING', 'REMINDER', 'PAYMENT', 'INVOICE', 'EXPENSE', 'OTHER'] as const;
 const EVENT_STATUSES = ['PLANNED', 'DONE', 'CANCELLED'] as const;
@@ -66,6 +85,7 @@ function dotClass(entry: CalendarEntry): string {
   if (entry.origin === 'manual') return 'bg-primary';
   if (entry.kind === 'invoice_due') return 'bg-blue-500';
   if (entry.kind === 'expense_due') return 'bg-red-500';
+  if (entry.kind === 'income') return 'bg-emerald-500';
   return 'bg-green-500';
 }
 
@@ -73,6 +93,7 @@ function entryIcon(entry: CalendarEntry) {
   if (entry.origin === 'manual') return <CalendarDays className="w-4 h-4 text-primary" />;
   if (entry.kind === 'invoice_due') return <FileText className="w-4 h-4 text-blue-500" />;
   if (entry.kind === 'expense_due') return <TrendingDown className="w-4 h-4 text-red-500" />;
+  if (entry.kind === 'income') return <TrendingUp className="w-4 h-4 text-emerald-500" />;
   return <CreditCard className="w-4 h-4 text-green-500" />;
 }
 
@@ -171,39 +192,85 @@ export default function CalendarPage() {
     const range = `from=${from}&to=${to}`;
 
     try {
-      const [inv, exp, pay] = await Promise.all([
+      // Each source is fetched for the same window. A source that fails
+      // resolves to an empty list rather than rejecting, so one failing request
+      // cannot blank the whole calendar; a total failure is still caught below
+      // and surfaced as a real error state.
+      const [inv, exp, pay, inc] = await Promise.all([
         fetch(`/api/invoices?${range}`).then((r: any) => (r.ok ? r.json() : [])),
         fetch(`/api/expenses?${range}`).then((r: any) => (r.ok ? r.json() : [])),
         fetch(`/api/payments?${range}`).then((r: any) => (r.ok ? r.json() : [])),
+        fetch(`/api/income?${range}`).then((r: any) => (r.ok ? r.json() : [])),
       ]);
       if (token !== derivedRef.current) return;
 
       const entries: CalendarEntry[] = [];
 
+      // PAID is included: a settled invoice still had a due date, and dropping
+      // it made the calendar's history disappear as invoices were paid off.
+      // CANCELLED and DRAFT stay out — one was withdrawn, the other was never
+      // issued, so neither has a due date the business is working towards.
       for (const i of inv ?? []) {
-        if (i?.dueDate && ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(i?.status)) {
+        if (i?.dueDate && INVOICE_DUE_STATUSES.includes(i?.status)) {
           entries.push({
             key: `inv-${i.id}`, origin: 'derived', kind: 'invoice_due',
             title: `${i?.invoiceNumber ?? ''} — ${i?.customer?.name ?? ''}`.trim(),
+            subtitle: i?.status === 'PAID' ? 'Paid' : undefined,
             amount: i?.total, currency: i?.currency ?? 'USD', date: toCalendarDay(i.dueDate)!,
+            href: `/invoices/${i.id}`,
           });
         }
       }
+      // `dueDate ?? date`, and no status filter. Restricting to UNPAID with a
+      // due date hid two whole classes of record: expenses entered without a
+      // due date never appeared at all, and an expense vanished from the
+      // calendar the moment it was paid.
       for (const e of exp ?? []) {
-        if (e?.dueDate && e?.status === 'UNPAID') {
+        const when = toCalendarDay(e?.dueDate ?? e?.date);
+        if (when) {
           entries.push({
             key: `exp-${e.id}`, origin: 'derived', kind: 'expense_due',
             title: e?.description ?? 'Expense',
-            amount: e?.amount, currency: e?.currency ?? 'USD', date: toCalendarDay(e.dueDate)!,
+            subtitle: e?.status === 'PAID' ? 'Paid' : 'Unpaid',
+            amount: e?.amount, currency: e?.currency ?? 'USD', date: when,
           });
         }
       }
+      // Money in and money out both arrive as Payment rows, so the title says
+      // which. Both `invoice` and `expense` are already on the payload the
+      // payments API returns, so this needs no extra query.
       for (const p of pay ?? []) {
-        if (p?.paymentDate) {
+        const when = toCalendarDay(p?.paymentDate);
+        if (!when) continue;
+
+        const invoiceNumber = p?.invoice?.invoiceNumber;
+        const expenseDescription = p?.expense?.description;
+
+        let title = 'Payment';
+        if (invoiceNumber) title = `Invoice Payment — ${invoiceNumber}`;
+        else if (expenseDescription) title = `Expense Payment — ${expenseDescription}`;
+
+        entries.push({
+          key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
+          title,
+          subtitle: p?.invoice?.customer?.name ?? undefined,
+          amount: p?.amount, currency: p?.currency ?? 'USD', date: when,
+          // Only the invoice side has a detail page today.
+          href: p?.invoiceId ? `/invoices/${p.invoiceId}` : undefined,
+        });
+      }
+
+      // Income sits on the day the money is expected, falling back to the
+      // transaction date — the same rule the API filters by, so a record is
+      // never selected for one month and drawn in another.
+      for (const t of inc ?? []) {
+        const when = toCalendarDay(t?.expectedPaymentDate ?? t?.date);
+        if (when) {
           entries.push({
-            key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
-            title: p?.invoice?.invoiceNumber ? `Payment — ${p.invoice.invoiceNumber}` : 'Payment',
-            amount: p?.amount, currency: p?.currency ?? 'USD', date: toCalendarDay(p.paymentDate)!,
+            key: `inc-${t.id}`, origin: 'derived', kind: 'income',
+            title: t?.description ?? 'Income',
+            subtitle: t?.customer?.name ?? (t?.status === 'RECEIVED' ? 'Received' : 'Expected'),
+            amount: t?.amount, currency: t?.currency ?? 'USD', date: when,
           });
         }
       }
@@ -495,7 +562,17 @@ export default function CalendarPage() {
                   <div key={e.key} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-muted/50">
                     {entryIcon(e)}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{e.title}</p>
+                      {/* Only entries with a detail page that actually exists
+                          become links; income, expenses and expense payments
+                          have no such route today, so they stay plain text
+                          rather than pointing somewhere that would 404. */}
+                      {e.href ? (
+                        <Link href={e.href} className="text-sm font-medium truncate block hover:underline">
+                          {e.title}
+                        </Link>
+                      ) : (
+                        <p className="text-sm font-medium truncate">{e.title}</p>
+                      )}
                       <p className="text-xs text-muted-foreground capitalize">
                         {entryLabel(e)}{e.timeLabel ? ` - ${e.timeLabel}` : ''}
                       </p>

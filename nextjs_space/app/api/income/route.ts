@@ -6,7 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { incomeSchema, incomeUpdateSchema, validateBody } from '@/lib/validation';
 import { parseCalendarDate } from '@/lib/calendar-date';
-import { boundedTake, listResponse } from '@/lib/calendar-range';
+import { boundedTake, listResponse, parseCalendarRange, RANGE_MAX } from '@/lib/calendar-range';
 
 export async function GET(request: Request) {
   try {
@@ -14,16 +14,45 @@ export async function GET(request: Request) {
     if (error) return error;
 
     const { searchParams } = new URL(request.url);
+
+    /**
+     * Optional calendar window.
+     *
+     * The calendar places an income record on the day the money is expected,
+     * falling back to the transaction date when no expectation was recorded —
+     * `expectedPaymentDate ?? date`. Filtering has to mirror that exactly, or a
+     * record would be selected on one date and drawn on another.
+     *
+     * Hence the OR rather than a single field filter: rows that carry an
+     * expectation are matched on it, and only rows without one fall through to
+     * `date`. The `expectedPaymentDate: null` guard on the second branch is what
+     * keeps a row from matching twice.
+     *
+     * Without `from`/`to` the behaviour is exactly as before, so the list page
+     * and the reports page are unaffected.
+     */
+    const { range, error: rangeError } = parseCalendarRange(searchParams);
+    if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 });
+
     const take = boundedTake(searchParams);
 
     const transactions = await prisma.incomeTransaction.findMany({
-      where: { companyId },
+      where: range
+        ? {
+            companyId,
+            OR: [
+              { expectedPaymentDate: range },
+              { expectedPaymentDate: null, date: range },
+            ],
+          }
+        : { companyId },
       include: { customer: { select: { name: true } } },
       orderBy: { date: 'desc' },
-      take: take + 1,
+      // One extra row is fetched purely to detect truncation.
+      take: (range ? RANGE_MAX : take) + 1,
     });
 
-    return listResponse(transactions, take);
+    return listResponse(transactions, range ? RANGE_MAX : take);
   } catch (error) {
     return handleApiError('income:GET', error, { fallbackMessage: 'Failed' });
   }

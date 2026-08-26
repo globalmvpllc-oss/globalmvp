@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Mail, Lock } from 'lucide-react';
+import { useI18n } from '@/components/i18n-provider';
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +27,7 @@ export default function LoginPage() {
     if (result?.ok) {
       router.replace('/dashboard');
     } else {
-      setError('Invalid email or password');
+      setError(t('auth.invalidCredentials'));
       setLoading(false);
     }
   };
@@ -41,8 +43,8 @@ export default function LoginPage() {
         </div>
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to manage your finances</CardDescription>
+            <CardTitle className="text-xl">{t('auth.signInTitle')}</CardTitle>
+            <CardDescription>{t('auth.signInSubtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,11 +64,11 @@ export default function LoginPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign in'}
+                {loading ? t('auth.signingIn') : t('auth.signIn')}
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              {t('auth.noAccount')}{' '}
               <Link href="/auth/signup" className="text-primary font-medium hover:underline">Create one</Link>
             </div>
           </CardContent>

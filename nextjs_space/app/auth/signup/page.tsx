@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Mail, Lock, User } from 'lucide-react';
+import { useI18n } from '@/components/i18n-provider';
 
 export default function SignupPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -55,7 +57,7 @@ export default function SignupPage() {
         </div>
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">Create your account</CardTitle>
+            <CardTitle className="text-xl">{t('auth.signUpTitle')}</CardTitle>
             <CardDescription>Start managing your finances in minutes</CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,12 +85,12 @@ export default function SignupPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating account...' : 'Create account'}
+                {loading ? t('auth.creatingAccount') : t('auth.signUp')}
               </Button>
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link href="/auth/login" className="text-primary font-medium hover:underline">Sign in</Link>
+              {t('auth.haveAccount')}{' '}
+              <Link href="/auth/login" className="text-primary font-medium hover:underline">{t('auth.signIn')}</Link>
             </div>
           </CardContent>
         </Card>

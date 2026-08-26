@@ -43,6 +43,13 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/signup') ||
+    // Provider webhooks carry no session cookie, so the session gate below
+    // would reject every delivery with a 401 and the sender would eventually
+    // stop retrying — subscriptions would drift out of sync silently. These
+    // routes authenticate the request themselves by verifying the provider's
+    // signature over the raw body, which is the correct check here; a session
+    // would be the wrong one.
+    pathname.startsWith('/api/webhooks/') ||
     PUBLIC_PAGES.has(pathname) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||

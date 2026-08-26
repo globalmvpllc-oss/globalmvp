@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, TrendingDown, Clock, AlertCircle, FileText, CreditCard } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Clock, AlertCircle, FileText, CreditCard, UserPlus } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { getCompanyInitials, resolveStoredFileUrl } from '@/lib/company-identity';
 
 interface CurrencyMetrics {
   revenue: string;
@@ -38,6 +39,20 @@ interface DashboardData {
   }>;
 }
 
+/**
+ * Shortcuts to the flows that already exist elsewhere in the application.
+ *
+ * Routes verified against the repository: /invoices/new is a real page, and the
+ * income, expense and customer list pages each own the dialog that creates a
+ * record. Nothing here creates a new entry point.
+ */
+const QUICK_ACTIONS = [
+  { href: '/income', label: 'Add Income', icon: TrendingUp },
+  { href: '/expenses', label: 'Add Expense', icon: TrendingDown },
+  { href: '/invoices/new', label: 'New Invoice', icon: FileText },
+  { href: '/customers', label: 'Add Customer', icon: UserPlus },
+] as const;
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +65,15 @@ export default function DashboardPage() {
    * after a 500 would tell the user their data is gone.
    */
   const [loadError, setLoadError] = useState<string | null>(null);
+  /**
+   * Displayable logo URL.
+   *
+   * Resolved through the same helper the sidebar uses, so both surfaces agree
+   * on what a logo is: an inline data URL is returned as-is, a legacy object
+   * key is exchanged for a signed read URL, and anything unusable becomes null
+   * so the initials fallback takes over. No new upload path, API or schema.
+   */
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const fetchDashboard = () => {
     Promise.all([
@@ -76,6 +100,14 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    resolveStoredFileUrl(company?.logoUrl).then((url: string | null) => {
+      if (active) setLogoUrl(url);
+    });
+    return () => { active = false; };
+  }, [company?.logoUrl]);
 
   const defaultCurrency = company?.defaultCurrency ?? 'USD';
 
@@ -121,11 +153,28 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">
-          {company?.name ? `Welcome back, ${company.name}` : 'Welcome back'}
-        </h1>
-        <p className="text-muted-foreground">Your business at a glance this month</p>
+      <div className="flex items-center gap-3">
+        {/* Shown only when there is something to show: with no logo and no
+            company name the badge would be an empty grey square, so the
+            heading simply sits on its own as before. */}
+        {logoUrl || company?.name ? (
+          <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-border bg-muted flex items-center justify-center">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+            ) : (
+              <span className="font-display text-sm font-bold text-muted-foreground">
+                {getCompanyInitials(company?.name)}
+              </span>
+            )}
+          </div>
+        ) : null}
+        <div className="min-w-0">
+          <h1 className="text-2xl font-display font-bold tracking-tight truncate">
+            {company?.name ? `Welcome back, ${company.name}` : 'Welcome back'}
+          </h1>
+          <p className="text-muted-foreground">Your business at a glance this month</p>
+        </div>
       </div>
 
       {loadError ? (
@@ -201,6 +250,46 @@ export default function DashboardPage() {
           </div>
         );
       })}
+
+      {/*
+        Quick Actions.
+
+        Every action is a link to the screen that already owns that flow — the
+        dashboard does not host its own copies. Opening those dialogs from here
+        would mean deep-link state on four separate pages, which is more
+        machinery than four links are worth.
+
+        Hidden in the error and empty states for the same reason the metrics
+        are: the empty state already offers these actions, and repeating them
+        directly below would be two sets of buttons doing the same thing.
+      */}
+      {!loadError && !isEmpty ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {QUICK_ACTIONS.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Button
+                    key={action.href}
+                    variant="outline"
+                    asChild
+                    className="h-auto justify-start gap-2 px-3 py-2.5 font-normal"
+                  >
+                    <Link href={action.href}>
+                      <Icon className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="truncate">{action.label}</span>
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Activity Feed */}
       {!loadError && !isEmpty ? (

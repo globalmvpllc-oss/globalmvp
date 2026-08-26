@@ -1,6 +1,3 @@
-import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { SkipLink } from '@/components/marketing/skip-link';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
@@ -37,14 +34,22 @@ const faqJsonLd = {
   })),
 };
 
+/**
+ * The public landing page, served to everyone.
+ *
+ * This used to redirect a signed-in visitor to /dashboard, which meant the
+ * marketing site was unreachable on the production domain for anyone with a
+ * session — the root URL simply became the application. A signed-in user
+ * following a link to corpcontrol.net, or wanting to read the pricing page,
+ * could never see it.
+ *
+ * Both audiences are served from here now: the page renders the same content
+ * for everyone, and the header offers "Log in" / "Start free" or a way through
+ * to the application depending on the session. Nothing about the protected
+ * routes changes — /dashboard and everything under it are still gated by
+ * middleware.
+ */
 export default async function Home() {
-  // Unchanged behaviour: a signed-in visitor goes straight to the application.
-  // Only the signed-out branch changed — it used to redirect to /auth/login.
-  const session = await getServerSession(authOptions);
-  if (session?.user) {
-    redirect('/dashboard');
-  }
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <script
