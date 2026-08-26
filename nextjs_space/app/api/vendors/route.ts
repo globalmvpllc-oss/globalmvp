@@ -5,14 +5,20 @@ import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { vendorSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
+import { boundedTake, listResponse } from '@/lib/calendar-range';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { error, companyId } = await requireUserCompany();
     if (error) return error;
 
-    const vendors = await prisma.vendor.findMany({ where: { companyId }, orderBy: { name: 'asc' } });
-    return NextResponse.json(vendors);
+    const take = boundedTake(new URL(request.url).searchParams);
+    const vendors = await prisma.vendor.findMany({
+      where: { companyId },
+      orderBy: { name: 'asc' },
+      take: take + 1,
+    });
+    return listResponse(vendors, take);
   } catch (error) {
     return handleApiError('vendors:GET', error, { fallbackMessage: 'Failed to load vendors' });
   }

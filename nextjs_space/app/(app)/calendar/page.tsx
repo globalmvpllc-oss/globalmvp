@@ -118,6 +118,8 @@ export default function CalendarPage() {
   // Guards against a slow response for a month the user has already left
   // overwriting the data for the month they are now looking at.
   const requestRef = useRef(0);
+  /** Same stale-response guard for the derived financial queries. */
+  const derivedRef = useRef(0);
 
   useEffect(() => {
     const now = new Date();
@@ -125,56 +127,98 @@ export default function CalendarPage() {
     setTodayDate(now);
   }, []);
 
-  /** Financial records, fetched once — they are not month-scoped upstream. */
+  /**
+   * Options for the manual-event form: which customer or invoice an event can
+   * be linked to. These are a picklist, not calendar content, so they are
+   * fetched once and are not month-scoped — you may well want to attach an
+   * event to an invoice that is due in another month.
+   */
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetch('/api/invoices').then((r: any) => (r.ok ? r.json() : [])),
-      fetch('/api/expenses').then((r: any) => (r.ok ? r.json() : [])),
-      fetch('/api/payments').then((r: any) => (r.ok ? r.json() : [])),
       fetch('/api/customers').then((r: any) => (r.ok ? r.json() : [])),
+      fetch('/api/invoices').then((r: any) => (r.ok ? r.json() : [])),
     ])
-      .then(([inv, exp, pay, cust]: any) => {
+      .then(([cust, inv]: any) => {
         if (!active) return;
-        const entries: CalendarEntry[] = [];
-
-        for (const i of inv ?? []) {
-          if (i?.dueDate && ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(i?.status)) {
-            entries.push({
-              key: `inv-${i.id}`, origin: 'derived', kind: 'invoice_due',
-              title: `${i?.invoiceNumber ?? ''} — ${i?.customer?.name ?? ''}`.trim(),
-              amount: i?.total, currency: i?.currency ?? 'USD', date: toCalendarDay(i.dueDate)!,
-            });
-          }
-        }
-        for (const e of exp ?? []) {
-          if (e?.dueDate && e?.status === 'UNPAID') {
-            entries.push({
-              key: `exp-${e.id}`, origin: 'derived', kind: 'expense_due',
-              title: e?.description ?? 'Expense',
-              amount: e?.amount, currency: e?.currency ?? 'USD', date: toCalendarDay(e.dueDate)!,
-            });
-          }
-        }
-        for (const p of pay ?? []) {
-          if (p?.paymentDate) {
-            entries.push({
-              key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
-              title: p?.invoice?.invoiceNumber ? `Payment — ${p.invoice.invoiceNumber}` : 'Payment',
-              amount: p?.amount, currency: p?.currency ?? 'USD', date: toCalendarDay(p.paymentDate)!,
-            });
-          }
-        }
-
-        setDerived(entries);
         setCustomers(cust ?? []);
         setInvoices(inv ?? []);
       })
-      .catch(() => { if (active) setLoadError('Could not load financial records'); })
-      .finally(() => { if (active) setLoading(false); });
-
+      .catch(() => { /* the picklists degrade to empty; the calendar still works */ });
     return () => { active = false; };
   }, []);
+
+  /**
+   * Derived financial entries for the month on screen.
+   *
+   * Previously these three lists were fetched once, in full and unfiltered —
+   * but `/api/invoices` and `/api/payments` return only the most recent 100
+   * rows by default, so any business past that number silently lost its older
+   * due dates from the calendar. Asking for the month explicitly means the API
+   * returns that month whole.
+   *
+   * Refetches when the month changes, and `requestRef` discards a response that
+   * arrives after the user has already moved on — the same guard loadEvents
+   * uses.
+   */
+  const loadDerived = useCallback(async (month: Date) => {
+    const token = ++derivedRef.current;
+    // Formatted from the local month, so the window matches the month the user
+    // is looking at. The server pins these to UTC midnight, which is how the
+    // columns were written, so no offset creeps in either direction.
+    const from = format(startOfMonth(month), 'yyyy-MM-dd');
+    const to = format(startOfMonth(addMonths(month, 1)), 'yyyy-MM-dd');
+    const range = `from=${from}&to=${to}`;
+
+    try {
+      const [inv, exp, pay] = await Promise.all([
+        fetch(`/api/invoices?${range}`).then((r: any) => (r.ok ? r.json() : [])),
+        fetch(`/api/expenses?${range}`).then((r: any) => (r.ok ? r.json() : [])),
+        fetch(`/api/payments?${range}`).then((r: any) => (r.ok ? r.json() : [])),
+      ]);
+      if (token !== derivedRef.current) return;
+
+      const entries: CalendarEntry[] = [];
+
+      for (const i of inv ?? []) {
+        if (i?.dueDate && ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(i?.status)) {
+          entries.push({
+            key: `inv-${i.id}`, origin: 'derived', kind: 'invoice_due',
+            title: `${i?.invoiceNumber ?? ''} — ${i?.customer?.name ?? ''}`.trim(),
+            amount: i?.total, currency: i?.currency ?? 'USD', date: toCalendarDay(i.dueDate)!,
+          });
+        }
+      }
+      for (const e of exp ?? []) {
+        if (e?.dueDate && e?.status === 'UNPAID') {
+          entries.push({
+            key: `exp-${e.id}`, origin: 'derived', kind: 'expense_due',
+            title: e?.description ?? 'Expense',
+            amount: e?.amount, currency: e?.currency ?? 'USD', date: toCalendarDay(e.dueDate)!,
+          });
+        }
+      }
+      for (const p of pay ?? []) {
+        if (p?.paymentDate) {
+          entries.push({
+            key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
+            title: p?.invoice?.invoiceNumber ? `Payment — ${p.invoice.invoiceNumber}` : 'Payment',
+            amount: p?.amount, currency: p?.currency ?? 'USD', date: toCalendarDay(p.paymentDate)!,
+          });
+        }
+      }
+
+      setDerived(entries);
+    } catch {
+      if (token === derivedRef.current) setLoadError('Could not load financial records');
+    } finally {
+      if (token === derivedRef.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentMonth) loadDerived(currentMonth);
+  }, [currentMonth, loadDerived]);
 
   /** Manual events, refetched whenever the visible month changes. */
   const loadEvents = useCallback(async (month: Date) => {

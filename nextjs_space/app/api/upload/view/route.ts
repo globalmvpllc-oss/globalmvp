@@ -28,11 +28,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'path is required' }, { status: 400 });
     }
 
-    if (!path.includes(`uploads/${companyId}/`)) {
+    // Ownership is asserted on the prefix, not merely on the key containing the
+    // company's segment somewhere. `includes` was not exploitable — presigned
+    // keys are `{folderPrefix}uploads/{companyId}/{uuid}-{name}` and the name is
+    // stripped of path separators, so one company's segment can never appear
+    // inside another's key — but that safety depended on an invariant enforced
+    // in a different file. Anchoring the check here keeps it true regardless.
+    //
+    // folderPrefix is configuration rather than user input, so it is read from
+    // the same source the upload side uses instead of being guessed.
+    const { bucketName, folderPrefix } = getBucketConfig();
+    const expectedPrefix = `${folderPrefix}uploads/${companyId}/`;
+    if (!path.startsWith(expectedPrefix)) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    const { bucketName } = getBucketConfig();
     const client = createS3Client();
 
     const url = await getSignedUrl(

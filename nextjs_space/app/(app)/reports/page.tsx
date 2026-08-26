@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 const RechartsCharts = dynamic(() => import('@/components/reports-charts'), { ssr: false, loading: () => <div className="h-64 bg-muted rounded-lg animate-pulse" /> });
 
@@ -60,6 +62,19 @@ export default function ReportsPage() {
   const currencies = Object.keys(totals);
   if (currencies.length === 0) currencies.push(defaultCurrency);
 
+  /**
+   * Whether there is anything to report on at all.
+   *
+   * Without this the page rendered a full set of zeroed cards and empty charts,
+   * which reads as "your business earned nothing" rather than "you have not
+   * entered anything yet" — a discouraging first impression, and ambiguous even
+   * for an existing user who filtered their way to nothing.
+   */
+  const hasRecords =
+    (data?.income?.length ?? 0) > 0 ||
+    (data?.expenses?.length ?? 0) > 0 ||
+    (data?.invoices?.length ?? 0) > 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -67,7 +82,31 @@ export default function ReportsPage() {
         <p className="text-muted-foreground">Financial overview and insights</p>
       </div>
 
-      {currencies.map((cur) => {
+      {!hasRecords ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <BarChart3 className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <h3 className="font-medium mb-1">Nothing to report yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Reports build themselves from your invoices, income and expenses. Add a record and it will
+              show up here.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button asChild>
+                <Link href="/invoices/new">Create your first invoice</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/income">Add income</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/expenses">Add expense</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {hasRecords && currencies.map((cur) => {
         const t = totals[cur] ?? { income: 0, expenses: 0, invoiced: 0, collected: 0 };
         return (
           <div key={cur}>

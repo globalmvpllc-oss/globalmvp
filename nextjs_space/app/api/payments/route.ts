@@ -13,6 +13,8 @@ import {
 import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
 import { parseCalendarDate } from '@/lib/calendar-date';
+import { parseCalendarRange } from '@/lib/calendar-range';
+import { RANGE_MAX } from '@/lib/calendar-range';
 
 export async function GET(request: Request) {
   try {
@@ -23,15 +25,18 @@ export async function GET(request: Request) {
     const take = Math.min(Math.max(Number(searchParams.get('take') ?? 100), 1), 200);
     const skip = Math.max(Number(searchParams.get('skip') ?? 0), 0);
 
+    const { range, error: rangeError } = parseCalendarRange(searchParams);
+    if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 });
+
     const payments = await prisma.payment.findMany({
-      where: { companyId },
+      where: range ? { companyId, paymentDate: range } : { companyId },
       include: {
         invoice: { select: { invoiceNumber: true, customer: { select: { name: true } } } },
         expense: { select: { description: true } },
       },
       orderBy: { paymentDate: 'desc' },
-      take,
-      skip,
+      take: range ? RANGE_MAX : take,
+      skip: range ? 0 : skip,
     });
     return NextResponse.json(payments);
   } catch (error) {

@@ -229,6 +229,10 @@ model Invoice {
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
+  /// The calendar's month query: one company's invoices inside a due-date
+  /// window. The single-column [dueDate] index cannot serve it without also
+  /// scanning other companies' rows.
+  @@index([companyId, dueDate])
 }
 
 model InvoiceItem {
@@ -266,6 +270,9 @@ model Payment {
   @@index([companyId])
   @@index([invoiceId])
   @@index([expenseId])
+  /// Serves both the payments list (ordered by paymentDate desc within a
+  /// company) and the calendar's month window.
+  @@index([companyId, paymentDate])
 }
 
 model IncomeTransaction {
@@ -289,6 +296,8 @@ model IncomeTransaction {
 
   @@index([companyId])
   @@index([status])
+  /// The income list orders by date desc within a company.
+  @@index([companyId, date])
 }
 
 model ExpenseTransaction {
@@ -313,6 +322,10 @@ model ExpenseTransaction {
 
   @@index([companyId])
   @@index([status])
+  /// The expenses list orders by date desc within a company.
+  @@index([companyId, date])
+  /// The calendar's month window filters unpaid expenses by due date.
+  @@index([companyId, dueDate])
 }
 
 model Category {

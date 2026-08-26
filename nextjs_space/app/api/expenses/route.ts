@@ -6,18 +6,31 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { expenseSchema, expenseUpdateSchema, validateBody } from '@/lib/validation';
 import { parseCalendarDate } from '@/lib/calendar-date';
+import { parseCalendarRange, RANGE_MAX, boundedTake, listResponse } from '@/lib/calendar-range';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { error, companyId } = await requireUserCompany();
     if (error) return error;
 
+    const { searchParams } = new URL(request.url);
+
+    // Range filters on dueDate, which is the field the calendar derives its
+    // expense entries from.
+    const { range, error: rangeError } = parseCalendarRange(searchParams);
+    if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 });
+
+    const take = boundedTake(searchParams);
+
     const transactions = await prisma.expenseTransaction.findMany({
-      where: { companyId },
+      where: range ? { companyId, dueDate: range } : { companyId },
       include: { vendor: { select: { name: true } } },
       orderBy: { date: 'desc' },
+      // One extra row is fetched purely to detect truncation.
+      take: (range ? RANGE_MAX : take) + 1,
     });
-    return NextResponse.json(transactions);
+
+    return listResponse(transactions, range ? RANGE_MAX : take);
   } catch (error) {
     return handleApiError('expenses:GET', error, { fallbackMessage: 'Failed' });
   }

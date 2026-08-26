@@ -6,18 +6,24 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { incomeSchema, incomeUpdateSchema, validateBody } from '@/lib/validation';
 import { parseCalendarDate } from '@/lib/calendar-date';
+import { boundedTake, listResponse } from '@/lib/calendar-range';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { error, companyId } = await requireUserCompany();
     if (error) return error;
+
+    const { searchParams } = new URL(request.url);
+    const take = boundedTake(searchParams);
 
     const transactions = await prisma.incomeTransaction.findMany({
       where: { companyId },
       include: { customer: { select: { name: true } } },
       orderBy: { date: 'desc' },
+      take: take + 1,
     });
-    return NextResponse.json(transactions);
+
+    return listResponse(transactions, take);
   } catch (error) {
     return handleApiError('income:GET', error, { fallbackMessage: 'Failed' });
   }

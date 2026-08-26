@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { SESSION_MAX_AGE, SESSION_UPDATE_AGE } from '@/lib/session-config';
 
 /**
  * Constant-time-ish decoy hash.
@@ -62,7 +63,13 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    // Durations live in lib/session-config so they carry no Prisma dependency
+    // and can be asserted directly; the reasoning for each is documented there.
+    maxAge: SESSION_MAX_AGE,
+    updateAge: SESSION_UPDATE_AGE,
+  },
   pages: {
     signIn: '/auth/login',
   },

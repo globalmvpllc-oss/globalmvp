@@ -9,6 +9,8 @@ import { type TxClient } from '@/lib/payment-calc';
 import { handleApiError } from '@/lib/api-error';
 import { allocateInvoiceNumber } from '@/lib/invoice-number';
 import { parseCalendarDate } from '@/lib/calendar-date';
+import { parseCalendarRange } from '@/lib/calendar-range';
+import { RANGE_MAX } from '@/lib/calendar-range';
 
 const DUPLICATE_NUMBER_MESSAGE = 'An invoice with this number already exists';
 
@@ -22,8 +24,15 @@ export async function GET(request: Request) {
     const take = Math.min(Math.max(Number(searchParams.get('take') ?? 100), 1), 200);
     const skip = Math.max(Number(searchParams.get('skip') ?? 0), 0);
 
+    // The calendar asks for one month of due dates. When a range is given the
+    // result is bounded by the range rather than by `take`, so a month is never
+    // returned half-complete.
+    const { range, error: rangeError } = parseCalendarRange(searchParams);
+    if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 });
+
     const where: Record<string, unknown> = { companyId };
     if (status && status !== 'ALL') where.status = status;
+    if (range) where.dueDate = range;
 
     const invoices = await prisma.invoice.findMany({
       where,
@@ -32,8 +41,10 @@ export async function GET(request: Request) {
         _count: { select: { items: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take,
-      skip,
+      // A bounded month can be returned whole; RANGE_MAX only guards against a
+      // caller asking for an absurd window.
+      take: range ? RANGE_MAX : take,
+      skip: range ? 0 : skip,
     });
     return NextResponse.json(invoices);
   } catch (error) {
