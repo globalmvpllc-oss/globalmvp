@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
+import { toCalendarInput } from '@/lib/calendar-date';
 
 export default function IncomePage() {
   const company = useCompany();
@@ -63,8 +64,8 @@ export default function IncomePage() {
       ...emptyForm(),
       ...t,
       amount: String(t?.amount ?? ''),
-      date: t?.date ? new Date(t.date).toISOString().split('T')[0] : '',
-      expectedPaymentDate: t?.expectedPaymentDate ? new Date(t.expectedPaymentDate).toISOString().split('T')[0] : '',
+      date: t?.date ? toCalendarInput(t.date) : '',
+      expectedPaymentDate: t?.expectedPaymentDate ? toCalendarInput(t.expectedPaymentDate) : '',
       customerId: t?.customerId ?? '',
       notes: t?.notes ?? '',
       category: t?.category ?? '',

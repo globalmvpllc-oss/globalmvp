@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { incomeSchema, incomeUpdateSchema, validateBody } from '@/lib/validation';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 export async function GET() {
   try {
@@ -45,8 +46,8 @@ export async function POST(request: Request) {
         category: data.category,
         amount: data.amount,
         currency: data.currency ?? 'USD',
-        date: data.date ? new Date(data.date) : new Date(),
-        expectedPaymentDate: data.expectedPaymentDate ? new Date(data.expectedPaymentDate) : null,
+        date: parseCalendarDate(data.date) ?? parseCalendarDate(new Date())!,
+        expectedPaymentDate: parseCalendarDate(data.expectedPaymentDate),
         status: data.status ?? 'EXPECTED',
         notes: data.notes,
       },
@@ -82,8 +83,8 @@ export async function PUT(request: Request) {
         category: data.category ?? existing.category,
         amount: data.amount ?? existing.amount,
         currency: data.currency ?? existing.currency,
-        date: data.date ? new Date(data.date) : existing.date,
-        expectedPaymentDate: data.expectedPaymentDate ? new Date(data.expectedPaymentDate) : existing.expectedPaymentDate,
+        date: parseCalendarDate(data.date) ?? existing.date,
+        expectedPaymentDate: parseCalendarDate(data.expectedPaymentDate) ?? existing.expectedPaymentDate,
         status: data.status ?? existing.status,
         notes: data.notes !== undefined ? data.notes : existing.notes,
       },

@@ -12,6 +12,7 @@ import {
 import { isOverpaymentForEdit, remainingForEdit } from '@/lib/payment-edit';
 import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 /**
  * Editing and deleting a payment.
@@ -118,7 +119,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
             data: {
               amount: nextAmount.toNumber(),
               currency: nextCurrency,
-              paymentDate: data.paymentDate ? new Date(data.paymentDate) : undefined,
+              paymentDate: parseCalendarDate(data.paymentDate) ?? undefined,
               paymentMethod: data.paymentMethod,
               reference: data.reference,
               notes: data.notes,
@@ -166,7 +167,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
           data: {
             amount: nextAmount.toNumber(),
             currency: nextCurrency,
-            paymentDate: data.paymentDate ? new Date(data.paymentDate) : undefined,
+            paymentDate: parseCalendarDate(data.paymentDate) ?? undefined,
             paymentMethod: data.paymentMethod,
             reference: data.reference,
             notes: data.notes,

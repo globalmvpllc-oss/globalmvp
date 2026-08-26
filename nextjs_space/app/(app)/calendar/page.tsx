@@ -24,6 +24,7 @@ import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
   addMonths, subMonths, getDay,
 } from 'date-fns';
+import { toCalendarDay } from '@/lib/calendar-date';
 
 /**
  * Two kinds of entry share this calendar.
@@ -142,7 +143,7 @@ export default function CalendarPage() {
             entries.push({
               key: `inv-${i.id}`, origin: 'derived', kind: 'invoice_due',
               title: `${i?.invoiceNumber ?? ''} — ${i?.customer?.name ?? ''}`.trim(),
-              amount: i?.total, currency: i?.currency ?? 'USD', date: new Date(i.dueDate),
+              amount: i?.total, currency: i?.currency ?? 'USD', date: toCalendarDay(i.dueDate)!,
             });
           }
         }
@@ -151,7 +152,7 @@ export default function CalendarPage() {
             entries.push({
               key: `exp-${e.id}`, origin: 'derived', kind: 'expense_due',
               title: e?.description ?? 'Expense',
-              amount: e?.amount, currency: e?.currency ?? 'USD', date: new Date(e.dueDate),
+              amount: e?.amount, currency: e?.currency ?? 'USD', date: toCalendarDay(e.dueDate)!,
             });
           }
         }
@@ -160,7 +161,7 @@ export default function CalendarPage() {
             entries.push({
               key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
               title: p?.invoice?.invoiceNumber ? `Payment — ${p.invoice.invoiceNumber}` : 'Payment',
-              amount: p?.amount, currency: p?.currency ?? 'USD', date: new Date(p.paymentDate),
+              amount: p?.amount, currency: p?.currency ?? 'USD', date: toCalendarDay(p.paymentDate)!,
             });
           }
         }

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
+import { formatCalendarDate, toCalendarInput } from '@/lib/calendar-date';
 
 export default function ExpensesPage() {
   const company = useCompany();
@@ -65,8 +66,8 @@ export default function ExpensesPage() {
       ...emptyForm(),
       ...t,
       amount: String(t?.amount ?? ''),
-      date: t?.date ? new Date(t.date).toISOString().split('T')[0] : '',
-      dueDate: t?.dueDate ? new Date(t.dueDate).toISOString().split('T')[0] : '',
+      date: t?.date ? toCalendarInput(t.date) : '',
+      dueDate: t?.dueDate ? toCalendarInput(t.dueDate) : '',
       vendorId: t?.vendorId ?? '',
       notes: t?.notes ?? '',
       category: t?.category ?? '',
@@ -305,7 +306,7 @@ export default function ExpensesPage() {
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="font-mono font-medium">{formatCurrency(t?.amount ?? 0, t?.currency ?? 'USD')}</p>
-                      <p className="text-xs text-muted-foreground">{t?.dueDate ? `Due ${format(new Date(t.dueDate), 'MMM d')}` : t?.date ? format(new Date(t.date), 'MMM d, yyyy') : ''}</p>
+                      <p className="text-xs text-muted-foreground">{t?.dueDate ? `Due ${formatCalendarDate(t.dueDate, 'MMM d')}` : t?.date ? formatCalendarDate(t.date) : ''}</p>
                     </div>
                     <Badge className={t?.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>{t?.status === 'PAID' ? 'Paid' : 'Unpaid'}</Badge>
                     <DropdownMenu>

@@ -18,6 +18,7 @@ import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { formatCurrency } from '@/lib/currencies';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { toCalendarInput } from '@/lib/calendar-date';
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<any[]>([]);
@@ -58,7 +59,7 @@ export default function PaymentsPage() {
     setForm({
       amount: String(p?.amount ?? ''),
       currency: p?.currency ?? 'USD',
-      paymentDate: p?.paymentDate ? new Date(p.paymentDate).toISOString().split('T')[0] : '',
+      paymentDate: p?.paymentDate ? toCalendarInput(p.paymentDate) : '',
       paymentMethod: p?.paymentMethod ?? 'bank_transfer',
       invoiceId: p?.invoiceId ?? '',
       reference: p?.reference ?? '',

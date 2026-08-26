@@ -5,11 +5,21 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { signupSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
+import { checkRateLimit, clientKey, SIGNUP_RULE } from '@/lib/rate-limit';
 
 const DUPLICATE_MESSAGE = 'An account with this email already exists';
 
 export async function POST(request: Request) {
   try {
+    // Checked before any parsing or hashing, so a blocked caller costs nothing.
+    const limit = checkRateLimit(clientKey(request, 'signup'), SIGNUP_RULE);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many sign-up attempts. Please wait a few minutes and try again.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+      );
+    }
+
     const body = await request.json();
     // signupSchema trims + lowercases the email, so "Test@Example.COM" and
     // "test@example.com" can no longer become two separate accounts.

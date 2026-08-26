@@ -12,6 +12,7 @@
  */
 
 import { countryLabel } from '@/lib/countries';
+import { formatCalendarDateLong } from '@/lib/calendar-date';
 
 /** Escapes text before interpolation so invoice content cannot inject markup. */
 export function esc(value: unknown): string {
@@ -125,18 +126,10 @@ export function buildInvoiceView(
   const currency = invoice?.currency ?? 'USD';
   const sym = currencySymbol(currency);
   const fmt = (n: unknown) => `${sym}${Number(n ?? 0).toFixed(2)}`;
-  const fmtDate = (d: unknown) => {
-    if (!d) return '';
-    try {
-      return new Date(d as string).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    } catch {
-      return String(d);
-    }
-  };
+  // Formatted in UTC terms: a due date must read the same on the invoice
+  // wherever the PDF happens to be generated. toLocaleDateString rendered the
+  // previous day at negative UTC offsets.
+  const fmtDate = (d: unknown) => formatCalendarDateLong(d);
 
   const addressParts: string[] = [];
   if (company?.address) {

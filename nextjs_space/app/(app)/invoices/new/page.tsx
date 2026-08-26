@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { todayCalendarInput, addCalendarDays } from '@/lib/calendar-date';
 
 interface InvoiceItem {
   description: string;
@@ -37,7 +38,7 @@ export default function NewInvoicePage() {
     // (below); seeding a hardcoded 30 days here would overwrite them.
     setForm((p: any) => ({
       ...p,
-      issueDate: new Date().toISOString().split('T')[0],
+      issueDate: todayCalendarInput(),
     }));
   }, []);
   const [items, setItems] = useState<InvoiceItem[]>([
@@ -67,13 +68,12 @@ export default function NewInvoicePage() {
           typeof c.defaultPaymentTerms === 'number' && Number.isFinite(c.defaultPaymentTerms)
             ? c.defaultPaymentTerms
             : 30;
-        const due = new Date();
-        due.setDate(due.getDate() + terms);
+        const dueDate = addCalendarDays(todayCalendarInput(), terms);
 
         setForm((p: any) => ({
           ...p,
           currency: c.defaultCurrency ?? p.currency,
-          dueDate: due.toISOString().split('T')[0],
+          dueDate,
           // Only prefill notes the user has not already typed into.
           notes: p.notes || (c.invoiceNotes ?? ''),
         }));

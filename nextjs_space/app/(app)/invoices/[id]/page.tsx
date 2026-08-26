@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+/** Roughly two minutes at a two-second interval. */
+const MAX_PDF_POLL_ATTEMPTS = 60;
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -10,13 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Send, CheckCircle, Download, CreditCard, Trash2, Copy } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, Download, Printer, CreditCard, Trash2, Copy } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { resolveStoredFileUrl } from '@/lib/company-identity';
 import { generateInvoiceHtml } from '@/lib/invoice-html';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatCalendarDate } from '@/lib/calendar-date';
+import { readErrorMessage } from '@/lib/api-feedback';
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -25,6 +30,21 @@ export default function InvoiceDetailPage() {
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  /**
+   * Held in a ref so the interval can be cleared from anywhere, including on
+   * unmount. Previously it was a local that nothing cancelled, so leaving the
+   * page left it polling the service for around two minutes.
+   */
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  useEffect(() => stopPolling, []);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ amount: '', paymentMethod: 'bank_transfer', reference: '', notes: '' });
 
@@ -102,6 +122,36 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  /**
+   * Opens the invoice in a print window so the browser can produce the PDF.
+   *
+   * The service-backed path is better (server-rendered, consistent margins),
+   * but it depends on a third-party key. Without a fallback, an unset or
+   * unreachable service means a bookkeeping product cannot produce an invoice
+   * at all — so printing is always available, and is used automatically when
+   * the service is not configured.
+   *
+   * The same generateInvoiceHtml output is used, so the template, the escaping
+   * and the figures are identical to the downloaded file.
+   */
+  const printInvoice = async () => {
+    const logoDataUrl = await loadLogoDataUrl();
+    const html = generateInvoiceHtml(invoice, company, logoDataUrl);
+    const win = window.open('', '_blank');
+    if (!win) {
+      toast.error('Your browser blocked the print window. Allow pop-ups for this site and try again.');
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    // Waits for the document — images especially — before opening the dialog,
+    // otherwise the logo is missing from the printed page.
+    win.onload = () => win.print();
+    // onload does not fire for an already-complete document in every browser.
+    if (win.document.readyState === 'complete') win.print();
+  };
+
   const downloadPdf = async () => {
     setPdfLoading(true);
     try {
@@ -112,41 +162,74 @@ export default function InvoiceDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ html_content: html, pdf_options: { format: 'A4', margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } } }),
       });
+
+      if (!createRes.ok) {
+        // 503 means the service has no key configured. That is not something
+        // the user can act on, so print instead of showing them an error.
+        if (createRes.status === 503) {
+          setPdfLoading(false);
+          toast.message('Opening the print view instead.', {
+            description: 'The PDF service is not configured, so your browser will produce the file.',
+          });
+          await printInvoice();
+          return;
+        }
+        // Every other failure keeps the API's own message rather than
+        // collapsing it into "Failed to generate PDF".
+        toast.error(await readErrorMessage(createRes));
+        setPdfLoading(false);
+        return;
+      }
+
       const createData = await createRes.json();
-      if (!createData?.success || !createData?.token) { toast.error('Failed to generate PDF'); setPdfLoading(false); return; }
-      // Poll for status
+      if (!createData?.success || !createData?.token) {
+        toast.error(createData?.error ?? 'The PDF service did not accept this invoice. You can print it instead.');
+        setPdfLoading(false);
+        return;
+      }
+
       let attempts = 0;
-      const pollInterval = setInterval(async () => {
+      pollRef.current = setInterval(async () => {
         attempts++;
-        const statusRes = await fetch('/api/generate-pdf/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: createData.token }),
-        });
-        const statusData = await statusRes.json();
-        if (statusData?.status === 'SUCCESS' && statusData?.pdf_base64) {
-          clearInterval(pollInterval);
-          const binaryStr = atob(statusData.pdf_base64);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-          const blob = new Blob([bytes], { type: 'application/pdf' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${invoice?.invoiceNumber ?? 'invoice'}.pdf`;
-          a.click();
-          URL.revokeObjectURL(url);
+        try {
+          const statusRes = await fetch('/api/generate-pdf/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: createData.token }),
+          });
+          const statusData = await statusRes.json();
+
+          if (statusData?.status === 'SUCCESS' && statusData?.pdf_base64) {
+            stopPolling();
+            const binaryStr = atob(statusData.pdf_base64);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${invoice?.invoiceNumber ?? 'invoice'}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setPdfLoading(false);
+            toast.success('PDF downloaded.');
+          } else if (statusData?.status === 'FAILED' || attempts > MAX_PDF_POLL_ATTEMPTS) {
+            stopPolling();
+            setPdfLoading(false);
+            toast.error(
+              statusData?.error ??
+                'The PDF service could not finish this invoice. Use Print to produce it in your browser.'
+            );
+          }
+        } catch {
+          stopPolling();
           setPdfLoading(false);
-          toast.success('PDF downloaded!');
-        } else if (statusData?.status === 'FAILED' || attempts > 60) {
-          clearInterval(pollInterval);
-          setPdfLoading(false);
-          toast.error('PDF generation failed');
+          toast.error('Lost contact with the PDF service. Use Print to produce the invoice in your browser.');
         }
       }, 2000);
     } catch {
       setPdfLoading(false);
-      toast.error('Failed to generate PDF');
+      toast.error('The invoice could not be prepared for download. Use Print instead.');
     }
   };
 
@@ -212,6 +295,9 @@ export default function InvoiceDetailPage() {
               <Button onClick={() => updateStatus('PAID')}><CheckCircle className="w-4 h-4 mr-2" /> Mark Paid</Button>
             </>
           )}
+          <Button variant="outline" onClick={printInvoice} disabled={pdfLoading}>
+            <Printer className="w-4 h-4 mr-2" /> Print
+          </Button>
           <Button variant="outline" onClick={downloadPdf} disabled={pdfLoading}>
             <Download className="w-4 h-4 mr-2" /> {pdfLoading ? 'Generating...' : 'PDF'}
           </Button>
@@ -221,8 +307,8 @@ export default function InvoiceDetailPage() {
 
       {/* Invoice Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Issue Date</p><p className="font-medium">{invoice?.issueDate ? format(new Date(invoice.issueDate), 'MMM d, yyyy') : ''}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Due Date</p><p className="font-medium">{invoice?.dueDate ? format(new Date(invoice.dueDate), 'MMM d, yyyy') : ''}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Issue Date</p><p className="font-medium">{invoice?.issueDate ? formatCalendarDate(invoice.issueDate) : ''}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Due Date</p><p className="font-medium">{invoice?.dueDate ? formatCalendarDate(invoice.dueDate) : ''}</p></CardContent></Card>
         <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Total</p><p className="font-mono font-medium">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</p></CardContent></Card>
         <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Outstanding</p><p className="font-mono font-medium text-amber-600">{formatCurrency(outstanding, invoice?.currency ?? 'USD')}</p></CardContent></Card>
       </div>
@@ -282,7 +368,7 @@ export default function InvoiceDetailPage() {
                 <div key={p?.id} className="flex justify-between items-center py-2 px-3 rounded bg-muted/50">
                   <div>
                     <p className="text-sm font-medium">{p?.paymentMethod?.replace('_', ' ') ?? 'Payment'}</p>
-                    <p className="text-xs text-muted-foreground">{p?.paymentDate ? format(new Date(p.paymentDate), 'MMM d, yyyy') : ''}{p?.reference ? ` • ${p.reference}` : ''}</p>
+                    <p className="text-xs text-muted-foreground">{p?.paymentDate ? formatCalendarDate(p.paymentDate) : ''}{p?.reference ? ` • ${p.reference}` : ''}</p>
                   </div>
                   <span className="font-mono font-medium text-green-600">{formatCurrency(p?.amount ?? 0, invoice?.currency ?? 'USD')}</span>
                 </div>

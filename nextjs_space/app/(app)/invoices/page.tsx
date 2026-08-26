@@ -14,6 +14,7 @@ import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function InvoicesPage() {
   const company = useCompany();
@@ -171,7 +172,7 @@ export default function InvoicesPage() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-mono font-medium">{formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}</p>
-                        <p className="text-xs text-muted-foreground">Due {inv?.dueDate ? format(new Date(inv.dueDate), 'MMM d, yyyy') : 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground">Due {inv?.dueDate ? formatCalendarDate(inv.dueDate) : 'N/A'}</p>
                       </div>
                       <Badge className={statusInfo?.color ?? ''}>{statusInfo?.label ?? inv?.status}</Badge>
                       <DropdownMenu>

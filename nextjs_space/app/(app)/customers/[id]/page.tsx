@@ -12,6 +12,7 @@ import { getStatusBadge } from '@/lib/invoice-helpers';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { countryLabel } from '@/lib/countries';
+import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -83,7 +84,7 @@ export default function CustomerDetailPage() {
                       <FileText className="w-4 h-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">{inv?.invoiceNumber ?? ''}</p>
-                        <p className="text-xs text-muted-foreground">{inv?.dueDate ? format(new Date(inv.dueDate), 'MMM d, yyyy') : ''}</p>
+                        <p className="text-xs text-muted-foreground">{inv?.dueDate ? formatCalendarDate(inv.dueDate) : ''}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

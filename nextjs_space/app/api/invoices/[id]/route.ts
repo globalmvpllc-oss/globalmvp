@@ -8,6 +8,7 @@ import { calculateInvoice, d2n } from '@/lib/invoice-calc';
 import { canTransition, isValidStatus } from '@/lib/invoice-status';
 import { recalculateInvoicePaymentState, type TxClient } from '@/lib/payment-calc';
 import { handleApiError } from '@/lib/api-error';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 const DUPLICATE_NUMBER_MESSAGE = 'An invoice with this number already exists';
 
@@ -97,8 +98,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
           data: {
             customerId: data.customerId ?? existing.customerId,
             invoiceNumber: data.invoiceNumber ?? existing.invoiceNumber,
-            issueDate: data.issueDate ? new Date(data.issueDate) : existing.issueDate,
-            dueDate: data.dueDate ? new Date(data.dueDate) : existing.dueDate,
+            issueDate: parseCalendarDate(data.issueDate) ?? existing.issueDate,
+            dueDate: parseCalendarDate(data.dueDate) ?? existing.dueDate,
             currency: data.currency ?? existing.currency,
             subtotal: d2n(totals.subtotal),
             taxTotal: d2n(totals.taxTotal),
@@ -138,8 +139,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       updateData.customerId = data.customerId;
     }
     if (data.invoiceNumber) updateData.invoiceNumber = data.invoiceNumber;
-    if (data.issueDate) updateData.issueDate = new Date(data.issueDate);
-    if (data.dueDate) updateData.dueDate = new Date(data.dueDate);
+    if (data.issueDate) updateData.issueDate = parseCalendarDate(data.issueDate);
+    if (data.dueDate) updateData.dueDate = parseCalendarDate(data.dueDate);
     if (data.currency) updateData.currency = data.currency;
     if (data.notes !== undefined) updateData.notes = data.notes;
 

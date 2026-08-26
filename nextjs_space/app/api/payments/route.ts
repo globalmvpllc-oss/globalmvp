@@ -12,6 +12,7 @@ import {
 } from '@/lib/payment-calc';
 import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 export async function GET(request: Request) {
   try {
@@ -112,7 +113,7 @@ export async function POST(request: Request) {
               expenseId: null,
               amount: data.amount,
               currency: data.currency,
-              paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
+              paymentDate: parseCalendarDate(data.paymentDate) ?? parseCalendarDate(new Date())!,
               paymentMethod: data.paymentMethod,
               reference: data.reference,
               notes: data.notes,
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
             expenseId: expense.id,
             amount: data.amount,
             currency: data.currency,
-            paymentDate: data.paymentDate ? new Date(data.paymentDate) : new Date(),
+            paymentDate: parseCalendarDate(data.paymentDate) ?? parseCalendarDate(new Date())!,
             paymentMethod: data.paymentMethod,
             reference: data.reference,
             notes: data.notes,

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart3, Building2, Globe, Coins, Briefcase, MapPin, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
+import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 
 
 const BUSINESS_TYPES = [
@@ -20,6 +21,8 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  /** Why the last attempt failed, shown next to the finish button. */
+  const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
 
   // Guard: redirect if user already has a company
@@ -52,6 +55,7 @@ export default function OnboardingPage() {
   const update = (key: string, val: string) => setForm((p: any) => ({ ...p, [key]: val }));
 
   const handleFinish = async () => {
+    setError(null);
     setLoading(true);
     try {
       const res = await fetch('/api/company', {
@@ -60,10 +64,22 @@ export default function OnboardingPage() {
         body: JSON.stringify(form),
       });
       if (res.ok) {
+        // Success path unchanged: the spinner stays up through the navigation
+        // so the button cannot be pressed twice mid-redirect.
         router.replace('/dashboard');
+        return;
       }
-    } catch { /* noop */ }
-    setLoading(false);
+
+      // Previously there was no else branch and the catch was a noop, so a
+      // rejected request left the user on this screen with no message and no
+      // way into the product — with nothing on screen to explain why.
+      setError(await readErrorMessage(res));
+    } catch {
+      setError(NETWORK_ERROR_MESSAGE);
+    } finally {
+      // Runs on the failure paths; the success path has already returned.
+      setLoading(false);
+    }
   };
 
   const steps = [
@@ -169,6 +185,11 @@ export default function OnboardingPage() {
                 )}
               </div>
             )}
+            {error ? (
+              <p role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
             <div className="flex justify-between mt-6">
               {step > 1 ? (
                 <Button variant="outline" onClick={() => setStep(step - 1)}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>

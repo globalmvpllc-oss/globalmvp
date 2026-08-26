@@ -1,6 +1,7 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { checkRateLimit, clientKey, LOGIN_RULE } from '@/lib/rate-limit';
 
 /**
  * Custom middleware: returns 401 JSON for unauthenticated API requests,
@@ -24,6 +25,20 @@ export default async function middleware(req: NextRequest) {
   ]);
 
   // Allow public routes
+  // Credentials sign-in is the one unauthenticated POST NextAuth exposes.
+  // authorize() receives no Request, so the limiter is applied here, where the
+  // client address is available. Only the POST is limited: session and provider
+  // GETs are used on every page load.
+  if (pathname === '/api/auth/callback/credentials' && req.method === 'POST') {
+    const limit = checkRateLimit(clientKey(req, 'login'), LOGIN_RULE);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many sign-in attempts. Please wait a few minutes and try again.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+      );
+    }
+  }
+
   if (
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||

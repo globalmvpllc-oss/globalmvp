@@ -8,6 +8,7 @@ import { calculateInvoice, d2n } from '@/lib/invoice-calc';
 import { type TxClient } from '@/lib/payment-calc';
 import { handleApiError } from '@/lib/api-error';
 import { allocateInvoiceNumber } from '@/lib/invoice-number';
+import { parseCalendarDate } from '@/lib/calendar-date';
 
 const DUPLICATE_NUMBER_MESSAGE = 'An invoice with this number already exists';
 
@@ -86,8 +87,8 @@ export async function POST(request: Request) {
             customerId: data.customerId,
             invoiceNumber,
             status: data.status ?? 'DRAFT',
-            issueDate: data.issueDate ? new Date(data.issueDate) : new Date(),
-            dueDate: new Date(data.dueDate),
+            issueDate: parseCalendarDate(data.issueDate) ?? parseCalendarDate(new Date())!,
+            dueDate: parseCalendarDate(data.dueDate)!,
             currency: data.currency ?? 'USD',
             subtotal: d2n(totals.subtotal),
             taxTotal: d2n(totals.taxTotal),
