@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
-import { getPolarClient, BillingNotConfiguredError } from '@/lib/billing/polar';
+import { getPolarClient, BillingNotConfiguredError, describePolarError } from '@/lib/billing/polar';
 
 /**
  * Opens the Polar customer portal for the signed-in user's company.
@@ -51,6 +51,7 @@ export async function POST() {
         { status: 503 }
       );
     }
+    console.error('[billing:portal] Polar rejected the portal session:', describePolarError(error));
     return handleApiError('billing:portal', error, {
       fallbackMessage: 'Could not open the billing portal. Please try again.',
     });

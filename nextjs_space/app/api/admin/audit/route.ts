@@ -22,10 +22,20 @@ export async function GET(request: Request) {
     const search = parseSearch(params);
     const action = params.get('action');
     const companyId = params.get('companyId');
+    const from = params.get('from');
+    const to = params.get('to');
 
     const where: Record<string, unknown> = {};
     if (action) where.action = action;
     if (companyId) where.companyId = companyId;
+    // Optional date window. Each bound is applied only when it parses, so a
+    // malformed value narrows nothing rather than throwing.
+    const createdAt: { gte?: Date; lte?: Date } = {};
+    const fromDate = from ? new Date(`${from}T00:00:00.000Z`) : null;
+    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
+    if (fromDate && !Number.isNaN(fromDate.getTime())) createdAt.gte = fromDate;
+    if (toDate && !Number.isNaN(toDate.getTime())) createdAt.lte = toDate;
+    if (createdAt.gte || createdAt.lte) where.createdAt = createdAt;
     if (search) {
       where.OR = [
         { actorEmail: { contains: search, mode: 'insensitive' as const } },
@@ -51,7 +61,11 @@ export async function GET(request: Request) {
       admin: gate.admin,
       action: 'admin.audit.listed',
       request,
-      metadata: { page, pageSize, filtered: Boolean(action || companyId || search) },
+      metadata: {
+        page,
+        pageSize,
+        filtered: Boolean(action || companyId || search || from || to),
+      },
     });
 
     return NextResponse.json({

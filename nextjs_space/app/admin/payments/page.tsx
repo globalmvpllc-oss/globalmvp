@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { prepareAdminList, totalPages } from '@/lib/admin/list';
 import { AdminTable, AdminListControls } from '@/components/admin-table';
@@ -67,8 +68,11 @@ export default async function AdminPaymentsPage({
           {
             key: 'against',
             header: 'Against',
-            cell: (p: any) =>
-              p.invoice?.invoiceNumber ?? p.expense?.description ?? '\u2014',
+            cell: (p: any) => (
+              <Link href={`/admin/payments/${p.id}`} className="text-primary hover:underline">
+                {p.invoice?.invoiceNumber ?? p.expense?.description ?? '\u2014'}
+              </Link>
+            ),
           },
           {
             key: 'customer',

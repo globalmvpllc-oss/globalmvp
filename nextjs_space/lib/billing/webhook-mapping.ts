@@ -1,4 +1,10 @@
-import { planForPriceId, isPaidPlan, type PaidPlan, type BillingInterval } from './plans';
+import {
+  planForConfiguredId,
+  planForPolarPriceId,
+  isPaidPlan,
+  type PaidPlan,
+  type BillingInterval,
+} from './plans';
 import { isSubscriptionStatus, type SubscriptionStatus } from './access';
 
 /**
@@ -160,11 +166,22 @@ export function mapSubscriptionEvent(
           : null;
   if (!polarPriceId) return { ok: false, reason: 'missing price id' };
 
-  // The plan is derived from the price actually charged, never from anything a
-  // client claimed.
-  const selection = planForPriceId(polarPriceId, env);
+  // The plan is derived from what Polar actually charged, never from anything a
+  // client claimed. Resolution is layered so it is correct whichever ids the
+  // deployment configured:
+  //
+  //   1. The dedicated PRICE-id variables, matched against the real price id.
+  //      This is the precise path, used when POLAR_*_PRICE_ID_* are set.
+  //   2. The PRODUCT-id variables (POLAR_*_PRICE_*), matched against the price
+  //      id — for deployments (and tests) where those hold price ids.
+  //   3. The PRODUCT-id variables matched against the product id — the common
+  //      case, since those variables hold product ids in production.
+  const selection =
+    planForPolarPriceId(polarPriceId, env) ??
+    planForConfiguredId(polarPriceId, env) ??
+    planForConfiguredId(polarProductId, env);
   if (!selection || !isPaidPlan(selection.plan)) {
-    return { ok: false, reason: `unrecognised price: ${polarPriceId}` };
+    return { ok: false, reason: `unrecognised price: ${polarPriceId} (product ${polarProductId})` };
   }
 
   const status = resolveStatus(eventType, sub.status);

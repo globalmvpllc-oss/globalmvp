@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { prepareAdminList, totalPages } from '@/lib/admin/list';
 import { AdminTable, AdminListControls } from '@/components/admin-table';
@@ -70,7 +71,15 @@ export default async function AdminInvoicesPage({
         rows={invoices as any[]}
         emptyMessage="No invoices match this search."
         columns={[
-          { key: 'number', header: 'Invoice', cell: (i: any) => i.invoiceNumber },
+          {
+            key: 'number',
+            header: 'Invoice',
+            cell: (i: any) => (
+              <Link href={`/admin/invoices/${i.id}`} className="text-primary hover:underline">
+                {i.invoiceNumber}
+              </Link>
+            ),
+          },
           { key: 'company', header: 'Company', cell: (i: any) => i.company?.name ?? '\u2014' },
           {
             key: 'customer',

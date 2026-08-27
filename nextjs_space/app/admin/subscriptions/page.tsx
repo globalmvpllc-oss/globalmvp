@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { prepareAdminList, totalPages } from '@/lib/admin/list';
 import { AdminTable, AdminListControls } from '@/components/admin-table';
@@ -71,7 +72,15 @@ export default async function AdminSubscriptionsPage({
         rows={subscriptions as any[]}
         emptyMessage="No paid subscriptions yet."
         columns={[
-          { key: 'company', header: 'Company', cell: (s: any) => s.company?.name ?? '\u2014' },
+          {
+            key: 'company',
+            header: 'Company',
+            cell: (s: any) => (
+              <Link href={`/admin/subscriptions/${s.id}`} className="text-primary hover:underline">
+                {s.company?.name ?? '\u2014'}
+              </Link>
+            ),
+          },
           { key: 'plan', header: 'Plan', cell: (s: any) => s.plan },
           { key: 'status', header: 'Status', cell: (s: any) => s.status },
           { key: 'interval', header: 'Interval', cell: (s: any) => s.interval },

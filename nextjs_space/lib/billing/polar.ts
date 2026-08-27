@@ -1,5 +1,6 @@
 import 'server-only';
 import { Polar } from '@polar-sh/sdk';
+import { redactSecrets } from '@/lib/api-error';
 
 /**
  * The Polar client.
@@ -52,4 +53,45 @@ export function getAppBaseUrl(): string {
   const configured = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL;
   if (!configured) throw new BillingNotConfiguredError('NEXTAUTH_URL');
   return configured.replace(/\/+$/, '');
+}
+
+/**
+ * A safe one-line summary of a Polar SDK error, for server logs only.
+ *
+ * The SDK throws errors carrying a `.name`, a `.statusCode` and a `.body` (often
+ * a JSON validation payload naming the offending field). None of that holds our
+ * access token, but the body is passed through redactSecrets as a belt-and-
+ * braces measure before it is logged, and the result is truncated. Never
+ * returned to the client — the route still answers with a generic message.
+ *
+ * The point is diagnosability: a production "Could not start checkout" should
+ * leave a precise reason in the server logs (e.g. an invalid customer email, or
+ * a product id that belongs to the other Polar environment) rather than a bare
+ * stack trace.
+ */
+export function describePolarError(error: unknown): string {
+  if (!error || typeof error !== 'object') return String(error ?? 'unknown error');
+  const e = error as {
+    name?: unknown;
+    statusCode?: unknown;
+    status?: unknown;
+    message?: unknown;
+    body?: unknown;
+  };
+  const name = typeof e.name === 'string' ? e.name : 'Error';
+  const status =
+    typeof e.statusCode === 'number' ? e.statusCode : typeof e.status === 'number' ? e.status : undefined;
+
+  let body = '';
+  if (typeof e.body === 'string') body = e.body;
+  else if (e.body != null) {
+    try {
+      body = JSON.stringify(e.body);
+    } catch {
+      body = '';
+    }
+  } else if (typeof e.message === 'string') body = e.message;
+
+  const snippet = redactSecrets(body).replace(/\s+/g, ' ').slice(0, 500);
+  return `${name}${status ? ` status=${status}` : ''}${snippet ? ` detail=${snippet}` : ''}`;
 }

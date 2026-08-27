@@ -6,6 +6,11 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# The admin audit-log page lives under app/admin/logs/, which the broad "logs"
+# rule above would otherwise ignore — keep that source directory tracked.
+!nextjs_space/app/admin/logs/
+!nextjs_space/app/admin/logs/**
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 

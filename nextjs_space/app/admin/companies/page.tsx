@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { prepareAdminList, totalPages } from '@/lib/admin/list';
 import { AdminTable, AdminListControls } from '@/components/admin-table';
@@ -55,7 +56,15 @@ export default async function AdminCompaniesPage({
         rows={companies as any[]}
         emptyMessage="No companies match this search."
         columns={[
-          { key: 'name', header: 'Company', cell: (c: any) => c.name },
+          {
+            key: 'name',
+            header: 'Company',
+            cell: (c: any) => (
+              <Link href={`/admin/companies/${c.id}`} className="text-primary hover:underline">
+                {c.name}
+              </Link>
+            ),
+          },
           { key: 'owner', header: 'Owner', cell: (c: any) => c.members?.[0]?.user?.email ?? '\u2014' },
           { key: 'country', header: 'Country', cell: (c: any) => c.country },
           { key: 'currency', header: 'Currency', cell: (c: any) => c.defaultCurrency },

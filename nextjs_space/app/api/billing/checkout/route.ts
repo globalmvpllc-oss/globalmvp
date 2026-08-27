@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
-import { getPolarClient, getAppBaseUrl, BillingNotConfiguredError } from '@/lib/billing/polar';
+import { getPolarClient, getAppBaseUrl, BillingNotConfiguredError, describePolarError } from '@/lib/billing/polar';
 import { isPaidPlan, isBillingInterval, priceIdFor } from '@/lib/billing/plans';
 
 /**
@@ -54,6 +54,10 @@ export async function POST(request: Request) {
     });
 
     if (!checkout?.url) {
+      console.error('[billing:checkout] Polar accepted the request but returned no checkout url', {
+        plan,
+        interval,
+      });
       return NextResponse.json(
         { error: 'Could not start checkout. Please try again.' },
         { status: 502 }
@@ -70,6 +74,10 @@ export async function POST(request: Request) {
         { status: 503 }
       );
     }
+    // Log the real Polar reason so a production checkout failure is diagnosable
+    // from the server logs. No token or secret can travel in this line, and the
+    // client still receives only the generic message below.
+    console.error('[billing:checkout] Polar rejected the checkout:', describePolarError(error));
     return handleApiError('billing:checkout', error, {
       fallbackMessage: 'Could not start checkout. Please try again.',
     });

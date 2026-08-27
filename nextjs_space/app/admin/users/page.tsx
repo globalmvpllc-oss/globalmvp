@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { prepareAdminList, totalPages } from '@/lib/admin/list';
 import { AdminTable, AdminListControls } from '@/components/admin-table';
@@ -73,7 +74,15 @@ export default async function AdminUsersPage({
         rows={users as any[]}
         emptyMessage="No users match this search."
         columns={[
-          { key: 'name', header: 'Name', cell: (u: any) => u.name ?? '—' },
+          {
+            key: 'name',
+            header: 'Name',
+            cell: (u: any) => (
+              <Link href={`/admin/users/${u.id}`} className="text-primary hover:underline">
+                {u.name ?? u.email}
+              </Link>
+            ),
+          },
           { key: 'email', header: 'Email', cell: (u: any) => u.email },
           {
             key: 'company',
