@@ -1,6 +1,6 @@
 import 'server-only';
 import type { Polar } from '@polar-sh/sdk';
-import { getPolarClient, BillingNotConfiguredError } from './polar';
+import { getPolarClient, BillingNotConfiguredError, describePolarError } from './polar';
 import { PAID_PLANS, BILLING_INTERVALS, priceIdFor } from './plans';
 import type { PlanPrice, PlanPrices, PlanPricing } from './pricing';
 
@@ -62,7 +62,14 @@ export async function getPlanPricing(): Promise<PlanPricing> {
             available = true;
           }
         } catch (error) {
-          console.error('[billing:pricing] could not read product', { plan, interval });
+          // The real Polar reason is logged (no secret can travel in it) so a
+          // production "no prices" is diagnosable — a sandbox/production server
+          // mismatch or a product id from the other environment shows up here.
+          console.error('[billing:pricing] could not read product', {
+            plan,
+            interval,
+            reason: describePolarError(error),
+          });
         }
       })
     )
