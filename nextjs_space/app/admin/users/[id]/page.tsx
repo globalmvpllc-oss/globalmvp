@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { checkAdmin } from '@/lib/admin/auth';
 import { recordAudit } from '@/lib/admin/audit';
 import { AdminBackLink, DetailCard, FieldGrid, Field, DetailTable } from '@/components/admin-detail';
+import { UserActiveToggle } from '@/components/admin-actions';
 
 /**
  * A single user, read-only.
@@ -28,6 +29,7 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
       name: true,
       email: true,
       emailVerified: true,
+      isActive: true,
       language: true,
       createdAt: true,
       companyMembers: {
@@ -66,6 +68,14 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
       </div>
 
       <DetailCard title="Account">
+        <div className="mb-4">
+          <p className="mb-2 text-xs text-muted-foreground">Access</p>
+          <UserActiveToggle
+            userId={user.id}
+            isActive={user.isActive}
+            isSelf={user.id === check.admin.id}
+          />
+        </div>
         <FieldGrid>
           <Field label="Name" value={user.name} />
           <Field label="Email" value={user.email} />
@@ -74,8 +84,8 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
           <Field label="Created" value={day(user.createdAt)} mono />
         </FieldGrid>
         <p className="mt-3 text-xs text-muted-foreground">
-          The User model records no active/inactive flag and no last-login time, so neither is shown —
-          adding either needs a schema change.
+          The User model records no last-login time, so it is not shown — adding it needs a schema
+          change.
         </p>
       </DetailCard>
 

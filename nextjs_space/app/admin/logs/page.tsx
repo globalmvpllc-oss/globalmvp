@@ -37,9 +37,11 @@ export default async function AdminLogsPage({
   const action = params.get('action') || '';
   const from = params.get('from') || '';
   const to = params.get('to') || '';
+  const company = params.get('company') || '';
 
   const where: Record<string, unknown> = {};
   if (action) where.action = action;
+  if (company) where.companyId = company;
   const createdAt: { gte?: Date; lte?: Date } = {};
   const fromDate = boundedDate(from, false);
   const toDate = boundedDate(to, true);
@@ -70,6 +72,7 @@ export default async function AdminLogsPage({
     if (action) p.set('action', action);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
+    if (company) p.set('company', company);
     return `/admin/logs?${p.toString()}`;
   };
 
@@ -123,8 +126,17 @@ export default async function AdminLogsPage({
             className="rounded-md border border-border bg-background px-3 py-1.5 text-sm"
           />
         </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Company id</label>
+          <input
+            name="company"
+            defaultValue={company}
+            placeholder="Filter by company id"
+            className="w-44 rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
         <button className="rounded-md border border-border px-3 py-1.5 text-sm">Filter</button>
-        {search || action || from || to ? (
+        {search || action || from || to || company ? (
           <Link href="/admin/logs" className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
             Clear
           </Link>

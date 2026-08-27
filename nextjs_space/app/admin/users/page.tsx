@@ -38,6 +38,7 @@ export default async function AdminUsersPage({
         email: true,
         createdAt: true,
         emailVerified: true,
+        isActive: true,
         companyMembers: {
           select: {
             role: true,
@@ -93,6 +94,19 @@ export default async function AdminUsersPage({
             key: 'plan',
             header: 'Plan',
             cell: (u: any) => u.companyMembers?.[0]?.company?.subscription?.plan ?? 'free',
+          },
+          {
+            key: 'active',
+            header: 'Status',
+            cell: (u: any) => (
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {u.isActive ? 'active' : 'inactive'}
+              </span>
+            ),
           },
           {
             key: 'verified',

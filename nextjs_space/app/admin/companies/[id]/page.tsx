@@ -5,6 +5,7 @@ import { checkAdmin } from '@/lib/admin/auth';
 import { recordAudit } from '@/lib/admin/audit';
 import { formatCurrency } from '@/lib/currencies';
 import { AdminBackLink, DetailCard, FieldGrid, Field, DetailTable } from '@/components/admin-detail';
+import { MemberActions } from '@/components/admin-actions';
 
 /**
  * A single company, read-only.
@@ -195,8 +196,12 @@ export default async function AdminCompanyDetailPage({ params }: { params: { id:
               ),
             },
             { key: 'email', header: 'Email', cell: (m: any) => m.user?.email ?? '—' },
-            { key: 'role', header: 'Role', cell: (m: any) => m.role },
             { key: 'since', header: 'Since', className: 'font-mono text-xs', cell: (m: any) => day(m.createdAt) },
+            {
+              key: 'manage',
+              header: 'Role & actions',
+              cell: (m: any) => <MemberActions memberId={m.id} role={m.role} />,
+            },
           ]}
         />
       </DetailCard>

@@ -15,6 +15,10 @@ model User {
   email          String          @unique
   emailVerified  DateTime?
   hashedPassword String?
+  /// Whether the account may sign in. A deactivated account is refused at login
+  /// and loses API access, but the row is kept so its history and audit trail
+  /// survive. Defaults true, so every existing user stays enabled.
+  isActive       Boolean         @default(true)
   image          String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt

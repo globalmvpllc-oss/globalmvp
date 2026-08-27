@@ -45,6 +45,10 @@ export const authOptions: NextAuthOptions = {
         const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
         if (!isValid) return null;
 
+        // A deactivated account is refused sign-in. Checked after the password
+        // so it adds no new timing signal for enumerating accounts.
+        if (!user.isActive) return null;
+
         return { id: user.id, name: user.name, email: user.email };
       },
     }),

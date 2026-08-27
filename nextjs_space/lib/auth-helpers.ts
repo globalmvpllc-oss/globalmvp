@@ -13,7 +13,10 @@ export async function getUserCompanyId(): Promise<string | null> {
   const user = await getSessionUser();
   if (!user) return null;
   const member = await prisma.companyMember.findFirst({
-    where: { userId: user.id },
+    // `user: { isActive: true }` revokes access for a deactivated account on its
+    // existing session too, not only at the next login — in one query, with no
+    // extra round-trip.
+    where: { userId: user.id, user: { isActive: true } },
     select: { companyId: true },
   });
   return member?.companyId ?? null;
@@ -33,7 +36,9 @@ export async function requireUserCompany(): Promise<
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), user: null, companyId: null };
   }
   const member = await prisma.companyMember.findFirst({
-    where: { userId: user.id },
+    // A deactivated account loses API access immediately: filtering on the
+    // related user's isActive means its existing session resolves to no company.
+    where: { userId: user.id, user: { isActive: true } },
     select: { companyId: true },
   });
   if (!member?.companyId) {
