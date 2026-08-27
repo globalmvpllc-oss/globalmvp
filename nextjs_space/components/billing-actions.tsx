@@ -29,10 +29,20 @@ export function BillingActions({
   showUpgrade,
   /** Which manage button this instance renders. */
   variant,
+  onlyPlan,
+  interval = 'month',
 }: {
   enabled: boolean;
   showUpgrade: boolean;
   variant?: 'subscription' | 'payment' | 'history';
+  /** Render a single upgrade button for this plan instead of both. */
+  onlyPlan?: 'pro' | 'business';
+  /**
+   * Interval to buy. Sent to the checkout route, which resolves the Polar
+   * product id from plan + interval server-side - the client never names a
+   * price, so the figure on screen is the one that gets charged.
+   */
+  interval?: 'month' | 'year';
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -73,25 +83,29 @@ export function BillingActions({
     busy === action ? t('common.loading') : t(key);
 
   if (showUpgrade) {
-    return (
-      <div className="flex flex-wrap gap-2">
-        <Button
-          disabled={!enabled || busy !== null}
-          onClick={() => go('checkout-pro', '/api/billing/checkout', { plan: 'pro', interval: 'month' })}
-        >
-          {label('billing.upgradePro', 'checkout-pro')}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!enabled || busy !== null}
-          onClick={() =>
-            go('checkout-business', '/api/billing/checkout', { plan: 'business', interval: 'month' })
-          }
-        >
-          {label('billing.upgradeBusiness', 'checkout-business')}
-        </Button>
-      </div>
+    const upgrade = (plan: 'pro' | 'business') => (
+      <Button
+        key={plan}
+        variant={plan === 'business' ? 'outline' : 'default'}
+        className="w-full"
+        disabled={!enabled || busy !== null}
+        onClick={() =>
+          go(
+            plan === 'pro' ? 'checkout-pro' : 'checkout-business',
+            '/api/billing/checkout',
+            { plan, interval }
+          )
+        }
+      >
+        {label(
+          plan === 'pro' ? 'billing.upgradePro' : 'billing.upgradeBusiness',
+          plan === 'pro' ? 'checkout-pro' : 'checkout-business'
+        )}
+      </Button>
     );
+
+    if (onlyPlan) return upgrade(onlyPlan);
+    return <div className="flex flex-wrap gap-2">{upgrade('pro')}{upgrade('business')}</div>;
   }
 
   const manageLabel: TranslationKey =

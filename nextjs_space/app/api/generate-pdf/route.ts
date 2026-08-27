@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { createPdfToken } from '@/lib/pdf-token';
 import { handleApiError } from '@/lib/api-error';
+import { enforcePlanLimit } from '@/lib/billing/limits';
 
 /** Upper bound on submitted markup. A generous invoice renders well under this. */
 const MAX_HTML_BYTES = 512 * 1024; // 512 KB
@@ -17,6 +18,11 @@ export async function POST(request: Request) {
   try {
     const { error, companyId } = await requireUserCompany();
     if (error) return error;
+
+    // Plan limit, enforced server-side. The plan is read from this company's
+    // subscription, so a request body claiming a different one changes nothing.
+    const denied = await enforcePlanLimit(companyId, 'invoicePdfPerMonth');
+    if (denied) return denied;
 
     const { html_content, pdf_options, css_stylesheet } = await request.json();
 

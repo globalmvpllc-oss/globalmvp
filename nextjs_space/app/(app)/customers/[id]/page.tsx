@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { countryLabel } from '@/lib/countries';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
@@ -19,19 +20,47 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/customers/${params?.id}`).then((r: any) => r.json()).then((d: any) => {
-      setCustomer(d);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    let active = true;
+    // A 404/401 must not render as an empty customer: the response body for a
+    // failure is `{ error: ... }`, which is truthy, so setting it here would
+    // show blank fields and zero totals instead of the "not found" state.
+    // Leaving `customer` null on a non-OK response keeps that state honest.
+    fetch(`/api/customers/${params?.id}`)
+      .then((r: any) => (r.ok ? r.json() : null))
+      .then((d: any) => {
+        if (!active) return;
+        setCustomer(d);
+        setLoading(false);
+      })
+      .catch(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [params?.id]);
 
   const handleDelete = async () => {
-    if (!confirm('Delete this customer? This will also remove related invoices.')) return;
-    await fetch(`/api/customers/${params?.id}`, { method: 'DELETE' });
-    toast.success('Customer deleted');
-    router.push('/customers');
+    // A customer that still has invoices cannot be deleted: the API refuses it
+    // with 409 to protect the invoice history. The confirmation says exactly
+    // that, rather than promising to remove invoices — which is the opposite of
+    // what the backend does.
+    if (!confirm('Delete this customer? A customer with existing invoices cannot be deleted.')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/customers/${params?.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        // Never report success on a refused delete: on 409 the customer is still
+        // there, so show the real reason and stay on the page.
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success('Customer deleted');
+      router.push('/customers');
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
@@ -45,15 +74,47 @@ export default function CustomerDetailPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">{customer?.name ?? ''}</h1>
           {customer?.companyName && <p className="text-muted-foreground">{customer.companyName}</p>}
         </div>
-        <Button variant="ghost" size="icon" onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+        <Button variant="ghost" size="icon" onClick={handleDelete} disabled={deleting}><Trash2 className="w-4 h-4 text-red-500" /></Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Invoiced</p><p className="text-lg font-mono font-bold">{formatCurrency(customer?.totalInvoiced ?? 0, customer?.defaultCurrency ?? 'USD')}</p></CardContent></Card>
-        <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Paid</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(customer?.totalPaid ?? 0, customer?.defaultCurrency ?? 'USD')}</p></CardContent></Card>
-        <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Outstanding</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(customer?.outstanding ?? 0, customer?.defaultCurrency ?? 'USD')}</p></CardContent></Card>
-      </div>
+      {/* Stats — grouped per currency. A customer invoiced in more than one
+          currency would otherwise show a single bucket under one (possibly
+          wrong) currency label; the API exposes `byCurrency` for exactly this. */}
+      {(() => {
+        const buckets: Record<string, { totalInvoiced: string; totalPaid: string; outstanding: string }> =
+          customer?.byCurrency ?? {};
+        const codes = Object.keys(buckets);
+        // No invoices yet: one zeroed row in the summary currency.
+        if (codes.length === 0) {
+          const cur = customer?.summaryCurrency ?? customer?.defaultCurrency ?? 'USD';
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Invoiced</p><p className="text-lg font-mono font-bold">{formatCurrency(0, cur)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Paid</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(0, cur)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Outstanding</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(0, cur)}</p></CardContent></Card>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4">
+            {codes.map((cur) => {
+              const b = buckets[cur];
+              return (
+                <div key={cur}>
+                  {codes.length > 1 && (
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{cur}</h3>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Invoiced</p><p className="text-lg font-mono font-bold">{formatCurrency(b.totalInvoiced, cur)}</p></CardContent></Card>
+                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Paid</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(b.totalPaid, cur)}</p></CardContent></Card>
+                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Outstanding</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(b.outstanding, cur)}</p></CardContent></Card>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Contact Info */}
       <Card>

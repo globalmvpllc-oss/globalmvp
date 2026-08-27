@@ -12,13 +12,29 @@ import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BulkPdfButton } from '@/components/bulk-pdf-button';
+import { useI18n } from '@/components/i18n-provider';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function InvoicesPage() {
   const company = useCompany();
   const [invoices, setInvoices] = useState<any[]>([]);
+  const { t } = useI18n();
+  /** Ids ticked for bulk download. Cleared implicitly when the list reloads. */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
+    );
+
+  const allSelected = invoices.length > 0 && selectedIds.length === invoices.length;
+  const toggleAll = () =>
+    setSelectedIds(allSelected ? [] : invoices.map((invoice: any) => invoice?.id).filter(Boolean));
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -34,13 +50,23 @@ export default function InvoicesPage() {
   useEffect(() => { fetchInvoices(); }, [statusFilter]);
 
   const handleStatusChange = async (id: string, status: string) => {
-    await fetch(`/api/invoices/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    toast.success(`Invoice marked as ${status.toLowerCase().replace('_', ' ')}`);
-    fetchInvoices();
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      // A rejected transition returns 409/400. Reporting success anyway would
+      // leave the badge the user sees disagreeing with the stored status.
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success(`Invoice marked as ${status.toLowerCase().replace('_', ' ')}`);
+      fetchInvoices();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    }
   };
 
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -113,10 +139,34 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">Invoices</h1>
           <p className="text-muted-foreground">Create, manage, and track your invoices</p>
         </div>
-        <Link href="/invoices/new">
-          <Button><Plus className="w-4 h-4 mr-2" /> Create Invoice</Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sits beside the primary action; the per-invoice "Download PDF"
+              lives on the detail page and is untouched. */}
+          <BulkPdfButton invoices={invoices} selectedIds={selectedIds} company={company} />
+          <Link href="/invoices/new">
+            <Button><Plus className="w-4 h-4 mr-2" /> Create Invoice</Button>
+          </Link>
+        </div>
       </div>
+
+      {invoices.length > 0 ? (
+        <div className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={toggleAll}
+            aria-label={t('bulk.selectAll')}
+            id="select-all-invoices"
+          />
+          <label htmlFor="select-all-invoices" className="cursor-pointer text-muted-foreground">
+            {t('bulk.selectAll')}
+          </label>
+          {selectedIds.length > 0 ? (
+            <span className="text-muted-foreground">
+              &middot; {t('bulk.selectedCount').replace('{count}', String(selectedIds.length))}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Filters */}
       <div className="flex gap-3">
@@ -159,6 +209,11 @@ export default function InvoicesPage() {
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={selectedIds.includes(inv?.id)}
+                        onCheckedChange={() => toggleOne(inv?.id)}
+                        aria-label={inv?.invoiceNumber ?? ''}
+                      />
                       <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center">
                         <FileText className="w-5 h-5 text-primary" />
                       </div>

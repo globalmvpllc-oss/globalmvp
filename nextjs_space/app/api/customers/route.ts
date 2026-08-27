@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { customerSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
+import { enforcePlanLimit } from '@/lib/billing/limits';
 
 export async function GET(request: Request) {
   try {
@@ -32,6 +33,11 @@ export async function POST(request: Request) {
   try {
     const { error: authError, companyId } = await requireUserCompany();
     if (authError) return authError;
+
+    // Plan limit, enforced server-side. The plan is read from this company's
+    // subscription, so a request body claiming a different one changes nothing.
+    const denied = await enforcePlanLimit(companyId, 'customers');
+    if (denied) return denied;
 
     const body = await request.json();
     const { data, error } = validateBody(customerSchema, body);

@@ -21,7 +21,7 @@ import { generateInvoiceHtml } from '@/lib/invoice-html';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { formatCalendarDate } from '@/lib/calendar-date';
-import { readErrorMessage } from '@/lib/api-feedback';
+import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -61,34 +61,55 @@ export default function InvoiceDetailPage() {
   useEffect(() => { fetchInvoice(); }, [params?.id]);
 
   const updateStatus = async (status: string) => {
-    await fetch(`/api/invoices/${params?.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    toast.success(`Invoice marked as ${status.toLowerCase().replace('_', ' ')}`);
-    fetchInvoice();
+    try {
+      const res = await fetch(`/api/invoices/${params?.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      // A rejected transition (409/400) must not read as success: the badge and
+      // the stored status would then disagree.
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success(`Invoice marked as ${status.toLowerCase().replace('_', ' ')}`);
+      fetchInvoice();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    }
   };
 
   const recordPayment = async () => {
     const amount = Number(paymentForm.amount);
     if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
-    await fetch('/api/payments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        invoiceId: params?.id,
-        amount,
-        currency: invoice?.currency ?? 'USD',
-        paymentMethod: paymentForm.paymentMethod,
-        reference: paymentForm.reference,
-        notes: paymentForm.notes,
-      }),
-    });
-    toast.success('Payment recorded!');
-    setPaymentOpen(false);
-    setPaymentForm({ amount: '', paymentMethod: 'bank_transfer', reference: '', notes: '' });
-    fetchInvoice();
+    try {
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: params?.id,
+          amount,
+          currency: invoice?.currency ?? 'USD',
+          paymentMethod: paymentForm.paymentMethod,
+          reference: paymentForm.reference,
+          notes: paymentForm.notes,
+        }),
+      });
+      // A refused payment (overpayment, currency mismatch, cancelled invoice)
+      // must never claim success: the invoice balance on screen would then
+      // disagree with the database.
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success('Payment recorded!');
+      setPaymentOpen(false);
+      setPaymentForm({ amount: '', paymentMethod: 'bank_transfer', reference: '', notes: '' });
+      fetchInvoice();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    }
   };
 
   /**
@@ -235,9 +256,19 @@ export default function InvoiceDetailPage() {
 
   const handleDelete = async () => {
     if (!confirm('Delete this invoice?')) return;
-    await fetch(`/api/invoices/${params?.id}`, { method: 'DELETE' });
-    toast.success('Invoice deleted');
-    router.push('/invoices');
+    try {
+      const res = await fetch(`/api/invoices/${params?.id}`, { method: 'DELETE' });
+      // An invoice with payments is refused (409). Reporting "deleted" and
+      // navigating away would tell the user it was gone when it is still there.
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success('Invoice deleted');
+      router.push('/invoices');
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    }
   };
 
   if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;

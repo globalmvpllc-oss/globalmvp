@@ -34,6 +34,7 @@ model User {
   accounts       Account[]
   sessions       Session[]
   createdEvents  Event[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Account {
@@ -487,4 +488,71 @@ model Subscription {
 
   @@index([status])
   @@index([currentPeriodEnd])
+}
+
+/// An administrative action, recorded for review.
+///
+/// Deliberately standalone: no foreign keys to User or Company. An audit trail
+/// that cascades away when its subject is deleted is not an audit trail — the
+/// deletion is exactly the event worth keeping. The ids are stored as plain
+/// strings and the actor's address is denormalised, so the record still reads
+/// after the account it describes is gone.
+///
+/// What must never be written here: passwords, hashes, access tokens, webhook
+/// secrets, session tokens, card details. `redactMetadata` in lib/admin/audit.ts
+/// strips those before anything reaches this table.
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+
+  /// Who acted. Null when the actor's account has since been removed.
+  actorUserId String?
+  /// Denormalised so the entry survives the account being deleted.
+  actorEmail  String
+
+  /// What happened, e.g. "user.viewed", "company.viewed", "admin.signed_in".
+  action     String
+  /// What it happened to, e.g. "user", "company", "invoice".
+  entityType String?
+  entityId   String?
+  /// The company the action concerned, when it concerned one.
+  companyId  String?
+
+  /// Extra context, already redacted. Never raw request bodies.
+  metadata   Json?
+
+  /// Request origin, kept for security review. Truncated on write.
+  ip         String?
+  userAgent  String?
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorUserId])
+  @@index([companyId])
+  @@index([entityType, entityId])
+}
+
+/// A pending password reset.
+///
+/// The token is never stored. Only its SHA-256 hash is, so a leaked database
+/// dump does not hand anyone a working reset link — the same reason passwords
+/// are hashed. The plaintext exists once, in the email, and nowhere else.
+///
+/// Rows are kept after use rather than deleted: `usedAt` is what makes a link
+/// single-use, and a deleted row would simply look like a token that never
+/// existed, which is harder to reason about during an incident.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  /// SHA-256 of the token that was emailed. Unique so a lookup is exact.
+  tokenHash String    @unique
+  userId    String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  /// Set the moment the token is spent. A second attempt finds it non-null.
+  usedAt    DateTime?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

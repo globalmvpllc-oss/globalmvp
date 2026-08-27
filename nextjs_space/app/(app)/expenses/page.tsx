@@ -32,6 +32,9 @@ export default function ExpensesPage() {
   const [creatingVendor, setCreatingVendor] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Set when the expense list itself could not be loaded, kept separate from the
+   *  empty state so a 401/500 is not shown as "no expenses recorded". */
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   /** Null while recording a new entry; the id while correcting one. */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,13 +47,30 @@ export default function ExpensesPage() {
   useEffect(() => { setForm((p: any) => ({ ...p, date: new Date().toISOString().split('T')[0] })); }, []);
 
   const fetchData = async () => {
-    const [expRes, venRes, catRes] = await Promise.all([
-      fetch('/api/expenses'), fetch('/api/vendors'), fetch('/api/categories?type=expense'),
-    ]);
-    setTransactions(await expRes.json().then((d: any) => Array.isArray(d) ? d : []));
-    setVendors(await venRes.json().then((d: any) => Array.isArray(d) ? d : []));
-    setCategories(await catRes.json().then((d: any) => Array.isArray(d) ? d : []));
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [expRes, venRes, catRes] = await Promise.all([
+        fetch('/api/expenses'), fetch('/api/vendors'), fetch('/api/categories?type=expense'),
+      ]);
+      // The expense list is the page's primary data. A 401/403/500 here must not
+      // fall through to an empty array and render as "no expenses recorded" —
+      // that reads as lost data rather than a failed request.
+      if (!expRes.ok) {
+        setLoadError(await readErrorMessage(expRes));
+        setTransactions([]);
+        return;
+      }
+      const exp = await expRes.json();
+      setTransactions(Array.isArray(exp) ? exp : []);
+      // Vendors and categories are picklists; they degrade to empty quietly.
+      setVendors(await venRes.json().then((d: any) => Array.isArray(d) ? d : []).catch(() => []));
+      setCategories(await catRes.json().then((d: any) => Array.isArray(d) ? d : []).catch(() => []));
+    } catch {
+      setLoadError(NETWORK_ERROR_MESSAGE);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -288,7 +308,9 @@ export default function ExpensesPage() {
         </CardContent></Card>
       </div>
 
-      {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : (transactions?.length ?? 0) === 0 ? (
+      {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : loadError ? (
+        <Card><CardContent className="py-12 text-center"><TrendingDown className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">Could not load expenses</h3><p className="text-sm text-muted-foreground mb-4">{loadError}</p><Button variant="outline" onClick={() => { setLoading(true); fetchData(); }}>Try again</Button></CardContent></Card>
+      ) : (transactions?.length ?? 0) === 0 ? (
         <Card><CardContent className="py-12 text-center"><TrendingDown className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{personalizeEmptyState('No expenses recorded', company?.name)}</h3><p className="text-sm text-muted-foreground">Start tracking your expenses</p></CardContent></Card>
       ) : (
         <div className="space-y-2">

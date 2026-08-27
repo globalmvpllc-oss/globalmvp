@@ -11,6 +11,7 @@ import { allocateInvoiceNumber } from '@/lib/invoice-number';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { parseCalendarRange } from '@/lib/calendar-range';
 import { RANGE_MAX } from '@/lib/calendar-range';
+import { enforcePlanLimit } from '@/lib/billing/limits';
 
 const DUPLICATE_NUMBER_MESSAGE = 'An invoice with this number already exists';
 
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
   try {
     const { error: authError, companyId } = await requireUserCompany();
     if (authError) return authError;
+
+    // Plan limit, enforced server-side. The plan is read from this company's
+    // subscription, so a request body claiming a different one changes nothing.
+    const denied = await enforcePlanLimit(companyId, 'invoicesPerMonth');
+    if (denied) return denied;
 
     const body = await request.json();
     const { data, error: validationError } = validateBody(invoiceCreateSchema, body);

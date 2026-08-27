@@ -30,6 +30,9 @@ export default function IncomePage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Set when the income list itself could not be loaded, kept separate from the
+   *  empty state so a 401/500 is not shown as "no income recorded". */
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   /** Null while recording a new entry; the id while correcting one. */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -42,13 +45,30 @@ export default function IncomePage() {
   useEffect(() => { setForm((p: any) => ({ ...p, date: new Date().toISOString().split('T')[0] })); }, []);
 
   const fetchData = async () => {
-    const [incRes, custRes, catRes] = await Promise.all([
-      fetch('/api/income'), fetch('/api/customers'), fetch('/api/categories?type=income'),
-    ]);
-    setTransactions(await incRes.json().then((d: any) => Array.isArray(d) ? d : []));
-    setCustomers(await custRes.json().then((d: any) => Array.isArray(d) ? d : []));
-    setCategories(await catRes.json().then((d: any) => Array.isArray(d) ? d : []));
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [incRes, custRes, catRes] = await Promise.all([
+        fetch('/api/income'), fetch('/api/customers'), fetch('/api/categories?type=income'),
+      ]);
+      // The income list is the page's primary data. A 401/403/500 here must not
+      // fall through to an empty array and render as "no income recorded" — that
+      // reads as lost data rather than a failed request.
+      if (!incRes.ok) {
+        setLoadError(await readErrorMessage(incRes));
+        setTransactions([]);
+        return;
+      }
+      const inc = await incRes.json();
+      setTransactions(Array.isArray(inc) ? inc : []);
+      // Customers and categories are picklists; they degrade to empty quietly.
+      setCustomers(await custRes.json().then((d: any) => Array.isArray(d) ? d : []).catch(() => []));
+      setCategories(await catRes.json().then((d: any) => Array.isArray(d) ? d : []).catch(() => []));
+    } catch {
+      setLoadError(NETWORK_ERROR_MESSAGE);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -231,7 +251,9 @@ export default function IncomePage() {
       </div>
 
       {/* List */}
-      {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : (transactions?.length ?? 0) === 0 ? (
+      {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : loadError ? (
+        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">Could not load income</h3><p className="text-sm text-muted-foreground mb-4">{loadError}</p><Button variant="outline" onClick={() => { setLoading(true); fetchData(); }}>Try again</Button></CardContent></Card>
+      ) : (transactions?.length ?? 0) === 0 ? (
         <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{personalizeEmptyState('No income recorded', company?.name)}</h3><p className="text-sm text-muted-foreground">Start tracking your income</p></CardContent></Card>
       ) : (
         <div className="space-y-2">

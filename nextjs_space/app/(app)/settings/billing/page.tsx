@@ -7,6 +7,9 @@ import { getServerLocale } from '@/lib/i18n/server';
 import { translate, intlLocale, type Locale, type TranslationKey } from '@/lib/i18n';
 import { billingState, currentPlan, daysRemaining } from '@/lib/billing/access';
 import { isBillingConfigured } from '@/lib/billing/plans';
+import { yearlySaving } from '@/lib/billing/pricing';
+import { getPlanPricing } from '@/lib/billing/pricing-server';
+import { PlanSelector } from '@/components/billing-plans';
 import { formatCurrency } from '@/lib/currencies';
 import { BillingActions, CheckoutReturnNotice } from '@/components/billing-actions';
 
@@ -58,7 +61,41 @@ export default async function BillingPage({
   const companyId = await getUserCompanyId();
   if (!companyId) redirect('/onboarding');
 
-  const subscription = await prisma.subscription.findUnique({ where: { companyId } });
+  /**
+   * Reading the subscription must not be able to take the page down.
+   *
+   * This is the only screen that touches the Subscription table, so it is the
+   * only one that fails when that table is missing — a deployment where the
+   * code shipped but `prisma migrate deploy` has not run yet. Without this
+   * guard the thrown error escapes the server component and, with no error
+   * boundary above it, Next.js replaces the whole route with the generic
+   * "Application error" screen.
+   *
+   * A billing read failing is worth an explanatory panel, not a blank page.
+   */
+  let subscription: Awaited<ReturnType<typeof prisma.subscription.findUnique>> = null;
+  let loadFailed = false;
+  try {
+    subscription = await prisma.subscription.findUnique({ where: { companyId } });
+  } catch (error) {
+    // The Prisma code is logged; nothing about the database reaches the client.
+    console.error('[billing:page] could not read subscription', {
+      code: (error as { code?: string })?.code,
+    });
+    loadFailed = true;
+  }
+
+  /**
+   * Prices are read from Polar rather than written here: the environment holds
+   * product ids, so a figure in source could diverge from what is charged.
+   * getPlanPricing absorbs failures and returns no prices, and the cards then
+   * render without figures rather than inventing one.
+   */
+  const pricing = await getPlanPricing();
+  const savings = {
+    pro: yearlySaving(pricing.prices.pro.month, pricing.prices.pro.year),
+    business: yearlySaving(pricing.prices.business.month, pricing.prices.business.year),
+  };
 
   const locale = getServerLocale();
   const t = (key: TranslationKey) => translate(locale, key);
@@ -77,7 +114,15 @@ export default async function BillingPage({
    */
   const actionsAvailable = isBillingConfigured();
 
-  const isFree = !subscription;
+  /**
+   * The sections below test `subscription` itself rather than a derived boolean.
+   *
+   * Narrowing through an alias depends on how the compiler analyses it; testing
+   * the value directly does not. Behaviour is unchanged: inside the block below
+   * the read has already succeeded, so "no row" and "the Free plan" are the same
+   * state. A failed read never reaches it — the panel above renders instead, so
+   * a paying customer is never shown "Free" because a query happened to fail.
+   */
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -87,6 +132,15 @@ export default async function BillingPage({
       </div>
 
       {searchParams?.checkout === 'success' ? <CheckoutReturnNotice /> : null}
+
+      {loadFailed ? (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="py-4">
+            <p className="text-sm font-medium">{t('billing.loadFailed')}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t('billing.loadFailedNote')}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {!actionsAvailable ? (
         <Card className="border-amber-200 bg-amber-50/50">
@@ -98,6 +152,7 @@ export default async function BillingPage({
       ) : null}
 
       {/* Current plan */}
+      {!loadFailed ? (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">{t('billing.currentPlan')}</CardTitle>
@@ -105,14 +160,14 @@ export default async function BillingPage({
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-display text-2xl font-bold">{t(PLAN_LABEL[plan])}</span>
-            {!isFree ? (
+            {subscription ? (
               <Badge variant={state === 'past_due' || state === 'expired' ? 'destructive' : 'secondary'}>
                 {t(STATE_LABEL[state])}
               </Badge>
             ) : null}
           </div>
 
-          {isFree ? (
+          {!subscription ? (
             <>
               <p className="text-sm text-muted-foreground">{t('billing.freeDescription')}</p>
               <BillingActions enabled={actionsAvailable} showUpgrade />
@@ -146,8 +201,22 @@ export default async function BillingPage({
         </CardContent>
       </Card>
 
+      ) : null}
+
+      {/* Plans and limits. Hidden while the subscription read failed: inviting
+          someone to upgrade from a page that could not establish what they are
+          already on would be worse than showing nothing. */}
+      {!loadFailed ? (
+        <PlanSelector
+          currentPlan={plan}
+          prices={pricing.prices}
+          savings={savings}
+          actionsAvailable={actionsAvailable}
+        />
+      ) : null}
+
       {/* Subscription detail — only when there is a real row to describe. */}
-      {!isFree ? (
+      {subscription ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t('billing.subscription')}</CardTitle>

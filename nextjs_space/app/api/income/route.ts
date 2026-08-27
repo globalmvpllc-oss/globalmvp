@@ -7,6 +7,7 @@ import { handleApiError } from '@/lib/api-error';
 import { incomeSchema, incomeUpdateSchema, validateBody } from '@/lib/validation';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { boundedTake, listResponse, parseCalendarRange, RANGE_MAX } from '@/lib/calendar-range';
+import { enforcePlanLimit } from '@/lib/billing/limits';
 
 export async function GET(request: Request) {
   try {
@@ -62,6 +63,11 @@ export async function POST(request: Request) {
   try {
     const { error: authError, companyId } = await requireUserCompany();
     if (authError) return authError;
+
+    // Plan limit, enforced server-side. The plan is read from this company's
+    // subscription, so a request body claiming a different one changes nothing.
+    const denied = await enforcePlanLimit(companyId, 'incomePerMonth');
+    if (denied) return denied;
 
     const body = await request.json();
     const { data, error } = validateBody(incomeSchema, body);
