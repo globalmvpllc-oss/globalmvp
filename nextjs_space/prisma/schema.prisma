@@ -39,6 +39,7 @@ model User {
   sessions       Session[]
   createdEvents  Event[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
 }
 
 model Account {
@@ -125,6 +126,15 @@ model Company {
   // --- Payment settings -----------------------------------------------------
   defaultPaymentMethod     String?
   bankTransferInstructions String?
+
+  // --- Admin-granted plan ---------------------------------------------------
+  // A plan an administrator gives a company without a Polar purchase (founder,
+  // beta, support). Deliberately NOT written into Subscription: the Polar
+  // webhook owns that table and would overwrite it. Resolution order lives in
+  // lib/billing/limits.ts — a real Polar subscription always wins over a grant.
+  grantedPlan         String?             // 'pro' | 'business' | null
+  grantedPlanUntil    DateTime?           // null = no expiry
+  grantedPlanReason   String?             // e.g. "founder", "beta", "support"
 
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
@@ -553,6 +563,26 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
   expiresAt DateTime
   /// Set the moment the token is spent. A second attempt finds it non-null.
+  usedAt    DateTime?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// A pending email verification.
+///
+/// Same shape and single-use discipline as PasswordResetToken: only the SHA-256
+/// hash of the emailed token is stored, `usedAt` makes it single-use, and a
+/// 24-hour `expiresAt` bounds it. Verification is not required to sign in — it
+/// only sets User.emailVerified — so a lapsed token locks nobody out.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
   usedAt    DateTime?
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

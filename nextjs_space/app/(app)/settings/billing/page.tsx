@@ -6,6 +6,7 @@ import { getUserCompanyId } from '@/lib/auth-helpers';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, intlLocale, type Locale, type TranslationKey } from '@/lib/i18n';
 import { billingState, currentPlan, daysRemaining } from '@/lib/billing/access';
+import { isOnTrial, trialDaysRemaining, TRIAL_DAYS } from '@/lib/billing/trial';
 import { isBillingConfigured } from '@/lib/billing/plans';
 import { yearlySaving } from '@/lib/billing/pricing';
 import { getPlanPricing } from '@/lib/billing/pricing-server';
@@ -85,6 +86,19 @@ export default async function BillingPage({
     loadFailed = true;
   }
 
+  // Company creation date drives the automatic Pro trial (first 15 days). A read
+  // failure here only hides the trial banner; it never takes the page down.
+  let companyCreatedAt: Date | null = null;
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { createdAt: true },
+    });
+    companyCreatedAt = company?.createdAt ?? null;
+  } catch {
+    companyCreatedAt = null;
+  }
+
   /**
    * Prices are read from Polar rather than written here: the environment holds
    * product ids, so a figure in source could diverge from what is charged.
@@ -99,10 +113,20 @@ export default async function BillingPage({
 
   const locale = getServerLocale();
   const t = (key: TranslationKey) => translate(locale, key);
+  const fill = (key: TranslationKey, values: Record<string, string | number>) =>
+    Object.entries(values).reduce<string>(
+      (text, [name, value]) => text.replace(`{${name}}`, String(value)),
+      t(key)
+    );
 
   const plan = currentPlan(subscription);
   const state = billingState(subscription);
   const remaining = daysRemaining(subscription);
+
+  // The automatic Pro trial only applies to a company still on Free; a purchase
+  // always wins. The banner reflects the same rule the server-side limits use.
+  const onTrial = isOnTrial(plan, companyCreatedAt);
+  const trialDays = onTrial ? trialDaysRemaining(companyCreatedAt) : null;
 
   /**
    * Whether the actions on this page can do anything.
@@ -132,6 +156,31 @@ export default async function BillingPage({
       </div>
 
       {searchParams?.checkout === 'success' ? <CheckoutReturnNotice /> : null}
+
+      {onTrial ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge>{t('trial.proTrial')}</Badge>
+                  <span className="text-sm font-medium">
+                    {fill('trial.freeTrial', { days: TRIAL_DAYS })}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {trialDays !== null && trialDays > 0
+                    ? fill('trial.daysRemaining', { days: trialDays })
+                    : t('trial.lastDay')}
+                  {' · '}
+                  {t('trial.noAutoCharge')}
+                </p>
+              </div>
+              <BillingActions enabled={actionsAvailable} showUpgrade onlyPlan="pro" interval="month" />
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {loadFailed ? (
         <Card className="border-destructive/30 bg-destructive/5">

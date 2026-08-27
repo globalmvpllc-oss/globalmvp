@@ -33,7 +33,7 @@ const ALL: LimitedResource[] = ['customers', ...MONTHLY];
 describe('plan limits', () => {
   it('gives Free the documented allowances', () => {
     expect(PLAN_LIMITS.free).toEqual({
-      customers: 50,
+      customers: 3,
       invoicesPerMonth: 20,
       incomePerMonth: 100,
       expensesPerMonth: 100,
@@ -68,7 +68,7 @@ describe('limit enforcement boundary', () => {
   it.each([
     ['free', 'invoicesPerMonth', 20],
     ['pro', 'invoicesPerMonth', 500],
-    ['free', 'customers', 50],
+    ['free', 'customers', 3],
     ['pro', 'customers', 500],
     ['free', 'incomePerMonth', 100],
     ['pro', 'incomePerMonth', 1000],
