@@ -60,6 +60,35 @@ export const en = {
   'auth.sessionExpired': 'Your session has expired. Please sign in again.',
   'auth.noCompanyAccess': "You don't have access to this business.",
 
+  // --- Password reset & email verification ----------------------------------
+  'auth.forgotPassword': 'Forgot password?',
+  'auth.forgotTitle': 'Reset your password',
+  'auth.forgotSubtitle': "Enter your email and we'll send you a reset link.",
+  'auth.forgotSubmit': 'Send reset link',
+  'auth.forgotSent':
+    'If an account exists for that email, a reset link is on its way. Check your inbox.',
+  'auth.backToLogin': 'Back to sign in',
+  'auth.resetTitle': 'Choose a new password',
+  'auth.resetSubtitle': 'Enter a new password for your account.',
+  'auth.newPassword': 'New password',
+  'auth.confirmPassword': 'Confirm password',
+  'auth.resetSubmit': 'Reset password',
+  'auth.resetSuccess': 'Your password has been reset. You can sign in now.',
+  'auth.resetInvalid': 'This reset link is invalid or has expired. Please request a new one.',
+  'auth.resetMissingToken': 'This reset link is missing its token.',
+  'auth.passwordTooShort': 'Password must be at least 8 characters.',
+  'auth.passwordMismatch': 'The passwords do not match.',
+  'auth.genericError': 'Something went wrong. Please try again.',
+  'auth.continueWithGoogle': 'Continue with Google',
+  'auth.orContinueWith': 'or continue with email',
+  'auth.googleUnverified':
+    'Google could not confirm your email is verified, so sign-in was declined. Verify your email with Google and try again.',
+  'verify.title': 'Email verification',
+  'verify.checking': 'Verifying your email…',
+  'verify.success': 'Your email is verified. Thank you!',
+  'verify.invalid': 'This verification link is invalid or has expired.',
+  'verify.goToApp': 'Go to dashboard',
+
   // --- Onboarding -----------------------------------------------------------
   'onboarding.businessName': 'Business name',
   'onboarding.businessNameDesc': 'What is your business called?',

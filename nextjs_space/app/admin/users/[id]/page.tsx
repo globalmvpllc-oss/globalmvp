@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { checkAdmin } from '@/lib/admin/auth';
 import { recordAudit } from '@/lib/admin/audit';
 import { AdminBackLink, DetailCard, FieldGrid, Field, DetailTable } from '@/components/admin-detail';
-import { UserActiveToggle } from '@/components/admin-actions';
+import { UserActiveToggle, PasswordResetButton } from '@/components/admin-actions';
 
 /**
  * A single user, read-only.
@@ -68,13 +68,19 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
       </div>
 
       <DetailCard title="Account">
-        <div className="mb-4">
-          <p className="mb-2 text-xs text-muted-foreground">Access</p>
-          <UserActiveToggle
-            userId={user.id}
-            isActive={user.isActive}
-            isSelf={user.id === check.admin.id}
-          />
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div>
+            <p className="mb-2 text-xs text-muted-foreground">Access</p>
+            <UserActiveToggle
+              userId={user.id}
+              isActive={user.isActive}
+              isSelf={user.id === check.admin.id}
+            />
+          </div>
+          <div>
+            <p className="mb-2 text-xs text-muted-foreground">Password</p>
+            <PasswordResetButton userId={user.id} />
+          </div>
         </div>
         <FieldGrid>
           <Field label="Name" value={user.name} />

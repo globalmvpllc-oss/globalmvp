@@ -5,7 +5,7 @@ import { checkAdmin } from '@/lib/admin/auth';
 import { recordAudit } from '@/lib/admin/audit';
 import { formatCurrency } from '@/lib/currencies';
 import { AdminBackLink, DetailCard, FieldGrid, Field, DetailTable } from '@/components/admin-detail';
-import { MemberActions } from '@/components/admin-actions';
+import { MemberActions, GrantedPlanForm } from '@/components/admin-actions';
 
 /**
  * A single company, read-only.
@@ -39,6 +39,9 @@ export default async function AdminCompanyDetailPage({ params }: { params: { id:
       address: true,
       city: true,
       createdAt: true,
+      grantedPlan: true,
+      grantedPlanUntil: true,
+      grantedPlanReason: true,
       subscription: {
         select: {
           id: true,
@@ -179,6 +182,29 @@ export default async function AdminCompanyDetailPage({ params }: { params: { id:
             webhook, never from here.
           </p>
         )}
+      </DetailCard>
+
+      <DetailCard title="Granted plan (admin)">
+        <p className="mb-3 text-sm">
+          <span className="text-xs text-muted-foreground">Plan source: </span>
+          <span className="font-medium">
+            {sub
+              ? 'Polar subscription'
+              : company.grantedPlan &&
+                  (company.grantedPlanUntil === null || company.grantedPlanUntil.getTime() > Date.now())
+                ? `Admin grant (${company.grantedPlan})`
+                : 'None — Free or automatic trial'}
+          </span>
+          {company.grantedPlanReason ? (
+            <span className="text-xs text-muted-foreground"> · reason: {company.grantedPlanReason}</span>
+          ) : null}
+        </p>
+        <GrantedPlanForm
+          companyId={company.id}
+          grantedPlan={company.grantedPlan}
+          grantedPlanReason={company.grantedPlanReason}
+          grantedPlanUntil={company.grantedPlanUntil ? company.grantedPlanUntil.toISOString().slice(0, 10) : ''}
+        />
       </DetailCard>
 
       <DetailCard title={`Members (${company.members.length})`}>

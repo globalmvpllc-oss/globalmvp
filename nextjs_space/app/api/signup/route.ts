@@ -6,6 +6,9 @@ import { prisma } from '@/lib/db';
 import { signupSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { checkRateLimit, clientKey, SIGNUP_RULE } from '@/lib/rate-limit';
+import { generateResetToken, hashResetToken } from '@/lib/auth/password-reset';
+import { VERIFY_TOKEN_TTL_MS, buildVerifyUrl } from '@/lib/auth/email-verification';
+import { sendVerificationEmail } from '@/lib/auth/reset-email';
 
 const DUPLICATE_MESSAGE = 'An account with this email already exists';
 
@@ -35,6 +38,25 @@ export async function POST(request: Request) {
       data: { email: data.email, hashedPassword, name: data.name ?? '' },
       select: { id: true, email: true },
     });
+
+    // Issue an email-verification link. Best-effort: verification is not required
+    // to sign in, so a mail failure must not fail signup or leak from the
+    // response — the account is created either way.
+    try {
+      const token = generateResetToken();
+      await prisma.emailVerificationToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashResetToken(token),
+          expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
+        },
+      });
+      await sendVerificationEmail(user.email, buildVerifyUrl(token, process.env.NEXTAUTH_URL));
+    } catch (verifyError) {
+      console.error('[signup] verification email not issued', {
+        name: (verifyError as { name?: string })?.name,
+      });
+    }
 
     return NextResponse.json({ id: user.id, email: user.email }, { status: 201 });
   } catch (error) {

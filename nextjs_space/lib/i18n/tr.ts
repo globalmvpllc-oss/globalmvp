@@ -53,6 +53,35 @@ export const tr: Dictionary = {
   'auth.sessionExpired': 'Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın.',
   'auth.noCompanyAccess': 'Bu işletmeye erişiminiz yok.',
 
+  // --- Password reset & email verification ----------------------------------
+  'auth.forgotPassword': 'Parolanızı mı unuttunuz?',
+  'auth.forgotTitle': 'Parolanızı sıfırlayın',
+  'auth.forgotSubtitle': 'E-postanızı girin, size bir sıfırlama bağlantısı gönderelim.',
+  'auth.forgotSubmit': 'Sıfırlama bağlantısı gönder',
+  'auth.forgotSent':
+    'Bu e-postaya ait bir hesap varsa, sıfırlama bağlantısı yolda. Gelen kutunuzu kontrol edin.',
+  'auth.backToLogin': 'Girişe dön',
+  'auth.resetTitle': 'Yeni bir parola belirleyin',
+  'auth.resetSubtitle': 'Hesabınız için yeni bir parola girin.',
+  'auth.newPassword': 'Yeni parola',
+  'auth.confirmPassword': 'Parolayı doğrulayın',
+  'auth.resetSubmit': 'Parolayı sıfırla',
+  'auth.resetSuccess': 'Parolanız sıfırlandı. Artık giriş yapabilirsiniz.',
+  'auth.resetInvalid': 'Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş. Lütfen yeni bir tane isteyin.',
+  'auth.resetMissingToken': 'Bu sıfırlama bağlantısında belirteç eksik.',
+  'auth.passwordTooShort': 'Parola en az 8 karakter olmalıdır.',
+  'auth.passwordMismatch': 'Parolalar eşleşmiyor.',
+  'auth.genericError': 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
+  'auth.continueWithGoogle': 'Google ile devam et',
+  'auth.orContinueWith': 'veya e-posta ile devam edin',
+  'auth.googleUnverified':
+    'Google, e-posta adresinizin doğrulandığını teyit edemedi, bu yüzden giriş reddedildi. E-postanızı Google ile doğrulayıp tekrar deneyin.',
+  'verify.title': 'E-posta doğrulama',
+  'verify.checking': 'E-postanız doğrulanıyor…',
+  'verify.success': 'E-postanız doğrulandı. Teşekkürler!',
+  'verify.invalid': 'Bu doğrulama bağlantısı geçersiz veya süresi dolmuş.',
+  'verify.goToApp': 'Panele git',
+
   // --- Onboarding -----------------------------------------------------------
   'onboarding.businessName': 'İşletme adı',
   'onboarding.businessNameDesc': 'İşletmenizin adı nedir?',

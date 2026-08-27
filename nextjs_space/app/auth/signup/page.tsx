@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Mail, Lock, User } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
+import { GoogleSignInButton } from '@/components/google-signin-button';
 
 export default function SignupPage() {
   const { t } = useI18n();
@@ -61,6 +62,7 @@ export default function SignupPage() {
             <CardDescription>Start managing your finances in minutes</CardDescription>
           </CardHeader>
           <CardContent>
+            <GoogleSignInButton />
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && <div className="p-3 rounded-md bg-red-50 text-red-600 text-sm">{error}</div>}
               <div className="space-y-2">

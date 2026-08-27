@@ -78,13 +78,25 @@ export function describeValidationError(error: z.ZodError): {
   return { error: message, field, details: error.issues };
 }
 
+/**
+ * Password length bounds, defined once.
+ *
+ * Signup and password reset both import these so the two flows can never
+ * disagree on what a valid password is.
+ */
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 128;
+
 export const signupSchema = z.object({
   email: z
     .string()
     .max(255)
     .transform((v) => v.trim().toLowerCase())
     .pipe(z.string().email('Invalid email address')),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+  password: z
+    .string()
+    .min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters`)
+    .max(PASSWORD_MAX),
   name: z.string().max(255).optional(),
 });
 

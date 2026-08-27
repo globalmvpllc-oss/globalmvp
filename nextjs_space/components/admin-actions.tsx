@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -17,6 +19,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { MEMBER_ROLES } from '@/lib/admin/member-rules';
+
+const NO_GRANT = '__none__';
 
 /**
  * The write controls on the admin detail pages.
@@ -212,5 +216,120 @@ export function MemberActions({ memberId, role }: { memberId: string; role: stri
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+/** Set or clear a company's admin-granted plan. Polar always overrides a grant. */
+export function GrantedPlanForm({
+  companyId,
+  grantedPlan,
+  grantedPlanReason,
+  grantedPlanUntil,
+}: {
+  companyId: string;
+  grantedPlan: string | null;
+  grantedPlanReason: string | null;
+  /** 'YYYY-MM-DD' or empty. */
+  grantedPlanUntil: string | null;
+}) {
+  const router = useRouter();
+  const [plan, setPlan] = useState(grantedPlan ?? NO_GRANT);
+  const [reason, setReason] = useState(grantedPlanReason ?? '');
+  const [until, setUntil] = useState(grantedPlanUntil ?? '');
+  const [busy, setBusy] = useState(false);
+  const clearing = plan === NO_GRANT;
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/companies/${companyId}/plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clearing ? { plan: null } : { plan, reason, until: until || null }),
+      });
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success(clearing ? 'Granted plan cleared.' : 'Granted plan saved.');
+      router.refresh();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1">
+          <Label className="text-xs">Plan</Label>
+          <Select value={plan} onValueChange={setPlan} disabled={busy}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_GRANT}>No grant</SelectItem>
+              <SelectItem value="pro">Pro</SelectItem>
+              <SelectItem value="business">Business</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Expires (optional)</Label>
+          <Input
+            type="date"
+            value={until}
+            onChange={(e: any) => setUntil(e.target.value)}
+            disabled={busy || clearing}
+            className="h-9"
+          />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Reason</Label>
+        <Input
+          value={reason}
+          onChange={(e: any) => setReason(e.target.value)}
+          placeholder="founder, beta, support…"
+          disabled={busy || clearing}
+          className="h-9"
+        />
+      </div>
+      <Button size="sm" onClick={save} disabled={busy}>
+        {busy ? 'Saving…' : clearing ? 'Clear granted plan' : 'Save granted plan'}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        A real Polar subscription always overrides a grant. Plan and status stay owned by Polar.
+      </p>
+    </div>
+  );
+}
+
+/** Send the standard hashed, single-use reset link to a user by email. */
+export function PasswordResetButton({ userId }: { userId: string }) {
+  const [busy, setBusy] = useState(false);
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, { method: 'POST' });
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      toast.success('A password reset link has been sent to the user.');
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={send} disabled={busy}>
+      {busy ? 'Sending…' : 'Send password reset'}
+    </Button>
   );
 }

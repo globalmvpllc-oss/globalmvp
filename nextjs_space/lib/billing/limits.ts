@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { currentPlan } from './access';
-import { effectivePlan } from './trial';
+import { resolvePlan } from './granted-plan';
 import { PLAN_LIMITS, isOverLimit, limitFor, type LimitedResource } from './features';
 import type { Plan } from './plans';
 
@@ -51,6 +50,8 @@ export async function getCurrentPlan(companyId: string): Promise<Plan> {
     where: { id: companyId },
     select: {
       createdAt: true,
+      grantedPlan: true,
+      grantedPlanUntil: true,
       subscription: {
         select: {
           plan: true,
@@ -62,8 +63,12 @@ export async function getCurrentPlan(companyId: string): Promise<Plan> {
       },
     },
   });
-  const paid = currentPlan(company?.subscription ?? null);
-  return effectivePlan(paid, company?.createdAt ?? null);
+  return resolvePlan({
+    subscription: company?.subscription ?? null,
+    grantedPlan: company?.grantedPlan ?? null,
+    grantedPlanUntil: company?.grantedPlanUntil ?? null,
+    companyCreatedAt: company?.createdAt ?? null,
+  });
 }
 
 /** Counts what the company already has for a resource in the relevant window. */

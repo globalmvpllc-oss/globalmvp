@@ -53,6 +53,15 @@ export const SIGNUP_RULE: RateLimitRule = { limit: 5, windowMs: 60 * 60 * 1000 }
  */
 export const LOGIN_RULE: RateLimitRule = { limit: 10, windowMs: 15 * 60 * 1000 };
 
+/** Requesting a reset link is a human action; a handful per hour is plenty. */
+export const FORGOT_PASSWORD_RULE: RateLimitRule = { limit: 5, windowMs: 60 * 60 * 1000 };
+
+/** Spending a reset link tolerates a few retries while still bounding guessing. */
+export const RESET_PASSWORD_RULE: RateLimitRule = { limit: 10, windowMs: 15 * 60 * 1000 };
+
+/** Re-sending a verification email, bounded like the reset request. */
+export const RESEND_VERIFICATION_RULE: RateLimitRule = { limit: 5, windowMs: 60 * 60 * 1000 };
+
 const buckets = new Map<string, Bucket>();
 
 /**
