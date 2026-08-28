@@ -2,6 +2,8 @@ import { SkipLink } from '@/components/marketing/skip-link';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/section';
+import { getServerLocale } from '@/lib/i18n/server';
+import { translate } from '@/lib/i18n';
 
 /**
  * Shell for the public marketing and legal pages.
@@ -9,6 +11,12 @@ import { Container } from '@/components/marketing/section';
  * The body copy on the legal pages is a working structure, not legal advice.
  * Placeholders written as [BRACKETED TEXT] mark where the real registered
  * business details must be inserted before these pages are relied upon.
+ *
+ * Only the shell's own chrome ("Last updated:") follows the selected language.
+ * The `title`, `intro` and `children` a page passes in are its authored legal
+ * text and are deliberately left in the language they were written in —
+ * /privacy, /terms and /cookies in English, /kvkk in Turkish. Machine
+ * translating terms someone is agreeing to would change what they agreed to.
  */
 export function LegalPage({
   title,
@@ -21,6 +29,8 @@ export function LegalPage({
   intro?: string;
   children: React.ReactNode;
 }) {
+  const locale = getServerLocale();
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SkipLink />
@@ -33,7 +43,7 @@ export function LegalPage({
             </h1>
             {updated ? (
               <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                Last updated: {updated}
+                {translate(locale, 'legal.lastUpdated')} {updated}
               </p>
             ) : null}
             {intro ? (

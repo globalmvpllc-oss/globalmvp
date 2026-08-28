@@ -5,7 +5,7 @@ import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 export const metadata: Metadata = {
   title: 'KVKK Aydınlatma Metni',
   description:
-    '6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında FinanceFlow kullanıcıları için aydınlatma metni.',
+    '6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında CorpControl kullanıcıları için aydınlatma metni.',
   alternates: { canonical: '/kvkk' },
 };
 
@@ -14,11 +14,11 @@ export default function KvkkPage() {
     <LegalPage
       title="KVKK Aydınlatma Metni"
       updated="25 Ağustos 2026"
-      intro="Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun 10. maddesi uyarınca, FinanceFlow hizmetini kullanan ilgili kişileri bilgilendirmek amacıyla hazırlanmıştır."
+      intro="Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun 10. maddesi uyarınca, CorpControl hizmetini kullanan ilgili kişileri bilgilendirmek amacıyla hazırlanmıştır."
     >
       <LegalSection heading="Veri sorumlusu">
         <p>
-          Kişisel verileriniz, FinanceFlow hizmetini sunmaktan sorumlu olan tüzel kişi tarafından, veri
+          Kişisel verileriniz, CorpControl hizmetini sunmaktan sorumlu olan tüzel kişi tarafından, veri
           sorumlusu sıfatıyla işlenmektedir. Bu metinde geçen &ldquo;biz&rdquo; ifadesi bu tüzel kişiyi
           belirtir. Başvuru ve iletişim yolları için{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -50,7 +50,7 @@ export default function KvkkPage() {
           </li>
         </ul>
         <p>
-          FinanceFlow banka hesaplarına bağlanmaz ve bankacılık kimlik bilgilerinizi talep etmez.
+          CorpControl banka hesaplarına bağlanmaz ve bankacılık kimlik bilgilerinizi talep etmez.
           Kişisel verileriniz üzerinde otomatik sistemlerle profilleme veya otomatik karar verme
           yapılmaz.
         </p>
@@ -86,7 +86,7 @@ export default function KvkkPage() {
 
       <LegalSection heading="Kendi müşterilerinize ait veriler">
         <p>
-          FinanceFlow'a girdiğiniz verilerin önemli bir bölümü kendi müşterilerinize ve
+          CorpControl'a girdiğiniz verilerin önemli bir bölümü kendi müşterilerinize ve
           tedarikçilerinize aittir. Bu veriler bakımından veri sorumlusu <strong>sizsiniz</strong>; biz
           bu verileri hizmeti sunmak amacıyla sizin adınıza işleriz.
         </p>

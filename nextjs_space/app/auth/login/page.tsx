@@ -57,7 +57,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
             <BarChart3 className="w-6 h-6 text-white" />
           </div>
-          <span className="text-2xl font-display font-bold tracking-tight">FinanceFlow</span>
+          <span className="text-2xl font-display font-bold tracking-tight">CorpControl</span>
         </div>
         <Card>
           <CardHeader className="text-center">

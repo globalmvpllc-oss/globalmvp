@@ -260,4 +260,259 @@ export const tr: Dictionary = {
   'category.travel': 'Seyahat',
   'category.insurance': 'Sigorta',
   'category.otherExpense': 'Diğer Gider',
+
+  // See en.ts: kept true by PLAN_LIMITS.free.customers (3) and TRIAL_DAYS (15).
+  'landing.heroTagline': '3 müşteriyle ücretsiz başlayın — 15 gün boyunca tüm Pro özellikleri kullanın.',
+
+  'landing.skipToContent': 'İçeriğe geç',
+  'landing.logoHome': 'CorpControl ana sayfa',
+  'landing.nav.main': 'Ana menü',
+  'landing.nav.mobile': 'Mobil menü',
+  'landing.nav.openMenu': 'Menüyü aç',
+  'landing.nav.features': 'Özellikler',
+  'landing.nav.howItWorks': 'Nasıl Çalışır',
+  'landing.nav.pricing': 'Fiyatlandırma',
+  'landing.nav.faq': 'SSS',
+  'landing.cta.logIn': 'Giriş yap',
+  'landing.cta.startFree': 'Ücretsiz başla',
+  'landing.cta.seeHowItWorks': 'Nasıl çalıştığını gör',
+  'landing.cta.seePlans': 'Planları gör',
+  'landing.cta.readFaq': 'SSS bölümünü oku',
+
+  'landing.hero.eyebrow': 'İşletme finansı, sadeleştirildi',
+  'landing.hero.title': 'İşletme finansınızı karmaşaya boğulmadan yönetin',
+  'landing.hero.subtitle':
+    'CorpControl faturaları, müşterileri, gelirleri, giderleri ve ödemeleri tek bir sade çalışma alanında tutar — böylece muhasebe yazılımı öğrenmeden paranızın nerede olduğunu her zaman bilirsiniz.',
+  'landing.hero.trustNoBank': 'Banka bağlantısı gerekmez',
+  'landing.hero.trustSetup': 'Dakikalar içinde kurulum',
+  'landing.hero.trustCurrencies': 'Birden fazla para birimiyle çalışır',
+
+  'landing.preview.ariaLabel':
+    'CorpControl panelinin önizlemesi: gelir, gider, tahsil edilmemiş bakiye ve son faturaların listesi. Örnek veri.',
+  'landing.preview.dashboard': 'Panel',
+  'landing.preview.sampleData': 'Örnek veri',
+  'landing.preview.revenue': 'Gelir',
+  'landing.preview.expenses': 'Gider',
+  'landing.preview.outstanding': 'Tahsil edilmemiş',
+  'landing.preview.thisMonth': 'Bu ay',
+  'landing.preview.threeInvoices': '3 fatura',
+  'landing.preview.recentInvoices': 'Son faturalar',
+  'landing.preview.statusPaid': 'Ödendi',
+  'landing.preview.statusSent': 'Gönderildi',
+  'landing.preview.statusOverdue': 'Gecikmiş',
+
+  'landing.trust.setupTitle': 'Kolay kurulum',
+  'landing.trust.setupBody': 'Hesap oluşturun, işletme bilgilerinizi ekleyin, fatura kesmeye başlayın.',
+  'landing.trust.currenciesTitle': 'Birden fazla para birimi',
+  'landing.trust.currenciesBody': 'USD, EUR, GBP veya TRY ile fatura kesin ve ödeme kaydedin.',
+  'landing.trust.noBankTitle': 'Banka bağlantısı yok',
+  'landing.trust.noBankBody': 'Bağlanacak bir şey yok. Neyin girdiğini siz kontrol edersiniz.',
+  'landing.trust.overviewTitle': 'Tek bir genel bakış',
+  'landing.trust.overviewBody': 'Faturalar, giderler ve ödemeler tek bir panelde.',
+
+  'landing.problem.eyebrow': 'Sorun',
+  'landing.problem.title': 'Çoğu küçük işletmenin muhasebe yazılımına ihtiyacı yoktur',
+  'landing.problem.description':
+    'Kimin borcu olduğunu, ne harcadıklarını ve ayın nasıl kapandığını bilmeleri yeterlidir. Bu çok daha küçük bir sorundur ve çok daha küçük bir araç hak eder.',
+  'landing.problem.p1': 'Rakamlar üç ayrı tabloda duruyor',
+  'landing.problem.s1': 'Tek bir çalışma alanı faturaları, gelirleri, giderleri ve ödemeleri bir arada tutar.',
+  'landing.problem.p2': 'Ödenmemiş bir fatura haftalarca fark edilmiyor',
+  'landing.problem.s2': 'Tahsil edilmemiş bakiyeler ve vade tarihleri panelde ve takvimde durur.',
+  'landing.problem.p3': 'Giderler yıl sonunda hatırlanarak yeniden oluşturuluyor',
+  'landing.problem.s3': 'Gideri olduğu anda, kategorisi ve vade tarihiyle birlikte kaydedin.',
+  'landing.problem.p4': 'Muhasebe yazılımı sizi muhasebeci sayıyor',
+  'landing.problem.s4': 'Sade ekranlar, sade bir dil, kullanmak için kurs gerektirmeyen bir araç.',
+
+  'landing.tour.eyebrow': 'İçeriden bir bakış',
+  'landing.tour.title': 'Gerçekten kullanacağınız ekranlar',
+  'landing.tour.description':
+    'Hiç açmayacağınız grafiklerle dolu paneller yok. Sadece işin çoğunun döndüğü üç yer.',
+  'landing.tour.tabDashboard': 'Panel',
+  'landing.tour.tabInvoices': 'Faturalar',
+  'landing.tour.tabPayments': 'Ödemeler',
+  'landing.tour.frameOverview': 'Finansal genel bakış',
+  'landing.tour.revenueThisMonth': 'Bu ayki gelir',
+  'landing.tour.expensesThisMonth': 'Bu ayki gider',
+  'landing.tour.outstanding': 'Tahsil edilmemiş',
+  'landing.tour.captionInvoices': 'Müşteri, vade tarihi, tutar ve durum içeren örnek fatura listesi',
+  'landing.tour.captionPayments': 'Faturalara karşılık kaydedilmiş örnek ödeme listesi',
+  'landing.tour.colInvoice': 'Fatura',
+  'landing.tour.colClient': 'Müşteri',
+  'landing.tour.colDue': 'Vade',
+  'landing.tour.colAmount': 'Tutar',
+  'landing.tour.colStatus': 'Durum',
+  'landing.tour.colMethod': 'Yöntem',
+  'landing.tour.colAppliedTo': 'Uygulandığı fatura',
+  'landing.tour.colDate': 'Tarih',
+  'landing.tour.methodBankTransfer': 'Havale',
+  'landing.tour.methodCard': 'Kart',
+
+  'landing.features.eyebrow': 'Neler sunuyoruz',
+  'landing.features.title': 'İhtiyacınız olan her şey, olmayan hiçbir şey',
+  'landing.features.description':
+    'Küçük bir işletmede paranın gerçekte nasıl hareket ettiğini kapsayan altı alan.',
+  'landing.features.invoicesTitle': 'Faturalar',
+  'landing.features.invoicesBody':
+    'Kalem, vergi ve indirimlerle fatura oluşturun, ardından taslaktan tahsilata kadar takip edin.',
+  'landing.features.customersTitle': 'Müşteriler',
+  'landing.features.customersBody':
+    'Müşteri bilgilerini tek yerde tutun ve her birine bağlı tüm fatura ve ödemeleri görün.',
+  'landing.features.moneyTitle': 'Gelir ve gider',
+  'landing.features.moneyBody':
+    'Gireni ve çıkanı kategoriler, tarihler ve düzenli kalan vade tarihleriyle kaydedin.',
+  'landing.features.paymentsTitle': 'Ödemeler',
+  'landing.features.paymentsBody':
+    'Bir faturaya tam veya kısmi ödeme işleyin ve durumunun kendiliğinden güncellenmesini izleyin.',
+  'landing.features.calendarTitle': 'Takvim',
+  'landing.features.calendarBody':
+    'Fatura vadelerini, gider vadelerini ve ödeme tarihlerini ay boyunca yayılmış görün.',
+  'landing.features.reportsTitle': 'Raporlar',
+  'landing.features.reportsBody':
+    'Geliri gidere karşı zaman içinde, kategori kırılımıyla ve para birimi ayrı tutularak inceleyin.',
+
+  'landing.how.eyebrow': 'Başlarken',
+  'landing.how.title': 'Üç adım, sonrası çalışmak',
+  'landing.how.description':
+    'Kurulum kısa. İşletme bilgileriniz girildiği anda ilk faturanızı hemen oluşturabilirsiniz.',
+  'landing.how.step1Title': 'Hesabınızı oluşturun',
+  'landing.how.step1Body':
+    'Bir e-posta adresi ve parolayla kaydolun. Kurulacak bir şey yok, yapılandırılacak bir şey yok.',
+  'landing.how.step2Title': 'İşletmenizi tanımlayın',
+  'landing.how.step2Body':
+    'İşletme adınızı, ülkenizi ve varsayılan para biriminizi ekleyin. Kategoriler sizin için oluşturulur.',
+  'landing.how.step3Title': 'Finansınızı takip edin',
+  'landing.how.step3Body':
+    'Müşteri ekleyin, fatura gönderin, gider ve ödeme kaydedin. Paneliniz kendi kendini doldurur.',
+
+  'landing.benefits.eyebrow': 'Neden işe yarar',
+  'landing.benefits.title': 'Daha az idari iş, daha net rakamlar',
+  'landing.benefits.b1Title': 'Paranızda ne olup bittiğini bilin',
+  'landing.benefits.b1Body':
+    'Gelir, gider ve size hâlâ borçlu olunan tutar tek ekranda, para birimi bazında ayrı tutulur.',
+  'landing.benefits.b2Title': 'Tahsil edilmemiş ödemelerin üstünde kalın',
+  'landing.benefits.b2Body':
+    'Her fatura durumunu ve vadesini taşır, böylece hiçbir şey sessizce vadesini geçirmez.',
+  'landing.benefits.b3Title': 'İşletme finansını düzenli tutun',
+  'landing.benefits.b3Body':
+    'Müşteriler, faturalar, giderler ve ödemeler dosyalara dağılmak yerine bağlantılı kalır.',
+  'landing.benefits.b4Title': 'Tablolarla daha az zaman harcayın',
+  'landing.benefits.b4Body':
+    'Bir kez kaydedin. Toplamlar, durumlar ve raporlar ek iş gerektirmeden bunu takip eder.',
+
+  'landing.pricingTeaser.eyebrow': 'Fiyatlandırma',
+  'landing.pricingTeaser.title': 'Sade başlayın. İhtiyaç duydukça büyüyün.',
+  'landing.pricingTeaser.description':
+    'CorpControl serbest çalışanlar, danışmanlar, ajanslar ve küçük işletmeler için tasarlandı — kurumsal bir finans departmanına değil, finansının düzenli olmasına ihtiyaç duyan insanlar için.',
+
+  'landing.security.eyebrow': 'Güven',
+  'landing.security.title': 'İşletme verileriniz sizin kalır',
+  'landing.security.description':
+    'Yalnızca ürünün gerçekten yaptığını anlatıyoruz. Alınmamış hiçbir sertifika iddia edilmiyor.',
+  'landing.security.authTitle': 'Güvenli kimlik doğrulama',
+  'landing.security.authBody':
+    'Parolalar özetlenir, hiçbir zaman düz metin olarak saklanmaz ve oturumlar imzalanır.',
+  'landing.security.separationTitle': 'Şirket düzeyinde ayrım',
+  'landing.security.separationBody':
+    'Her kayıt işletmenize bağlıdır. İstekler yalnızca kendi verinize ulaşabilir.',
+  'landing.security.encryptionTitle': 'Aktarımda şifreli',
+  'landing.security.encryptionBody':
+    'Uygulama HTTPS üzerinden sunulur ve veritabanına TLS üzerinden bağlanır.',
+  'landing.security.accessTitle': 'Her yerden erişim',
+  'landing.security.accessBody':
+    'Modern her cihazda tarayıcıda çalışır. Kurulacak veya güncel tutulacak bir şey yok.',
+
+  'landing.faq.eyebrow': 'Sorular',
+  'landing.faq.title': 'Sıkça sorulan sorular',
+  'landing.faq.q1': 'CorpControl nedir?',
+  'landing.faq.a1':
+    'Küçük bir işletmenin para tarafını yönetmek için bir çalışma alanı: faturalar, müşteriler, gelirler, giderler, ödemeler, finansal panel ve raporlar. Geleneksel muhasebe yazılımlarından bilinçli olarak daha sadedir.',
+  'landing.faq.q2': 'Kimler için?',
+  'landing.faq.a2':
+    'Muhasebeci tutmadan veya çift taraflı kayıt öğrenmeden finansını düzenli tutmak isteyen serbest çalışanlar, danışmanlar, ajanslar, bağımsız profesyoneller ve küçük işletmeler için.',
+  'landing.faq.q3': 'Fatura oluşturup yönetebilir miyim?',
+  'landing.faq.a3':
+    'Evet. Birden fazla kalem, miktar, kalem bazında vergi ve indirimle fatura oluşturabilir, ardından taslak, gönderildi, kısmen ödendi, ödendi, gecikmiş veya iptal edildi durumları arasında ilerletebilirsiniz.',
+  'landing.faq.q4': 'Giderleri takip edebilir miyim?',
+  'landing.faq.a4':
+    'Evet. Giderleri açıklama, kategori, tutar, para birimi ve isteğe bağlı vade tarihiyle kaydedin ve bir tedarikçiye bağlayın. Ödenmemiş giderler yaklaşan ödemeler olarak görünür.',
+  'landing.faq.q5': 'Faturalara karşılık ödeme kaydedebilir miyim?',
+  'landing.faq.a5':
+    'Evet. Tam veya kısmi ödeme kaydedebilirsiniz. Fatura bakiyesi ve durumu, karşılığında kaydedilen ödemelere göre otomatik güncellenir.',
+  'landing.faq.q6': 'CorpControl birden fazla para birimini destekliyor mu?',
+  'landing.faq.a6':
+    'Evet. Faturalar, gelirler, giderler ve ödemelerin her biri USD, EUR, GBP veya TRY olarak kaydedilebilir. Toplamlar her zaman para birimi bazında raporlanır ve asla birbirine karıştırılmaz.',
+  'landing.faq.q7': 'Banka hesabımı bağlamam gerekiyor mu?',
+  'landing.faq.a7':
+    'Hayır. CorpControl bankalara bağlanmaz. Gelirleri, giderleri ve ödemeleri siz kaydedersiniz; bu da paylaşılacak hiçbir bankacılık bilgisi olmaması demektir.',
+  'landing.faq.q8': 'Her yerden kullanabilir miyim?',
+  'landing.faq.a8':
+    'Evet. Masaüstü, dizüstü, tablet ve mobilde tarayıcıda çalışır. Kurulacak ve güncel tutulacak hiçbir şey yok.',
+
+  'landing.finalCta.title': 'İşletme finansınızın kontrolünü elinize alın',
+  'landing.finalCta.description':
+    'Faturaları, giderleri, ödemeleri ve finansal içgörüleri tek bir sade çalışma alanında tutun.',
+
+  'landing.footer.tagline':
+    'Asıl işini yapmayı tercih eden insanlar için işletme finansı yönetimi.',
+  'landing.footer.product': 'Ürün',
+  'landing.footer.company': 'Şirket',
+  'landing.footer.legal': 'Yasal',
+  'landing.footer.contact': 'İletişim',
+  'landing.footer.privacy': 'Gizlilik Politikası',
+  'landing.footer.terms': 'Kullanım Koşulları',
+  'landing.footer.cookies': 'Çerez Politikası',
+  'landing.footer.kvkk': 'KVKK Aydınlatma Metni',
+  'landing.footer.rights': 'Tüm hakları saklıdır.',
+
+  // --- /pricing -------------------------------------------------------------
+  'pricingPage.eyebrow': 'Fiyatlandırma',
+  'pricingPage.title': 'Sade başlayın. İhtiyaç duydukça büyüyün.',
+  'pricingPage.subtitle':
+    'CorpControl serbest çalışanlar, danışmanlar, ajanslar ve küçük işletmeler için tasarlandı. Bir hesap oluşturun ve bugün kullanmaya başlayın.',
+  'pricingPage.cardEyebrow': 'Başlayın',
+  'pricingPage.cardTitle': 'Tek çalışma alanında her şey',
+  'pricingPage.cardBody':
+    'Ayrıntılı planlar hâlâ son haline getiriliyor. Bu arada bir hesap oluşturup işletme finansınızı yönetmek için CorpControl kullanabilirsiniz.',
+  'pricingPage.f1': 'Kalem, vergi ve indirimli faturalar',
+  'pricingPage.f2': 'Müşteri ve tedarikçi kayıtları',
+  'pricingPage.f3': 'Gelir ve gider takibi',
+  'pricingPage.f4': 'Tam ve kısmi ödeme kaydı',
+  'pricingPage.f5': 'Finansal panel ve raporlar',
+  'pricingPage.f6': 'Vade tarihleri takvimi',
+  'pricingPage.f7': 'Çoklu para birimi desteği (USD, EUR, GBP, TRY)',
+  'pricingPage.noBankNote': 'Banka bağlantısı gerekmez.',
+  'pricingPage.questionLead': 'Planlar hakkında sorunuz mu var? ',
+  'pricingPage.questionLink': 'Bize ulaşın',
+  'pricingPage.questionTail': '.',
+  'pricingPage.ctaTitle': 'Finansınızı düzene sokmaya hazır mısınız?',
+  'pricingPage.ctaBody':
+    'Bir hesap oluşturun ve bugün fatura, gider ve ödeme kaydetmeye başlayın.',
+
+  // --- /contact -------------------------------------------------------------
+  'contactPage.title': 'İletişim',
+  'contactPage.intro':
+    'CorpControl henüz yolun başında ve sizden haber almamayı değil, almayı tercih ederiz. Her tür başvurunun neyi kapsadığı aşağıda.',
+  'contactPage.generalTitle': 'Genel sorular',
+  'contactPage.generalBody':
+    'CorpControl’ün ne yaptığı, çalışma biçiminize uyup uymadığı veya fiyatlandırma hakkındaki sorular.',
+  'contactPage.supportTitle': 'Destek',
+  'contactPage.supportBody':
+    'Beklendiği gibi çalışmayan bir şey. Olduğu sırada ne yaptığınızı ve bunun yerine ne gördüğünüzü bize yazın.',
+  'contactPage.privacyTitle': 'Gizlilik ve veri talepleri',
+  'contactPage.privacyBody':
+    'Size uygulanan veri koruma mevzuatı kapsamındaki erişim, düzeltme, dışa aktarma veya silme talepleri.',
+  'contactPage.reachTitle': 'Bize nasıl ulaşırsınız',
+  'contactPage.reachBody':
+    'Yayımlanacak iletişim kanallarımız son haline getiriliyor ve bu sayfada yer alacak. O zamana kadar bu sayfa, henüz arkasında duramayacağımız bir adres yazmak yerine ele aldığımız başvuru türlerini anlatıyor.',
+  'contactPage.businessTitle': 'İşletme bilgileri',
+  'contactPage.businessBody':
+    'CorpControl, hizmeti sunmaktan sorumlu olan tüzel kişi tarafından işletilmektedir. Tescilli işletme bilgileri, doğrulandığında yukarıdaki iletişim kanallarıyla birlikte burada yayımlanacaktır.',
+  'contactPage.moreLead': 'Belirli bir şey mi arıyorsunuz? ',
+  'contactPage.moreFaqLink': 'sıkça sorulan soruları',
+  'contactPage.moreMid': ' okuyun veya bilgileri nasıl işlediğimizi ',
+  'contactPage.morePrivacyLink': 'Gizlilik Politikası',
+  'contactPage.moreTail': '’nda görün.',
+
+  // --- Legal page shell -----------------------------------------------------
+  'legal.lastUpdated': 'Son güncelleme:',
 };

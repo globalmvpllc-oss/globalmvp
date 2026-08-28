@@ -1,14 +1,14 @@
 /**
  * Helpers for presenting the signed-in user's company across the application.
  *
- * The product name is FinanceFlow, but inside the application the user should
+ * The product name is CorpControl, but inside the application the user should
  * see their own business. These helpers keep that substitution consistent and
  * give every surface the same fallback behaviour when a company has no name or
  * no logo yet.
  */
 
 /** Product name. Used only where the product itself is meant, never as a company name. */
-export const PRODUCT_NAME = 'FinanceFlow';
+export const PRODUCT_NAME = 'CorpControl';
 
 /**
  * Up to two initials for a company, for use when no logo has been uploaded.

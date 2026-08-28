@@ -277,6 +277,273 @@ export const en = {
   'category.travel': 'Travel',
   'category.insurance': 'Insurance',
   'category.otherExpense': 'Other Expense',
+
+  // --- Landing (marketing) --------------------------------------------------
+  // This line is only true because of two constants: "3 customers" is
+  // PLAN_LIMITS.free.customers (lib/billing/features.ts) and "15 days" is
+  // TRIAL_DAYS (lib/billing/trial.ts). If either changes, change this copy (EN
+  // and TR) to match — the claim must stay accurate.
+  'landing.heroTagline': 'Start free with 3 customers — enjoy all Pro features for 15 days.',
+
+  // Shared chrome: header, footer, skip link. Rendered on every public page,
+  // including the legal ones whose body copy is deliberately not translated.
+  'landing.skipToContent': 'Skip to content',
+  'landing.logoHome': 'CorpControl home',
+  'landing.nav.main': 'Main',
+  'landing.nav.mobile': 'Mobile',
+  'landing.nav.openMenu': 'Open menu',
+  'landing.nav.features': 'Features',
+  'landing.nav.howItWorks': 'How It Works',
+  'landing.nav.pricing': 'Pricing',
+  'landing.nav.faq': 'FAQ',
+  'landing.cta.logIn': 'Log in',
+  'landing.cta.startFree': 'Start free',
+  'landing.cta.seeHowItWorks': 'See how it works',
+  'landing.cta.seePlans': 'See plans',
+  'landing.cta.readFaq': 'Read the FAQ',
+
+  'landing.hero.eyebrow': 'Business finance, simplified',
+  'landing.hero.title': 'Run your business finances without the complexity',
+  'landing.hero.subtitle':
+    'CorpControl keeps invoices, customers, income, expenses and payments in one simple workspace — so you always know where your money stands, without learning accounting software.',
+  'landing.hero.trustNoBank': 'No bank connection required',
+  'landing.hero.trustSetup': 'Set up in minutes',
+  'landing.hero.trustCurrencies': 'Works in multiple currencies',
+
+  // Dashboard mock in the hero. The figures themselves stay as they are —
+  // they are fictional sample data, not text the product owns.
+  'landing.preview.ariaLabel':
+    'Preview of the CorpControl dashboard showing revenue, expenses, outstanding balance and a list of recent invoices. Sample data.',
+  'landing.preview.dashboard': 'Dashboard',
+  'landing.preview.sampleData': 'Sample data',
+  'landing.preview.revenue': 'Revenue',
+  'landing.preview.expenses': 'Expenses',
+  'landing.preview.outstanding': 'Outstanding',
+  'landing.preview.thisMonth': 'This month',
+  'landing.preview.threeInvoices': '3 invoices',
+  'landing.preview.recentInvoices': 'Recent invoices',
+  'landing.preview.statusPaid': 'Paid',
+  'landing.preview.statusSent': 'Sent',
+  'landing.preview.statusOverdue': 'Overdue',
+
+  'landing.trust.setupTitle': 'Simple setup',
+  'landing.trust.setupBody': 'Create an account, add your business details, start invoicing.',
+  'landing.trust.currenciesTitle': 'Multiple currencies',
+  'landing.trust.currenciesBody': 'Invoice and record payments in USD, EUR, GBP or TRY.',
+  'landing.trust.noBankTitle': 'No bank connection',
+  'landing.trust.noBankBody': 'Nothing to link. You stay in control of what goes in.',
+  'landing.trust.overviewTitle': 'One overview',
+  'landing.trust.overviewBody': 'Invoices, expenses and payments in a single dashboard.',
+
+  'landing.problem.eyebrow': 'The problem',
+  'landing.problem.title': 'Most small businesses do not need accounting software',
+  'landing.problem.description':
+    'They need to know who owes them money, what they spent, and whether the month worked out. That is a much smaller problem, and it deserves a much smaller tool.',
+  'landing.problem.p1': 'Numbers live in three different spreadsheets',
+  'landing.problem.s1': 'One workspace holds invoices, income, expenses and payments together.',
+  'landing.problem.p2': 'An unpaid invoice goes unnoticed for weeks',
+  'landing.problem.s2': 'Outstanding balances and due dates sit on the dashboard and calendar.',
+  'landing.problem.p3': 'Expenses get reconstructed from memory at year end',
+  'landing.problem.s3': 'Record an expense when it happens, with a category and a due date.',
+  'landing.problem.p4': 'Accounting software assumes you are an accountant',
+  'landing.problem.s4': 'Plain screens, plain language, nothing you need a course to operate.',
+
+  'landing.tour.eyebrow': 'A look inside',
+  'landing.tour.title': 'Screens you will actually use',
+  'landing.tour.description':
+    'No dashboards full of charts you will never open. Just the three places most of the work happens.',
+  'landing.tour.tabDashboard': 'Dashboard',
+  'landing.tour.tabInvoices': 'Invoices',
+  'landing.tour.tabPayments': 'Payments',
+  'landing.tour.frameOverview': 'Financial overview',
+  'landing.tour.revenueThisMonth': 'Revenue this month',
+  'landing.tour.expensesThisMonth': 'Expenses this month',
+  'landing.tour.outstanding': 'Outstanding',
+  'landing.tour.captionInvoices': 'Sample list of invoices with client, due date, amount and status',
+  'landing.tour.captionPayments': 'Sample list of payments recorded against invoices',
+  'landing.tour.colInvoice': 'Invoice',
+  'landing.tour.colClient': 'Client',
+  'landing.tour.colDue': 'Due',
+  'landing.tour.colAmount': 'Amount',
+  'landing.tour.colStatus': 'Status',
+  'landing.tour.colMethod': 'Method',
+  'landing.tour.colAppliedTo': 'Applied to',
+  'landing.tour.colDate': 'Date',
+  'landing.tour.methodBankTransfer': 'Bank transfer',
+  'landing.tour.methodCard': 'Card',
+
+  'landing.features.eyebrow': 'What you get',
+  'landing.features.title': 'Everything you need, nothing you do not',
+  'landing.features.description':
+    'Six areas that cover how money actually moves through a small business.',
+  'landing.features.invoicesTitle': 'Invoices',
+  'landing.features.invoicesBody':
+    'Build invoices with line items, tax and discounts, then track them from draft through to paid.',
+  'landing.features.customersTitle': 'Customers',
+  'landing.features.customersBody':
+    'Keep customer details in one place and see every invoice and payment tied to each of them.',
+  'landing.features.moneyTitle': 'Income & expenses',
+  'landing.features.moneyBody':
+    'Record what comes in and what goes out, with categories, dates and due dates that stay tidy.',
+  'landing.features.paymentsTitle': 'Payments',
+  'landing.features.paymentsBody':
+    'Log full or partial payments against an invoice and watch its status update on its own.',
+  'landing.features.calendarTitle': 'Calendar',
+  'landing.features.calendarBody':
+    'See invoice due dates, expense due dates and payment dates laid out across the month.',
+  'landing.features.reportsTitle': 'Reports',
+  'landing.features.reportsBody':
+    'Review income against expenses over time, broken down by category and kept per currency.',
+
+  'landing.how.eyebrow': 'Getting started',
+  'landing.how.title': 'Three steps, then you are working',
+  'landing.how.description':
+    'Setup is short. Once your business details are in, you can create your first invoice straight away.',
+  'landing.how.step1Title': 'Create your account',
+  'landing.how.step1Body':
+    'Sign up with an email address and a password. Nothing to install, nothing to configure.',
+  'landing.how.step2Title': 'Set up your business',
+  'landing.how.step2Body':
+    'Add your business name, country and default currency. Categories are created for you.',
+  'landing.how.step3Title': 'Track your finances',
+  'landing.how.step3Body':
+    'Add customers, send invoices, record expenses and payments. Your dashboard fills itself in.',
+
+  'landing.benefits.eyebrow': 'Why it helps',
+  'landing.benefits.title': 'Less admin, clearer numbers',
+  'landing.benefits.b1Title': 'Know what is happening with your money',
+  'landing.benefits.b1Body':
+    'Revenue, expenses and what is still owed to you, on one screen, kept separate per currency.',
+  'landing.benefits.b2Title': 'Stay on top of outstanding payments',
+  'landing.benefits.b2Body':
+    'Every invoice carries its status and due date, so nothing quietly slips past its deadline.',
+  'landing.benefits.b3Title': 'Keep business finances organised',
+  'landing.benefits.b3Body':
+    'Customers, invoices, expenses and payments stay connected instead of scattered across files.',
+  'landing.benefits.b4Title': 'Spend less time managing spreadsheets',
+  'landing.benefits.b4Body':
+    'Record something once. Totals, statuses and reports follow from it without extra work.',
+
+  'landing.pricingTeaser.eyebrow': 'Pricing',
+  'landing.pricingTeaser.title': 'Start simple. Grow when you need to.',
+  'landing.pricingTeaser.description':
+    'CorpControl is built for freelancers, consultants, agencies and small businesses — people who need their finances in order, not an enterprise finance department.',
+
+  'landing.security.eyebrow': 'Trust',
+  'landing.security.title': 'Your business data stays yours',
+  'landing.security.description':
+    'We describe only what the product actually does. No certifications are claimed that have not been earned.',
+  'landing.security.authTitle': 'Secure authentication',
+  'landing.security.authBody': 'Passwords are hashed, never stored as text, and sessions are signed.',
+  'landing.security.separationTitle': 'Company-level separation',
+  'landing.security.separationBody':
+    'Every record is scoped to your business. Requests can only reach your own data.',
+  'landing.security.encryptionTitle': 'Encrypted in transit',
+  'landing.security.encryptionBody':
+    'The application is served over HTTPS and connects to its database over TLS.',
+  'landing.security.accessTitle': 'Access from anywhere',
+  'landing.security.accessBody':
+    'Runs in the browser on any modern device. Nothing to install or keep updated.',
+
+  'landing.faq.eyebrow': 'Questions',
+  'landing.faq.title': 'Frequently asked questions',
+  'landing.faq.q1': 'What is CorpControl?',
+  'landing.faq.a1':
+    'A workspace for managing the money side of a small business: invoices, customers, income, expenses, payments, a financial dashboard and reports. It is deliberately simpler than traditional accounting software.',
+  'landing.faq.q2': 'Who is it for?',
+  'landing.faq.a2':
+    'Freelancers, consultants, agencies, independent professionals and small businesses who need to keep finances organised without hiring a bookkeeper or learning double-entry accounting.',
+  'landing.faq.q3': 'Can I create and manage invoices?',
+  'landing.faq.a3':
+    'Yes. You can build invoices with multiple line items, quantities, per-line tax and discounts, then move them through draft, sent, partially paid, paid, overdue or cancelled.',
+  'landing.faq.q4': 'Can I track expenses?',
+  'landing.faq.a4':
+    'Yes. Record expenses with a description, category, amount, currency and an optional due date, and link them to a vendor. Unpaid expenses show up as upcoming payments.',
+  'landing.faq.q5': 'Can I record payments against invoices?',
+  'landing.faq.a5':
+    'Yes. You can record full or partial payments. The invoice balance and status update automatically from the payments recorded against it.',
+  'landing.faq.q6': 'Does CorpControl support multiple currencies?',
+  'landing.faq.a6':
+    'Yes. Invoices, income, expenses and payments can each be recorded in USD, EUR, GBP or TRY. Totals are always reported per currency and never mixed together.',
+  'landing.faq.q7': 'Do I need to connect my bank account?',
+  'landing.faq.a7':
+    'No. CorpControl does not connect to banks. You record income, expenses and payments yourself, which means there is no banking credential to share.',
+  'landing.faq.q8': 'Can I use it from anywhere?',
+  'landing.faq.a8':
+    'Yes. It runs in the browser on desktop, laptop, tablet and mobile. There is nothing to install and nothing to keep updated.',
+
+  'landing.finalCta.title': 'Take control of your business finances',
+  'landing.finalCta.description':
+    'Keep invoices, expenses, payments and financial insights in one simple workspace.',
+
+  'landing.footer.tagline':
+    'Business finance management for people who would rather be doing their actual work.',
+  'landing.footer.product': 'Product',
+  'landing.footer.company': 'Company',
+  'landing.footer.legal': 'Legal',
+  'landing.footer.contact': 'Contact',
+  'landing.footer.privacy': 'Privacy Policy',
+  'landing.footer.terms': 'Terms of Service',
+  'landing.footer.cookies': 'Cookie Policy',
+  'landing.footer.kvkk': 'KVKK Notice',
+  'landing.footer.rights': 'All rights reserved.',
+
+  // --- /pricing -------------------------------------------------------------
+  'pricingPage.eyebrow': 'Pricing',
+  'pricingPage.title': 'Start simple. Grow when you need to.',
+  'pricingPage.subtitle':
+    'CorpControl is built for freelancers, consultants, agencies and small businesses. Create an account and start using it today.',
+  'pricingPage.cardEyebrow': 'Get started',
+  'pricingPage.cardTitle': 'Everything in one workspace',
+  'pricingPage.cardBody':
+    'Detailed plans are still being finalised. In the meantime you can create an account and use CorpControl to run your business finances.',
+  'pricingPage.f1': 'Invoices with line items, tax and discounts',
+  'pricingPage.f2': 'Customer and vendor records',
+  'pricingPage.f3': 'Income and expense tracking',
+  'pricingPage.f4': 'Full and partial payment recording',
+  'pricingPage.f5': 'Financial dashboard and reports',
+  'pricingPage.f6': 'Calendar of due dates',
+  'pricingPage.f7': 'Multi-currency support (USD, EUR, GBP, TRY)',
+  'pricingPage.noBankNote': 'No bank connection required.',
+  'pricingPage.questionLead': 'Have a question about plans? ',
+  'pricingPage.questionLink': 'Get in touch',
+  'pricingPage.questionTail': '.',
+  'pricingPage.ctaTitle': 'Ready to get your finances in order?',
+  'pricingPage.ctaBody':
+    'Create an account and start recording invoices, expenses and payments today.',
+
+  // --- /contact -------------------------------------------------------------
+  'contactPage.title': 'Contact',
+  'contactPage.intro':
+    'CorpControl is early, and we would rather hear from you than not. Here is what each kind of enquiry covers.',
+  'contactPage.generalTitle': 'General enquiries',
+  'contactPage.generalBody':
+    'Questions about what CorpControl does, whether it fits how you work, or pricing.',
+  'contactPage.supportTitle': 'Support',
+  'contactPage.supportBody':
+    'Something not behaving as expected. Tell us what you were doing when it happened and what you saw instead.',
+  'contactPage.privacyTitle': 'Privacy and data requests',
+  'contactPage.privacyBody':
+    'Access, correction, export or deletion requests under the data protection law that applies to you.',
+  'contactPage.reachTitle': 'How to reach us',
+  'contactPage.reachBody':
+    'Our published contact channels are being finalised and will appear on this page. Until they do, this page describes the kinds of enquiry we handle rather than listing an address we cannot yet stand behind.',
+  'contactPage.businessTitle': 'Business details',
+  'contactPage.businessBody':
+    'CorpControl is operated by the entity responsible for providing the service. Registered business information will be published here once it is confirmed, alongside the contact channels above.',
+  // Split around two inline links. Turkish puts the verb after the link, so the
+  // fragments are ordered lead → link → mid → link → tail rather than
+  // interpolated, which keeps both languages grammatical.
+  'contactPage.moreLead': 'Looking for something specific? Read the ',
+  'contactPage.moreFaqLink': 'frequently asked questions',
+  'contactPage.moreMid': ', or see how we handle information in the ',
+  'contactPage.morePrivacyLink': 'Privacy Policy',
+  'contactPage.moreTail': '.',
+
+  // --- Legal page shell -----------------------------------------------------
+  // Chrome only. The legal body copy is intentionally not translated; see the
+  // note in components/marketing/legal-page.tsx.
+  'legal.lastUpdated': 'Last updated:',
 } as const;
 
 export type TranslationKey = keyof typeof en;

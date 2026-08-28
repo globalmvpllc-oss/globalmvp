@@ -1,38 +1,53 @@
 import { ArrowDownLeft, ArrowUpRight, CalendarClock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getServerLocale } from '@/lib/i18n/server';
+import { translate, type TranslationKey } from '@/lib/i18n';
 
 /**
  * A static composition of the product's own visual language, built from the
  * same tokens and patterns as the real dashboard.
  *
  * All figures below are fictional sample data used for illustration. They are
- * not customer data and do not represent any real business.
+ * not customer data and do not represent any real business. The client names
+ * and invoice numbers are proper nouns and stay as they are in every locale;
+ * only the labels around them are translated.
  */
 
-const METRICS = [
-  { label: 'Revenue', value: '18,420.00', currency: 'EUR', tone: 'up' as const, delta: 'This month' },
-  { label: 'Expenses', value: '6,180.50', currency: 'EUR', tone: 'down' as const, delta: 'This month' },
-  { label: 'Outstanding', value: '4,950.00', currency: 'EUR', tone: 'flat' as const, delta: '3 invoices' },
+const METRICS: Array<{
+  label: TranslationKey;
+  value: string;
+  tone: 'up' | 'down' | 'flat';
+  delta: TranslationKey;
+}> = [
+  { label: 'landing.preview.revenue', value: '18,420.00', tone: 'up', delta: 'landing.preview.thisMonth' },
+  { label: 'landing.preview.expenses', value: '6,180.50', tone: 'down', delta: 'landing.preview.thisMonth' },
+  { label: 'landing.preview.outstanding', value: '4,950.00', tone: 'flat', delta: 'landing.preview.threeInvoices' },
 ];
 
-const ROWS = [
-  { number: 'INV-0042', client: 'Northwind Studio', amount: '2,400.00', currency: 'EUR', status: 'Paid' },
-  { number: 'INV-0041', client: 'Harbour & Co.', amount: '1,750.00', currency: 'EUR', status: 'Sent' },
-  { number: 'INV-0040', client: 'Meridian Labs', amount: '800.00', currency: 'EUR', status: 'Overdue' },
+const ROWS: Array<{ number: string; client: string; amount: string; status: TranslationKey }> = [
+  { number: 'INV-0042', client: 'Northwind Studio', amount: '2,400.00', status: 'landing.preview.statusPaid' },
+  { number: 'INV-0041', client: 'Harbour & Co.', amount: '1,750.00', status: 'landing.preview.statusSent' },
+  { number: 'INV-0040', client: 'Meridian Labs', amount: '800.00', status: 'landing.preview.statusOverdue' },
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  Paid: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/25',
-  Sent: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/25',
-  Overdue: 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/25',
+  'landing.preview.statusPaid':
+    'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/25',
+  'landing.preview.statusSent':
+    'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/25',
+  'landing.preview.statusOverdue':
+    'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/25',
 };
 
 export function DashboardPreview() {
+  const locale = getServerLocale();
+  const t = (key: TranslationKey) => translate(locale, key);
+
   return (
     <div
       className="overflow-hidden rounded-xl border border-border bg-card shadow-lg"
       role="img"
-      aria-label="Preview of the FinanceFlow dashboard showing revenue, expenses, outstanding balance and a list of recent invoices. Sample data."
+      aria-label={t('landing.preview.ariaLabel')}
     >
       {/* Window chrome */}
       <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-3">
@@ -40,7 +55,7 @@ export function DashboardPreview() {
         <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-border" />
         <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-border" />
         <span className="ml-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-          Dashboard
+          {t('landing.preview.dashboard')}
         </span>
       </div>
 
@@ -50,7 +65,7 @@ export function DashboardPreview() {
           {METRICS.map((metric) => (
             <div key={metric.label} className="rounded-lg border border-border bg-background p-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
+                <p className="text-xs font-medium text-muted-foreground">{t(metric.label)}</p>
                 {metric.tone === 'up' ? (
                   <ArrowDownLeft aria-hidden="true" className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 ) : metric.tone === 'down' ? (
@@ -63,7 +78,7 @@ export function DashboardPreview() {
                 <span className="text-sm text-muted-foreground">&euro;</span>
                 {metric.value}
               </p>
-              <p className="mt-1 text-[11px] text-muted-foreground">{metric.delta}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{t(metric.delta)}</p>
             </div>
           ))}
         </div>
@@ -71,9 +86,9 @@ export function DashboardPreview() {
         {/* Invoice table */}
         <div className="rounded-lg border border-border bg-background">
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <p className="text-sm font-medium text-foreground">Recent invoices</p>
+            <p className="text-sm font-medium text-foreground">{t('landing.preview.recentInvoices')}</p>
             <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Sample data
+              {t('landing.preview.sampleData')}
             </p>
           </div>
           <ul className="divide-y divide-border">
@@ -90,7 +105,7 @@ export function DashboardPreview() {
                       STATUS_STYLES[row.status]
                     )}
                   >
-                    {row.status}
+                    {t(row.status)}
                   </span>
                   <span className="font-mono text-sm font-medium tabular-nums text-foreground">
                     &euro;{row.amount}

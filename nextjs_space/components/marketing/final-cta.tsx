@@ -2,8 +2,13 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/marketing/section';
+import { getServerLocale } from '@/lib/i18n/server';
+import { translate, type TranslationKey } from '@/lib/i18n';
 
 export function FinalCta() {
+  const locale = getServerLocale();
+  const t = (key: TranslationKey) => translate(locale, key);
+
   return (
     <section className="relative overflow-hidden py-20 sm:py-28" aria-labelledby="final-cta-heading">
       <div
@@ -16,20 +21,20 @@ export function FinalCta() {
             id="final-cta-heading"
             className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
           >
-            Take control of your business finances
+            {t('landing.finalCta.title')}
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-            Keep invoices, expenses, payments and financial insights in one simple workspace.
+            {t('landing.finalCta.description')}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href="/auth/signup">
-                Start free
+                {t('landing.cta.startFree')}
                 <ArrowRight aria-hidden="true" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="ghost" className="w-full sm:w-auto">
-              <Link href="/auth/login">Log in</Link>
+              <Link href="/auth/login">{t('landing.cta.logIn')}</Link>
             </Button>
           </div>
         </div>

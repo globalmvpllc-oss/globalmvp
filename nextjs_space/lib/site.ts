@@ -6,10 +6,10 @@
  * is hardcoded here.
  */
 export const siteConfig = {
-  name: 'FinanceFlow',
+  name: 'CorpControl',
   tagline: 'Run your business finances without the complexity',
   description:
-    'FinanceFlow keeps invoices, customers, income, expenses and payments in one simple workspace, so small businesses always know where their money stands.',
+    'CorpControl keeps invoices, customers, income, expenses and payments in one simple workspace, so small businesses always know where their money stands.',
 } as const;
 
 export function getBaseUrl(): string {

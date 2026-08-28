@@ -3,10 +3,19 @@ import { ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/marketing/section';
 import { DashboardPreview } from '@/components/marketing/dashboard-preview';
+import { getServerLocale } from '@/lib/i18n/server';
+import { translate, type TranslationKey } from '@/lib/i18n';
 
-const TRUST_POINTS = ['No bank connection required', 'Set up in minutes', 'Works in multiple currencies'];
+const TRUST_POINTS: TranslationKey[] = [
+  'landing.hero.trustNoBank',
+  'landing.hero.trustSetup',
+  'landing.hero.trustCurrencies',
+];
 
 export function Hero() {
+  const locale = getServerLocale();
+  const t = (key: TranslationKey) => translate(locale, key);
+
   return (
     <section className="relative overflow-hidden border-b border-border">
       {/* Restrained ambient wash — one soft tint, no gradient stack */}
@@ -18,26 +27,39 @@ export function Hero() {
         <div className="py-16 sm:py-24 lg:py-28">
           <div className="mx-auto max-w-3xl text-center">
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
-              Business finance, simplified
+              {t('landing.hero.eyebrow')}
             </p>
             <h1 className="mt-4 font-display text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Run your business finances without the complexity
+              {t('landing.hero.title')}
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-              FinanceFlow keeps invoices, customers, income, expenses and payments in one simple
-              workspace &mdash; so you always know where your money stands, without learning
-              accounting software.
+              {t('landing.hero.subtitle')}
+            </p>
+
+            {/*
+              The offer, stated once and plainly. Display face and semibold so it
+              outweighs the sub-headline above it, but a step down in size from
+              the h1 so it still reads as support for the headline rather than a
+              second one.
+
+              This line is only true because of two constants: "3 customers" is
+              PLAN_LIMITS.free.customers (lib/billing/features.ts) and "15 days"
+              is TRIAL_DAYS (lib/billing/trial.ts). If either changes, change the
+              copy (EN and TR) to match — the claim must stay accurate.
+            */}
+            <p className="mx-auto mt-5 max-w-2xl font-display text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+              {t('landing.heroTagline')}
             </p>
 
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button asChild size="lg" className="w-full sm:w-auto">
                 <Link href="/auth/signup">
-                  Start free
+                  {t('landing.cta.startFree')}
                   <ArrowRight aria-hidden="true" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                <Link href="/#how-it-works">See how it works</Link>
+                <Link href="/#how-it-works">{t('landing.cta.seeHowItWorks')}</Link>
               </Button>
             </div>
 
@@ -45,7 +67,7 @@ export function Hero() {
               {TRUST_POINTS.map((point) => (
                 <li key={point} className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />
-                  {point}
+                  {t(point)}
                 </li>
               ))}
             </ul>

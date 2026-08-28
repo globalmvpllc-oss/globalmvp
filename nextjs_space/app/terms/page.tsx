@@ -4,7 +4,7 @@ import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'The terms that apply when you use FinanceFlow.',
+  description: 'The terms that apply when you use CorpControl.',
   alternates: { canonical: '/terms' },
 };
 
@@ -13,11 +13,11 @@ export default function TermsPage() {
     <LegalPage
       title="Terms of Service"
       updated="25 August 2026"
-      intro="These terms form the agreement between you and the provider of FinanceFlow. By creating an account or using the service, you accept them."
+      intro="These terms form the agreement between you and the provider of CorpControl. By creating an account or using the service, you accept them."
     >
-      <LegalSection heading="What FinanceFlow is">
+      <LegalSection heading="What CorpControl is">
         <p>
-          FinanceFlow is a software tool for recording and reviewing business finances: customers,
+          CorpControl is a software tool for recording and reviewing business finances: customers,
           vendors, invoices, income, expenses, payments, a dashboard, reports and a calendar of due
           dates.
         </p>
@@ -34,7 +34,7 @@ export default function TermsPage() {
 
       <LegalSection heading="Eligibility">
         <p>
-          You may use FinanceFlow only if you can form a binding contract where you live, and only for
+          You may use CorpControl only if you can form a binding contract where you live, and only for
           business purposes. If you create an account for an organisation, you confirm that you are
           authorised to accept these terms for it.
         </p>
@@ -101,7 +101,7 @@ export default function TermsPage() {
 
       <LegalSection heading="Third-party services">
         <p>
-          FinanceFlow relies on third-party infrastructure for hosting, storage, database and document
+          CorpControl relies on third-party infrastructure for hosting, storage, database and document
           conversion. Those providers have their own terms, and outages or changes on their side can
           affect the service. We are not responsible for the acts or omissions of third parties beyond
           our reasonable control.

@@ -4,7 +4,7 @@ import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 
 export const metadata: Metadata = {
   title: 'Cookie Policy',
-  description: 'The cookies FinanceFlow sets, what each one does, and what happens if you block them.',
+  description: 'The cookies CorpControl sets, what each one does, and what happens if you block them.',
   alternates: { canonical: '/cookies' },
 };
 
@@ -13,12 +13,13 @@ export default function CookiesPage() {
     <LegalPage
       title="Cookie Policy"
       updated="25 August 2026"
-      intro="This page lists every cookie FinanceFlow sets and explains what each one is for. The list is short, because the service only uses cookies it needs in order to work."
+      intro="This page lists every cookie CorpControl sets and explains what each one is for. The list is short, because the service only uses cookies it needs in order to work."
     >
       <LegalSection heading="Cookies we set">
         <p>
-          All of the cookies below are strictly necessary: they are what makes signing in possible and
-          keeps that sign-in secure. They are set by the application itself, not by anyone else.
+          All of the cookies below are strictly necessary: they are what makes signing in possible,
+          what keeps that sign-in secure, and what remembers a preference you set yourself. They are
+          set by the application itself, not by anyone else.
         </p>
         <ul>
           <li>
@@ -35,12 +36,18 @@ export default function CookiesPage() {
             <strong>Callback URL cookie.</strong> Short-lived. It remembers the page you were trying to
             reach when you were asked to sign in, so you can be returned there afterwards.
           </li>
+          <li>
+            <strong>Language cookie.</strong> Records the language you pick in the language selector,
+            so the site and the application stay in that language on your next visit. It holds nothing
+            but a language code, it is set only when you choose a language, and blocking it simply
+            means the site opens in English each time.
+          </li>
         </ul>
       </LegalSection>
 
       <LegalSection heading="What we do not use">
         <p>
-          FinanceFlow sets <strong>no analytics cookies, no advertising cookies and no tracking
+          CorpControl sets <strong>no analytics cookies, no advertising cookies and no tracking
           pixels</strong>. There is no Google Analytics, no advertising network and no social media
           tracker in the application. Nobody outside the service is given the ability to set a cookie
           through it.

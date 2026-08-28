@@ -12,27 +12,31 @@ import { PricingTeaser } from '@/components/marketing/pricing-teaser';
 import { SecuritySection } from '@/components/marketing/security-section';
 import { Faq } from '@/components/marketing/faq';
 import { FinalCta } from '@/components/marketing/final-cta';
-import { FAQS } from '@/components/marketing/faq-data';
+import { getFaqs } from '@/components/marketing/faq-data';
+import { getServerLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * FAQPage structured data, generated from the same FAQS array the accordion
- * renders below, so the schema can never describe questions a visitor cannot see.
+ * FAQPage structured data, generated from the same questions the accordion
+ * renders below, so the schema can never describe questions a visitor cannot
+ * see — including when the visitor has switched language.
  * Organization and SoftwareApplication schemas live in app/layout.tsx.
  */
-const faqJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: FAQS.map((faq) => ({
-    '@type': 'Question',
-    name: faq.q,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: faq.a,
-    },
-  })),
-};
+function buildFaqJsonLd(faqs: Array<{ q: string; a: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.a,
+      },
+    })),
+  };
+}
 
 /**
  * The public landing page, served to everyone.
@@ -50,6 +54,8 @@ const faqJsonLd = {
  * middleware.
  */
 export default async function Home() {
+  const faqJsonLd = buildFaqJsonLd(getFaqs(getServerLocale()));
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <script

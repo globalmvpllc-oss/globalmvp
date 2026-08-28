@@ -4,7 +4,7 @@ import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
-  description: 'How FinanceFlow handles the information you and your business put into the service.',
+  description: 'How CorpControl handles the information you and your business put into the service.',
   alternates: { canonical: '/privacy' },
 };
 
@@ -13,11 +13,11 @@ export default function PrivacyPage() {
     <LegalPage
       title="Privacy Policy"
       updated="25 August 2026"
-      intro="This policy explains what information FinanceFlow processes, why it is processed, and what control you have over it. It applies to the FinanceFlow web application and website."
+      intro="This policy explains what information CorpControl processes, why it is processed, and what control you have over it. It applies to the CorpControl web application and website."
     >
       <LegalSection heading="Who this policy is from">
         <p>
-          FinanceFlow is operated by the entity responsible for providing the FinanceFlow service,
+          CorpControl is operated by the entity responsible for providing the CorpControl service,
           referred to in this policy as &ldquo;we&rdquo; or &ldquo;us&rdquo;. If you need to reach us
           about anything in this policy, use the details published on our{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          FinanceFlow does not connect to bank accounts and never asks for banking credentials. It
+          CorpControl does not connect to bank accounts and never asks for banking credentials. It
           does not carry out automated profiling or automated decision-making about you.
         </p>
       </LegalSection>
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
 
       <LegalSection heading="Information about your own customers">
         <p>
-          Much of what you enter into FinanceFlow is information about other people and businesses:
+          Much of what you enter into CorpControl is information about other people and businesses:
           your customers and vendors. For that information you are the one who decides why and how it
           is processed, and we process it on your behalf in order to run the service.
         </p>
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
 
       <LegalSection heading="Service providers">
         <p>
-          Running FinanceFlow requires a small number of infrastructure providers. Each receives only
+          Running CorpControl requires a small number of infrastructure providers. Each receives only
           what it needs to perform its function:
         </p>
         <ul>
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
 
       <LegalSection heading="Children">
         <p>
-          FinanceFlow is a tool for businesses and is not directed at children. We do not knowingly
+          CorpControl is a tool for businesses and is not directed at children. We do not knowingly
           create accounts for anyone below the age at which they can enter into a contract where they
           live.
         </p>

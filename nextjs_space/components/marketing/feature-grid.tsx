@@ -1,47 +1,28 @@
 import { BarChart3, CalendarDays, FileText, Receipt, Users, Wallet } from 'lucide-react';
 import { Section, SectionHeading } from '@/components/marketing/section';
+import { getServerLocale } from '@/lib/i18n/server';
+import { translate, type TranslationKey } from '@/lib/i18n';
 
-const FEATURES = [
-  {
-    icon: FileText,
-    title: 'Invoices',
-    body: 'Build invoices with line items, tax and discounts, then track them from draft through to paid.',
-  },
-  {
-    icon: Users,
-    title: 'Customers',
-    body: 'Keep customer details in one place and see every invoice and payment tied to each of them.',
-  },
-  {
-    icon: Receipt,
-    title: 'Income & expenses',
-    body: 'Record what comes in and what goes out, with categories, dates and due dates that stay tidy.',
-  },
-  {
-    icon: Wallet,
-    title: 'Payments',
-    body: 'Log full or partial payments against an invoice and watch its status update on its own.',
-  },
-  {
-    icon: CalendarDays,
-    title: 'Calendar',
-    body: 'See invoice due dates, expense due dates and payment dates laid out across the month.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Reports',
-    body: 'Review income against expenses over time, broken down by category and kept per currency.',
-  },
+const FEATURES: Array<{ icon: typeof FileText; title: TranslationKey; body: TranslationKey }> = [
+  { icon: FileText, title: 'landing.features.invoicesTitle', body: 'landing.features.invoicesBody' },
+  { icon: Users, title: 'landing.features.customersTitle', body: 'landing.features.customersBody' },
+  { icon: Receipt, title: 'landing.features.moneyTitle', body: 'landing.features.moneyBody' },
+  { icon: Wallet, title: 'landing.features.paymentsTitle', body: 'landing.features.paymentsBody' },
+  { icon: CalendarDays, title: 'landing.features.calendarTitle', body: 'landing.features.calendarBody' },
+  { icon: BarChart3, title: 'landing.features.reportsTitle', body: 'landing.features.reportsBody' },
 ];
 
 export function FeatureGrid() {
+  const locale = getServerLocale();
+  const t = (key: TranslationKey) => translate(locale, key);
+
   return (
     <Section id="features" className="border-b border-border" aria-labelledby="features-heading">
       <SectionHeading
         id="features-heading"
-        eyebrow="What you get"
-        title="Everything you need, nothing you do not"
-        description="Six areas that cover how money actually moves through a small business."
+        eyebrow={t('landing.features.eyebrow')}
+        title={t('landing.features.title')}
+        description={t('landing.features.description')}
       />
 
       <ul className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -53,8 +34,8 @@ export function FeatureGrid() {
             <span className="inline-grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary transition-colors duration-normal group-hover:bg-primary/15">
               <feature.icon aria-hidden="true" className="h-5 w-5" />
             </span>
-            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">{feature.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+            <h3 className="mt-4 font-display text-lg font-semibold text-foreground">{t(feature.title)}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(feature.body)}</p>
           </li>
         ))}
       </ul>
