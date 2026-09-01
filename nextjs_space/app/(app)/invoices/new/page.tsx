@@ -194,19 +194,19 @@ export default function NewInvoicePage() {
                   <Label className="text-xs">Description</Label>
                   <Input placeholder="Item description" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} />
                 </div>
-                <div className="col-span-3 md:col-span-1 space-y-1">
+                <div className="col-span-6 md:col-span-1 space-y-1">
                   <Label className="text-xs">Qty</Label>
                   <Input type="number" min={1} value={item.quantity} onChange={(e: any) => updateItem(idx, 'quantity', Number(e.target.value))} />
                 </div>
-                <div className="col-span-3 md:col-span-2 space-y-1">
+                <div className="col-span-6 md:col-span-2 space-y-1">
                   <Label className="text-xs">Unit price</Label>
                   <Input type="number" min={0} step={0.01} value={item.unitPrice} onChange={(e: any) => updateItem(idx, 'unitPrice', Number(e.target.value))} />
                 </div>
-                <div className="col-span-3 md:col-span-1 space-y-1">
+                <div className="col-span-6 md:col-span-1 space-y-1">
                   <Label className="text-xs">Discount</Label>
                   <Input type="number" min={0} step={0.01} value={item.discount} onChange={(e: any) => updateItem(idx, 'discount', Number(e.target.value))} />
                 </div>
-                <div className="col-span-3 md:col-span-1 space-y-1">
+                <div className="col-span-6 md:col-span-1 space-y-1">
                   <Label className="text-xs">Tax %</Label>
                   <Input type="number" min={0} step={0.01} value={item.taxRate} onChange={(e: any) => updateItem(idx, 'taxRate', Number(e.target.value))} />
                 </div>
@@ -224,7 +224,7 @@ export default function NewInvoicePage() {
 
           {/* Totals */}
           <div className="mt-6 flex justify-end">
-            <div className="w-64 space-y-2">
+            <div className="w-full space-y-2 sm:w-64">
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toFixed(2)}</span></div>
               {discountTotal > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="font-mono text-red-500">-{discountTotal.toFixed(2)}</span></div>}
               {taxTotal > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tax</span><span className="font-mono">{taxTotal.toFixed(2)}</span></div>}
@@ -242,9 +242,11 @@ export default function NewInvoicePage() {
         </CardContent>
       </Card>
 
-      <div className="flex gap-3 justify-end">
-        <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={loading}>
+      {/* Full-width, primary action last, rather than two buttons crushed
+          against the right edge. */}
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.back()}>Cancel</Button>
+        <Button className="w-full sm:w-auto" onClick={handleSubmit} disabled={loading}>
           <Save className="w-4 h-4 mr-2" /> {loading ? 'Creating...' : 'Create Invoice'}
         </Button>
       </div>

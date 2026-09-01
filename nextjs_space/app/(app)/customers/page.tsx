@@ -154,12 +154,14 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* The action drops below the heading rather than beside it on a narrow
+          screen, where there is no room for both. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-display font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground">Manage your customers and track their invoices</p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" /> Add Customer
         </Button>
       </div>

@@ -33,7 +33,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
-      <main className="flex-1 overflow-auto">
+      {/*
+        `min-w-0` keeps a wide child (a table, a long invoice number) from
+        stretching this flex item past the viewport, which is what turns a
+        scrollable table into a horizontally scrolling page.
+
+        `pt-14` clears the fixed mobile header the sidebar renders below `md`;
+        at `md` and above there is no such header and no offset.
+      */}
+      <main className="flex-1 min-w-0 overflow-auto pt-14 md:pt-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {children}
         </div>

@@ -279,22 +279,26 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/invoices')}><ArrowLeft className="w-4 h-4" /></Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-display font-bold tracking-tight">{invoice?.invoiceNumber}</h1>
-            <Badge className={statusInfo?.color ?? ''}>{statusInfo?.label ?? ''}</Badge>
+      {/* Six actions do not fit beside the invoice number on a phone, so the
+          whole row drops below the heading and the buttons share the width. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.push('/invoices')}><ArrowLeft className="w-4 h-4" /></Button>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-2xl font-display font-bold tracking-tight">{invoice?.invoiceNumber}</h1>
+              <Badge className={statusInfo?.color ?? ''}>{statusInfo?.label ?? ''}</Badge>
+            </div>
+            <p className="text-muted-foreground truncate">{invoice?.customer?.name ?? ''}</p>
           </div>
-          <p className="text-muted-foreground">{invoice?.customer?.name ?? ''}</p>
         </div>
-        <div className="flex gap-2">
-          {invoice?.status === 'DRAFT' && <Button variant="outline" onClick={() => updateStatus('SENT')}><Send className="w-4 h-4 mr-2" /> Send</Button>}
+        <div className="flex flex-wrap gap-2">
+          {invoice?.status === 'DRAFT' && <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => updateStatus('SENT')}><Send className="w-4 h-4 mr-2" /> Send</Button>}
           {['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(invoice?.status) && (
             <>
               <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline"><CreditCard className="w-4 h-4 mr-2" /> Record Payment</Button>
+                  <Button variant="outline" className="flex-1 sm:flex-none"><CreditCard className="w-4 h-4 mr-2" /> Record Payment</Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
@@ -323,21 +327,21 @@ export default function InvoiceDetailPage() {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button onClick={() => updateStatus('PAID')}><CheckCircle className="w-4 h-4 mr-2" /> Mark Paid</Button>
+              <Button className="flex-1 sm:flex-none" onClick={() => updateStatus('PAID')}><CheckCircle className="w-4 h-4 mr-2" /> Mark Paid</Button>
             </>
           )}
-          <Button variant="outline" onClick={printInvoice} disabled={pdfLoading}>
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={printInvoice} disabled={pdfLoading}>
             <Printer className="w-4 h-4 mr-2" /> Print
           </Button>
-          <Button variant="outline" onClick={downloadPdf} disabled={pdfLoading}>
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={downloadPdf} disabled={pdfLoading}>
             <Download className="w-4 h-4 mr-2" /> {pdfLoading ? 'Generating...' : 'PDF'}
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
         </div>
       </div>
 
       {/* Invoice Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Issue Date</p><p className="font-medium">{invoice?.issueDate ? formatCalendarDate(invoice.issueDate) : ''}</p></CardContent></Card>
         <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Due Date</p><p className="font-medium">{invoice?.dueDate ? formatCalendarDate(invoice.dueDate) : ''}</p></CardContent></Card>
         <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Total</p><p className="font-mono font-medium">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</p></CardContent></Card>
@@ -348,8 +352,9 @@ export default function InvoiceDetailPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Items</CardTitle></CardHeader>
         <CardContent>
+          {/* The table scrolls inside this box; the page itself does not. */}
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[32rem] text-sm">
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-2 font-medium text-muted-foreground">Description</th>
@@ -373,7 +378,7 @@ export default function InvoiceDetailPage() {
             </table>
           </div>
           <div className="mt-4 flex justify-end">
-            <div className="w-64 space-y-2">
+            <div className="w-full space-y-2 sm:w-64">
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{formatCurrency(invoice?.subtotal ?? 0, invoice?.currency ?? 'USD')}</span></div>
               {(invoice?.discountTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="font-mono text-red-500">-{formatCurrency(invoice?.discountTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
               {(invoice?.taxTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tax</span><span className="font-mono">{formatCurrency(invoice?.taxTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
@@ -396,8 +401,8 @@ export default function InvoiceDetailPage() {
           <CardContent>
             <div className="space-y-2">
               {(invoice?.payments ?? []).map((p: any) => (
-                <div key={p?.id} className="flex justify-between items-center py-2 px-3 rounded bg-muted/50">
-                  <div>
+                <div key={p?.id} className="flex flex-wrap justify-between items-center gap-2 py-2 px-3 rounded bg-muted/50">
+                  <div className="min-w-0">
                     <p className="text-sm font-medium">{p?.paymentMethod?.replace('_', ' ') ?? 'Payment'}</p>
                     <p className="text-xs text-muted-foreground">{p?.paymentDate ? formatCalendarDate(p.paymentDate) : ''}{p?.reference ? ` • ${p.reference}` : ''}</p>
                   </div>

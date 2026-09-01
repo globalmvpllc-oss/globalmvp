@@ -25,6 +25,9 @@ export const en = {
   'nav.reports': 'Reports',
   'nav.settings': 'Settings',
   'nav.signOut': 'Sign out',
+  // Labels the hamburger button and the drawer it opens on small screens.
+  'nav.openMenu': 'Open menu',
+  'nav.menu': 'Menu',
 
   // --- Common actions -------------------------------------------------------
   'common.save': 'Save',

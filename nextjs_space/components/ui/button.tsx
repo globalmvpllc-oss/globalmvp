@@ -28,12 +28,14 @@ const buttonVariants = cva(
           "text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-0 focus-visible:ring-offset-0",
       },
       size: {
-        default: "h-10 px-4 py-2",
+        // Sizes step up below `md` so every button clears the ~44px a finger
+        // needs; from `md` they are exactly what they have always been.
+        default: "h-11 md:h-10 px-4 py-2",
         xs: "h-7 rounded-md px-2 text-xs",
-        sm: "h-9 rounded-md px-3",
+        sm: "h-11 md:h-9 rounded-md px-3",
         lg: "h-11 rounded-lg px-6 text-base",
-        icon: "h-10 w-10",
-        "icon-sm": "h-8 w-8 rounded-md",
+        icon: "h-11 w-11 md:h-10 md:w-10",
+        "icon-sm": "h-11 w-11 md:h-8 md:w-8 rounded-md",
       },
     },
     defaultVariants: {

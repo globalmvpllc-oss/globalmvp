@@ -134,18 +134,20 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      {/* The actions sit below the heading on a narrow screen rather than
+          being pushed off the side of it. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-display font-bold tracking-tight">Invoices</h1>
           <p className="text-muted-foreground">Create, manage, and track your invoices</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {/* Sits beside the primary action; the per-invoice "Download PDF"
               lives on the detail page and is untouched. */}
-          <BulkPdfButton invoices={invoices} selectedIds={selectedIds} company={company} />
-          <Link href="/invoices/new">
-            <Button><Plus className="w-4 h-4 mr-2" /> Create Invoice</Button>
-          </Link>
+          <BulkPdfButton invoices={invoices} selectedIds={selectedIds} company={company} className="w-full sm:w-auto" />
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> Create Invoice</Link>
+          </Button>
         </div>
       </div>
 
@@ -197,7 +199,7 @@ export default function InvoicesPage() {
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
             <h3 className="font-medium mb-1">{personalizeEmptyState('No invoices yet', company?.name)}</h3>
             <p className="text-sm text-muted-foreground mb-4">Create your first invoice to start tracking payments.</p>
-            <Link href="/invoices/new"><Button><Plus className="w-4 h-4 mr-2" /> Create Invoice</Button></Link>
+            <Button asChild><Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> Create Invoice</Link></Button>
           </CardContent>
         </Card>
       ) : (
@@ -207,24 +209,26 @@ export default function InvoicesPage() {
             return (
               <Card key={inv?.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  {/* Amount, status and actions drop onto their own line below
+                      `sm` instead of squeezing the invoice number out. */}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                       <Checkbox
                         checked={selectedIds.includes(inv?.id)}
                         onCheckedChange={() => toggleOne(inv?.id)}
                         aria-label={inv?.invoiceNumber ?? ''}
                       />
-                      <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center shrink-0">
                         <FileText className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <Link href={`/invoices/${inv?.id}`} className="font-medium hover:text-primary transition-colors">
                           {inv?.invoiceNumber ?? ''}
                         </Link>
                         <p className="text-sm text-muted-foreground">{inv?.customer?.name ?? inv?.customer?.companyName ?? 'No customer'}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex w-full items-center justify-end gap-3 sm:w-auto sm:gap-4">
                       <div className="text-right">
                         <p className="font-mono font-medium">{formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}</p>
                         <p className="text-xs text-muted-foreground">Due {inv?.dueDate ? formatCalendarDate(inv.dueDate) : 'N/A'}</p>

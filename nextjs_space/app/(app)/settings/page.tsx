@@ -485,7 +485,7 @@ export default function SettingsPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           <Save className="w-4 h-4 mr-2" /> {saving ? 'Saving...' : 'Save Settings'}
         </Button>
       </div>

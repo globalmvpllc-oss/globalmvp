@@ -18,6 +18,8 @@ export const tr: Dictionary = {
   'nav.reports': 'Raporlar',
   'nav.settings': 'Ayarlar',
   'nav.signOut': 'Çıkış yap',
+  'nav.openMenu': 'Menüyü aç',
+  'nav.menu': 'Menü',
 
   // --- Common actions -------------------------------------------------------
   'common.save': 'Kaydet',

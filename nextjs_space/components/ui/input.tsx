@@ -14,8 +14,11 @@ const inputVariants = cva(
         ghost: "border-transparent bg-muted/50 hover:bg-muted focus-visible:bg-background focus-visible:border-input focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       },
       size: {
-        default: "h-10 px-3 py-2",
-        sm: "h-8 px-2.5 py-1 text-xs rounded-md",
+        // text-base below `md` is what keeps iOS Safari from zooming the page
+        // in on focus: it only does that for fields under 16px. The heights
+        // step up for the same reason the buttons do. From `md`, unchanged.
+        default: "h-11 md:h-10 px-3 py-2 text-base md:text-sm",
+        sm: "h-9 md:h-8 px-2.5 py-1 text-base md:text-xs rounded-md",
         lg: "h-12 px-4 py-3 text-base rounded-lg",
       },
     },

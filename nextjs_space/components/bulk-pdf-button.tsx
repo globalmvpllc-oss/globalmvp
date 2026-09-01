@@ -26,10 +26,13 @@ export function BulkPdfButton({
   invoices,
   selectedIds,
   company,
+  className,
 }: {
   invoices: any[];
   selectedIds: string[];
   company: any;
+  /** Lets the caller size the button — full width on a phone, auto elsewhere. */
+  className?: string;
 }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
@@ -103,6 +106,7 @@ export function BulkPdfButton({
   return (
     <Button
       variant="outline"
+      className={className}
       onClick={run}
       // Enabled with nothing selected on purpose: pressing it explains what to
       // do, which is friendlier than a dead control with no reason given.

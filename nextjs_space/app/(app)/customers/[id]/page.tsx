@@ -69,12 +69,14 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/customers')}><ArrowLeft className="w-4 h-4" /></Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-display font-bold tracking-tight">{customer?.name ?? ''}</h1>
-          {customer?.companyName && <p className="text-muted-foreground">{customer.companyName}</p>}
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.push('/customers')}><ArrowLeft className="w-4 h-4" /></Button>
+        {/* min-w-0 lets a long business name truncate instead of pushing the
+            delete button off the side of the screen. */}
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-display font-bold tracking-tight truncate">{customer?.name ?? ''}</h1>
+          {customer?.companyName && <p className="text-muted-foreground truncate">{customer.companyName}</p>}
         </div>
-        <Button variant="ghost" size="icon" onClick={handleDelete} disabled={deleting}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={handleDelete} disabled={deleting}><Trash2 className="w-4 h-4 text-red-500" /></Button>
       </div>
 
       {/* Stats — grouped per currency. A customer invoiced in more than one
@@ -140,15 +142,15 @@ export default function CustomerDetailPage() {
               {(customer?.invoices ?? []).map((inv: any) => {
                 const si = getStatusBadge(inv?.status ?? 'DRAFT');
                 return (
-                  <Link key={inv?.id} href={`/invoices/${inv?.id}`} className="flex items-center justify-between py-3 px-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-muted-foreground" />
-                      <div>
+                  <Link key={inv?.id} href={`/invoices/${inv?.id}`} className="flex flex-wrap items-center justify-between gap-3 py-3 px-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
                         <p className="text-sm font-medium">{inv?.invoiceNumber ?? ''}</p>
                         <p className="text-xs text-muted-foreground">{inv?.dueDate ? formatCalendarDate(inv.dueDate) : ''}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                       <span className="font-mono text-sm">{formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}</span>
                       <Badge className={si?.color ?? ''}>{si?.label ?? ''}</Badge>
                     </div>

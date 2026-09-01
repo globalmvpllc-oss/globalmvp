@@ -491,7 +491,7 @@ export default function CalendarPage() {
                 <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
               ))}
               {Array.from({ length: startPadding }, (_: any, i: number) => (
-                <div key={`pad-${i}`} className="p-1 min-h-[84px]" />
+                <div key={`pad-${i}`} className="p-1 min-h-[64px] sm:min-h-[84px]" />
               ))}
               {days.map((day: Date) => {
                 const dayEntries = entriesFor(day);
@@ -504,7 +504,7 @@ export default function CalendarPage() {
                     onClick={() => setSelectedDate(day)}
                     onDoubleClick={() => openCreate(day)}
                     aria-label={`${format(day, 'MMMM d')}, ${dayEntries.length} entries`}
-                    className={`p-1.5 min-h-[84px] border rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    className={`p-1 sm:p-1.5 min-h-[64px] sm:min-h-[84px] border rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
                     } ${isToday && !isSelected ? 'bg-primary/5' : ''}`}
                   >
@@ -625,7 +625,7 @@ export default function CalendarPage() {
               <Textarea rows={2} value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Date *</Label>
                 <Input type="date" value={form.date} onChange={(e: any) => setForm({ ...form, date: e.target.value })} />
@@ -639,7 +639,7 @@ export default function CalendarPage() {
             </div>
 
             {!form.allDay && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>Start time</Label>
                   <Input type="time" value={form.startTime} onChange={(e: any) => setForm({ ...form, startTime: e.target.value })} />
@@ -651,7 +651,7 @@ export default function CalendarPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Type</Label>
                 <Select value={form.type} onValueChange={(v: string) => setForm({ ...form, type: v })}>
@@ -672,7 +672,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Amount</Label>
                 <Input type="number" min="0" step="0.01" value={form.amount}
@@ -691,7 +691,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Customer</Label>
                 <Select value={form.customerId || NONE}

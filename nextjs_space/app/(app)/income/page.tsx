@@ -187,18 +187,20 @@ export default function IncomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      {/* The action drops below the heading rather than beside it on a narrow
+          screen, where there is no room for both. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-display font-bold tracking-tight">Income</h1>
           <p className="text-muted-foreground">Track your income and expected payments</p>
         </div>
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
-          <DialogTrigger asChild><Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Add Income</Button></DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Add Income</Button></DialogTrigger>
+          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
             <DialogHeader><DialogTitle>{editingId ? 'Edit Income' : 'Add Income'}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1"><Label>Description *</Label><Input placeholder="What is this income for?" value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>Amount *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
                 <div className="space-y-1"><Label>Currency</Label>
                   <Select value={form.currency} onValueChange={(v: string) => setForm({ ...form, currency: v })}>
@@ -207,11 +209,11 @@ export default function IncomePage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>Date</Label><Input type="date" value={form.date} onChange={(e: any) => setForm({ ...form, date: e.target.value })} /></div>
                 <div className="space-y-1"><Label>Expected payment date</Label><Input type="date" value={form.expectedPaymentDate} onChange={(e: any) => setForm({ ...form, expectedPaymentDate: e.target.value })} /></div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1"><Label>Category</Label>
                   <Select value={form.category} onValueChange={(v: string) => setForm({ ...form, category: v })}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -260,15 +262,17 @@ export default function IncomePage() {
           {transactions.map((t: any) => (
             <Card key={t?.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${t?.status === 'RECEIVED' ? 'bg-green-500' : 'bg-amber-500'}`} />
-                    <div>
+                {/* Amount, status and actions wrap onto their own line below
+                    `sm` rather than crushing the description. */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className={`w-2 h-2 shrink-0 rounded-full ${t?.status === 'RECEIVED' ? 'bg-green-500' : 'bg-amber-500'}`} />
+                    <div className="min-w-0">
                       <p className="text-sm font-medium">{t?.description ?? ''}</p>
                       <p className="text-xs text-muted-foreground">{t?.category ?? ''}{t?.customer?.name ? ` • ${t.customer.name}` : ''}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                     <div className="text-right">
                       <p className="font-mono font-medium">{formatCurrency(t?.amount ?? 0, t?.currency ?? 'USD')}</p>
                       <p className="text-xs text-muted-foreground">{t?.date ? format(new Date(t.date), 'MMM d, yyyy') : ''}</p>

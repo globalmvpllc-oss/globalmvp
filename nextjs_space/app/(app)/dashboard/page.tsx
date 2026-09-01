@@ -306,15 +306,15 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {(data?.activities ?? []).map((activity: any) => (
-                <div key={activity?.id} className="flex items-center justify-between py-3 px-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                  <div className="flex items-center gap-3">
+                <div key={activity?.id} className="flex flex-wrap items-center justify-between gap-3 py-3 px-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     {getActivityIcon(activity?.type ?? '')}
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-medium">{activity?.title ?? ''}</p>
                       <p className="text-xs text-muted-foreground">{activity?.subtitle ?? ''}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                     {getActivityBadge(activity?.type ?? '')}
                     <div className="text-right">
                       <p className="text-sm font-mono font-medium">{formatCurrency(Number(activity?.amount) || 0, activity?.currency ?? defaultCurrency)}</p>
