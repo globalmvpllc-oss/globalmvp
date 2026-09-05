@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getCompanyInitials, resolveStoredFileUrl } from '@/lib/company-identity';
+import { BankingSummaryCard } from '@/components/banking-summary-card';
 
 interface CurrencyMetrics {
   revenue: string;
@@ -250,6 +251,10 @@ export default function DashboardPage() {
           </div>
         );
       })}
+
+      {/* Bank balances and anything still to reconcile. Renders nothing at all
+          for a company with no bank accounts, so this is additive. */}
+      {!loadError && !isEmpty ? <BankingSummaryCard /> : null}
 
       {/*
         Quick Actions.

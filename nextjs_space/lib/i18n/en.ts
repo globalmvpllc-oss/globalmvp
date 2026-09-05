@@ -19,6 +19,7 @@ export const en = {
   'nav.invoices': 'Invoices',
   'nav.customers': 'Customers',
   'nav.payments': 'Payments',
+  'nav.banking': 'Banking',
   'nav.income': 'Income',
   'nav.expenses': 'Expenses',
   'nav.calendar': 'Calendar',

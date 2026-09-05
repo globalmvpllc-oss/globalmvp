@@ -17,6 +17,7 @@ const NAV_HREFS = [
   '/income',
   '/expenses',
   '/payments',
+  '/banking',
   '/calendar',
   '/reports',
   '/settings',

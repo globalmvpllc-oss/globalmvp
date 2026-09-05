@@ -150,6 +150,8 @@ model Company {
   attachments         Attachment[]
   /// At most one paid subscription per company. Absence means the Free plan.
   subscription        Subscription?
+  bankAccounts        BankAccount[]
+  bankTransactions    BankTransaction[]
 }
 
 model CompanyMember {
@@ -240,6 +242,9 @@ model Invoice {
   items         InvoiceItem[]
   payments      Payment[]
   events        Event[]
+  /// Bank lines reconciled against this invoice. Prisma-side only — the column
+  /// lives on BankTransaction, so no existing table gains anything.
+  bankTransactions BankTransaction[]
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
@@ -283,6 +288,7 @@ model Payment {
   company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoice       Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   expense       ExpenseTransaction? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  bankTransactions BankTransaction[]
 
   @@index([companyId])
   @@index([invoiceId])
@@ -310,6 +316,7 @@ model IncomeTransaction {
   updatedAt           DateTime  @updatedAt
   company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer            Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  bankTransactions    BankTransaction[]
 
   @@index([companyId])
   @@index([status])
@@ -336,6 +343,7 @@ model ExpenseTransaction {
   company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   vendor           Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   payments         Payment[]
+  bankTransactions BankTransaction[]
 
   @@index([companyId])
   @@index([status])
@@ -589,4 +597,131 @@ model EmailVerificationToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// =============================================================================
+// Banking & Reconciliation
+// =============================================================================
+
+/// A bank account belonging to one company.
+///
+/// Provider-agnostic on purpose. Today every account is `provider = "manual"`
+/// and its transactions arrive by CSV import or by hand; the columns below are
+/// exactly what a Plaid / Wise / Open Banking connector would need later
+/// (`provider`, `providerAccountId`, `lastSyncedAt`), so adding one is a new
+/// module under lib/banking/providers rather than a schema change.
+///
+/// `lastBalance` is what the *bank* last reported, not a figure this
+/// application derives. Deriving a balance from imported lines would be wrong
+/// the moment an import is partial, so the number is only ever written from a
+/// statement or entered by the user, and `lastBalanceAt` records when.
+model BankAccount {
+  id                String   @id @default(cuid())
+  companyId         String
+
+  bankName          String
+  accountName       String
+  /// Last four digits or a masked form. Never the full number: this table is
+  /// read by list endpoints and there is no feature that needs it in full.
+  accountNumber     String?
+  iban              String?
+
+  /// One of lib/currencies.ts. An account holds a single currency, which is
+  /// what makes the reconciliation currency check meaningful.
+  currency          String   @default("USD")
+
+  /// Registry key in lib/banking/providers.ts. "manual" is the only one that
+  /// ships today.
+  provider          String   @default("manual")
+  /// The provider's own identifier for this account. Null for manual accounts;
+  /// unique per company+provider so a re-connect updates rather than duplicates.
+  providerAccountId String?
+
+  lastBalance       Decimal? @db.Decimal(15, 2)
+  lastBalanceAt     DateTime?
+  /// When transactions were last pulled or imported.
+  lastSyncedAt      DateTime?
+
+  /// Closed accounts are hidden from pickers but keep their history.
+  isActive          Boolean  @default(true)
+  notes             String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions      BankTransaction[]
+
+  @@unique([companyId, provider, providerAccountId])
+  @@index([companyId])
+}
+
+/// One line on a bank statement.
+///
+/// Amounts are stored positive with an explicit `direction`, rather than signed.
+/// A signed column invites the sign to be dropped somewhere in the UI and read
+/// as its opposite; a direction cannot be silently lost, and it is also what
+/// every provider's API and every CSV export actually gives us.
+///
+/// The match target is four nullable foreign keys rather than a polymorphic
+/// (type, id) pair, mirroring how Payment already links to either an Invoice or
+/// an ExpenseTransaction. The reason is referential integrity: `ON DELETE SET
+/// NULL` means deleting an invoice cannot leave a bank line claiming to be
+/// matched to a record that no longer exists. `status` records intent, and the
+/// effective state is derived from status *plus* the links — see
+/// lib/banking/reconciliation.ts.
+model BankTransaction {
+  id             String   @id @default(cuid())
+  companyId      String
+  bankAccountId  String
+
+  /// A calendar date, stored at UTC midnight like every other financial date
+  /// in this schema. See lib/calendar-date.ts.
+  date           DateTime
+  description    String
+  /// Always positive; `direction` carries the sign.
+  amount         Decimal  @db.Decimal(15, 2)
+  currency       String   @default("USD")
+  /// "CREDIT" (money in) or "DEBIT" (money out).
+  direction      String
+  /// Running account balance after this line, when the statement supplies one.
+  balance        Decimal? @db.Decimal(15, 2)
+  reference      String?
+
+  /// The provider's or the import file's stable identifier for this line.
+  /// Unique per account so re-importing the same statement updates nothing
+  /// rather than duplicating every row.
+  externalId     String?
+
+  /// "UNMATCHED" | "MATCHED" | "IGNORED".
+  status         String   @default("UNMATCHED")
+
+  matchedInvoiceId String?
+  matchedPaymentId String?
+  matchedIncomeId  String?
+  matchedExpenseId String?
+  matchedAt        DateTime?
+  /// 0-100 from lib/banking/matching.ts when the match was made automatically;
+  /// null when a person chose it.
+  matchConfidence  Int?
+
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankAccount    BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  matchedInvoice Invoice?            @relation(fields: [matchedInvoiceId], references: [id], onDelete: SetNull)
+  matchedPayment Payment?            @relation(fields: [matchedPaymentId], references: [id], onDelete: SetNull)
+  matchedIncome  IncomeTransaction?  @relation(fields: [matchedIncomeId], references: [id], onDelete: SetNull)
+  matchedExpense ExpenseTransaction? @relation(fields: [matchedExpenseId], references: [id], onDelete: SetNull)
+
+  @@unique([bankAccountId, externalId])
+  @@index([companyId])
+  /// The reconciliation list: one company's lines, newest first.
+  @@index([companyId, date])
+  /// The same list filtered to one account.
+  @@index([bankAccountId, date])
+  /// The dashboard's unreconciled count.
+  @@index([companyId, status])
 }

@@ -12,6 +12,7 @@ export const tr: Dictionary = {
   'nav.invoices': 'Faturalar',
   'nav.customers': 'Müşteriler',
   'nav.payments': 'Ödemeler',
+  'nav.banking': 'Banka',
   'nav.income': 'Gelirler',
   'nav.expenses': 'Giderler',
   'nav.calendar': 'Takvim',

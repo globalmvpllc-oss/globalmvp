@@ -451,6 +451,140 @@ export const eventRangeSchema = z.object({
   to: dateString.optional(),
 });
 
+// --- Banking & Reconciliation ------------------------------------------------
+
+/**
+ * Bank account details.
+ *
+ * `currency` reuses VALID_CURRENCIES rather than accepting free text: an
+ * account in a currency the rest of the application cannot format or match
+ * against would produce lines that can never be reconciled.
+ *
+ * `provider` is validated against the registry in lib/banking/providers.ts by
+ * the route rather than by an enum here, so adding a connector later does not
+ * mean editing this file.
+ */
+export const bankAccountSchema = z.object({
+  bankName: z.string().min(1, 'Bank name is required').max(255),
+  accountName: z.string().min(1, 'Account name is required').max(255),
+  // Deliberately short: a masked form or the last four digits. There is no
+  // feature that needs a full account number, so none is accepted.
+  accountNumber: z.string().max(50).optional(),
+  iban: z.string().max(64).optional(),
+  currency: z.enum(VALID_CURRENCIES).default('USD'),
+  provider: z.string().max(50).optional(),
+  providerAccountId: z.string().max(255).optional(),
+  lastBalance: z.number().finite().optional(),
+  isActive: z.boolean().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+/**
+ * Editing an account.
+ *
+ * Currency is absent on purpose. Changing it after lines exist would leave every
+ * stored transaction denominated in something the account no longer claims, and
+ * the matcher's currency check would then silently reject all of them. Getting
+ * the currency wrong means creating the account again.
+ */
+export const bankAccountUpdateSchema = z.object({
+  bankName: z.string().min(1).max(255).optional(),
+  accountName: z.string().min(1).max(255).optional(),
+  accountNumber: z.string().max(50).nullish(),
+  iban: z.string().max(64).nullish(),
+  lastBalance: z.number().finite().nullish(),
+  isActive: z.boolean().optional(),
+  notes: z.string().max(2000).nullish(),
+});
+
+/** A bank line entered by hand. */
+export const bankTransactionSchema = z.object({
+  bankAccountId: z.string().min(1, 'Select a bank account').max(64),
+  date: dateString,
+  description: z.string().min(1, 'Description is required').max(500),
+  // Positive, with the sign carried by `direction` — see the note on
+  // BankTransaction in schema.prisma.
+  amount: z.number().positive('Amount must be > 0').finite(),
+  direction: z.enum(['CREDIT', 'DEBIT']),
+  currency: z.enum(VALID_CURRENCIES).optional(),
+  balance: z.number().finite().optional(),
+  reference: z.string().max(255).optional(),
+  externalId: z.string().max(255).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+/**
+ * Editing a stored line.
+ *
+ * The account is immutable: moving a line between accounts would invalidate the
+ * running balance on both, and correcting a mis-filed import is better done by
+ * deleting it and importing again. The match links are absent too — those are
+ * owned by the match endpoint, which verifies ownership of the target.
+ */
+export const bankTransactionUpdateSchema = z.object({
+  date: dateString.optional(),
+  description: z.string().min(1).max(500).optional(),
+  amount: z.number().positive().finite().optional(),
+  direction: z.enum(['CREDIT', 'DEBIT']).optional(),
+  balance: z.number().finite().nullish(),
+  reference: z.string().max(255).nullish(),
+  // Only the two states a person sets directly. MATCHED is a consequence of a
+  // link existing, never something the client asserts.
+  status: z.enum(['UNMATCHED', 'IGNORED']).optional(),
+  notes: z.string().max(2000).nullish(),
+});
+
+/** One row of a bulk import, before normalisation. Everything is a string
+ *  because that is what a CSV cell is; lib/banking/import.ts interprets it. */
+const bankImportRowSchema = z.object({
+  date: z.string().max(40).optional(),
+  description: z.string().max(500).optional(),
+  amount: z.union([z.string().max(40), z.number()]).optional(),
+  debit: z.union([z.string().max(40), z.number()]).optional(),
+  credit: z.union([z.string().max(40), z.number()]).optional(),
+  direction: z.string().max(40).optional(),
+  currency: z.string().max(10).optional(),
+  balance: z.union([z.string().max(40), z.number()]).optional(),
+  reference: z.string().max(255).optional(),
+  externalId: z.string().max(255).optional(),
+});
+
+/**
+ * A statement import: either pasted CSV text or already-split rows.
+ *
+ * Both go through the same normaliser, so a future provider connector that
+ * produces objects gets identical validation to a pasted file.
+ */
+export const bankImportSchema = z
+  .object({
+    bankAccountId: z.string().min(1, 'Select a bank account').max(64),
+    // 4 MB of text. Well above any realistic statement, and bounded so a paste
+    // cannot become an unbounded parse.
+    csv: z.string().max(4_000_000).optional(),
+    rows: z.array(bankImportRowSchema).max(5000).optional(),
+    /** Run the automatic matcher over the newly imported lines. */
+    autoMatch: z.boolean().optional(),
+    /** Statement closing balance, if the user knows it. */
+    closingBalance: z.number().finite().optional(),
+  })
+  .refine((d) => Boolean(d.csv?.trim()) !== Boolean(d.rows?.length), {
+    message: 'Provide either CSV text or rows, not both',
+    path: ['csv'],
+  });
+
+/** Linking a bank line to one financial record. */
+export const bankMatchSchema = z.object({
+  type: z.enum(['INVOICE', 'PAYMENT', 'INCOME', 'EXPENSE']),
+  targetId: z.string().min(1).max(64),
+});
+
+/** Running the automatic matcher over lines that are still outstanding. */
+export const bankAutoMatchSchema = z.object({
+  bankAccountId: z.string().min(1).max(64).optional(),
+  /** Upper bound on how many lines one request will consider. */
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
 /**
  * Helper: parse body with a Zod schema; return parsed data or error response.
  */

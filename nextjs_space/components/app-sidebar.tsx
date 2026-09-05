@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
   CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet, Menu,
+  Landmark,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: '/income', labelKey: 'nav.income', icon: TrendingUp },
   { href: '/expenses', labelKey: 'nav.expenses', icon: TrendingDown },
   { href: '/payments', labelKey: 'nav.payments', icon: CreditCard },
+  { href: '/banking', labelKey: 'nav.banking', icon: Landmark },
   { href: '/calendar', labelKey: 'nav.calendar', icon: CalendarDays },
   { href: '/reports', labelKey: 'nav.reports', icon: BarChart3 },
   { href: '/settings', labelKey: 'nav.settings', icon: Settings },

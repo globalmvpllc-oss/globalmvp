@@ -193,3 +193,68 @@ row to `_prisma_migrations`. If it needs undoing, delete that row.
 No UI, no API, no calendar logic, no settings screens. The new columns are
 unread by any code path, which is why the existing 104 tests pass unchanged:
 adding a column that nothing selects cannot alter behaviour.
+
+---
+
+# BANKING & RECONCILIATION V1.1 — `20260905120000_banking_reconciliation`
+
+**Not executed here.** No database credentials are present in this environment,
+so nothing below has been run and the production database has not been touched.
+
+## What it does
+
+Creates two tables — `BankAccount` and `BankTransaction` — and nothing else.
+
+It is purely additive. No existing table, column, index or constraint is
+altered or dropped, and no existing row is written to. The four
+`matched*Id` foreign keys live on the new `BankTransaction` table and point at
+`Invoice`, `Payment`, `IncomeTransaction` and `ExpenseTransaction`; those four
+tables gain a `bankTransactions` field in `schema.prisma`, but that is a
+Prisma-side back-relation with no column behind it. This was verified with:
+
+```powershell
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma\schema.prisma --script
+```
+
+The generated DDL for the two new tables matches this migration column for
+column, index for index and constraint for constraint, and no other table's
+DDL changes.
+
+## Apply
+
+```powershell
+cd C:\Projelerim\global-mvp\nextjs_space
+npx prisma validate       # must pass first
+npx prisma migrate deploy # applies only pending migrations; never resets
+npx prisma generate
+```
+
+## Verify
+
+```sql
+SELECT COUNT(*) FROM "BankAccount";      -- 0 on first deploy
+SELECT COUNT(*) FROM "BankTransaction";  -- 0 on first deploy
+```
+
+Then in the application: open **Banking**, add an account, paste a small CSV
+into **Reconcile → Import**, and import it twice. The second import must report
+every row as "already present" and add nothing — that is the idempotency
+guarantee from `@@unique([bankAccountId, externalId])`.
+
+## Rollback
+
+```sql
+DROP TABLE "BankTransaction";
+DROP TABLE "BankAccount";
+```
+
+Nothing else has to be undone, because nothing pre-existing was modified.
+Dropping these two tables restores the database exactly as it was; invoices,
+payments, income and expenses are unaffected either way.
+
+## Behaviour before the migration runs
+
+The banking screens and the eight `/api/bank-*` routes will fail against a
+database without these tables. Everything else is unchanged: no existing route,
+page or query reads the new models, and the banking card on the dashboard
+renders nothing when its own request does not succeed.
