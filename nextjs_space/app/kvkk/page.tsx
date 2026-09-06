@@ -42,11 +42,10 @@ export default function KvkkPage() {
         than broken.
       */}
       <div lang="en" className="rounded-xl border border-border bg-muted/40 p-5 text-sm leading-relaxed text-muted-foreground">
-        <strong className="font-medium text-foreground">This notice is in Turkish.</strong> It is the
-        <span lang="tr">aydınlatma metni</span> required by Turkey&rsquo;s Personal Data Protection
-        Law No. 6698 (KVKK) and
-        is published in Turkish for data subjects in Turkey, which is who it addresses. For the
-        English-language account of how CorpControl handles personal information, see the{' '}
+        <strong className="font-medium text-foreground">This notice is in Turkish.</strong> It is
+        required by Turkey&rsquo;s Personal Data Protection Law No. 6698 (KVKK) and is published in
+        Turkish because it addresses data subjects in Turkey. For the English-language account of how
+        CorpControl handles personal information, see the{' '}
         <Link href="/privacy" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
           Privacy Policy
         </Link>
