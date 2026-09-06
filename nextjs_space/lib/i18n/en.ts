@@ -30,6 +30,12 @@ export const en = {
   'nav.openMenu': 'Open menu',
   'nav.menu': 'Menu',
 
+  // --- Company switcher -----------------------------------------------------
+  // Shown only to a user who belongs to more than one company.
+  'company.switchCompany': 'Switch company',
+  'company.yourCompanies': 'Your companies',
+  'company.addCompany': 'Add a company',
+
   // --- Common actions -------------------------------------------------------
   'common.save': 'Save',
   'common.cancel': 'Cancel',

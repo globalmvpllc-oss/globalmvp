@@ -22,6 +22,11 @@ export const tr: Dictionary = {
   'nav.openMenu': 'Menüyü aç',
   'nav.menu': 'Menü',
 
+  // --- Şirket seçici --------------------------------------------------------
+  'company.switchCompany': 'Şirket değiştir',
+  'company.yourCompanies': 'Şirketleriniz',
+  'company.addCompany': 'Şirket ekle',
+
   // --- Common actions -------------------------------------------------------
   'common.save': 'Kaydet',
   'common.cancel': 'İptal',

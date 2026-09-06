@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { getUserCompanyId } from '@/lib/auth-helpers';
 import { AppSidebar } from '@/components/app-sidebar';
 
 export const dynamic = 'force-dynamic';
@@ -23,12 +23,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
    *
    * Onboarding creates the company and redirects back once one exists, so this
    * cannot loop.
+   *
+   * Resolved through `getUserCompanyId` rather than a `findFirst` of its own.
+   * A second lookup here could disagree with the one every API route uses —
+   * admitting a user the routes then refuse, or sending one to onboarding who
+   * has a perfectly good company. It also inherits the `user.isActive` filter,
+   * which the local query did not have: a deactivated account used to render
+   * the whole application and get 403 from every request behind it.
    */
-  const membership = await prisma.companyMember.findFirst({
-    where: { userId: (session.user as { id: string }).id },
-    select: { companyId: true },
-  });
-  if (!membership) redirect('/onboarding');
+  const companyId = await getUserCompanyId();
+  if (!companyId) redirect('/onboarding');
 
   return (
     <div className="flex min-h-screen bg-background">

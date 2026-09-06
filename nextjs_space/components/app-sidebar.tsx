@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { getCompanyInitials, getCompanyDisplayName, resolveStoredFileUrl } from '@/lib/company-identity';
 import { useI18n } from '@/components/i18n-provider';
 import { LanguageSelector } from '@/components/language-selector';
+import { CompanySwitcher, type SwitchableCompany } from '@/components/company-switcher';
 
 const NAV_ITEMS = [
   // The label is a translation key, resolved at render time so switching
@@ -155,6 +156,16 @@ export function AppSidebar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [company, setCompany] = useState<any>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  /**
+   * The user's memberships, for the switcher.
+   *
+   * Kept separate from the company fetch above so the name and logo a
+   * single-company user sees still come from exactly where they always did.
+   * Stays empty for anyone with one company, and the switcher is then never
+   * rendered — no new control appears for them.
+   */
+  const [companies, setCompanies] = useState<SwitchableCompany[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
   // The sidebar shows the user's own business rather than the product name.
   useEffect(() => {
@@ -162,6 +173,19 @@ export function AppSidebar() {
     fetch('/api/company')
       .then((r: any) => (r.ok ? r.json() : null))
       .then((d: any) => { if (active) setCompany(d); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/companies')
+      .then((r: any) => (r.ok ? r.json() : null))
+      .then((d: any) => {
+        if (!active || !d) return;
+        setCompanies(Array.isArray(d.companies) ? d.companies : []);
+        setActiveCompanyId(typeof d.activeCompanyId === 'string' ? d.activeCompanyId : null);
+      })
       .catch(() => {});
     return () => { active = false; };
   }, []);
@@ -183,6 +207,8 @@ export function AppSidebar() {
 
   const companyName = getCompanyDisplayName(company?.name);
   const initials = getCompanyInitials(company?.name);
+  /** One company is not a choice, so no switcher is offered. */
+  const canSwitch = companies.length > 1;
 
   return (
     <>
@@ -206,9 +232,17 @@ export function AppSidebar() {
             <SheetTitle asChild>
               <div className="flex items-center gap-2 border-b border-border px-4 py-4 pr-12">
                 <CompanyMark logoUrl={logoUrl} initials={initials} companyName={companyName} />
-                <span className="text-lg font-display font-bold tracking-tight truncate" title={companyName}>
-                  {companyName}
-                </span>
+                {canSwitch ? (
+                  <CompanySwitcher
+                    companies={companies}
+                    activeCompanyId={activeCompanyId}
+                    collapsed={false}
+                  />
+                ) : (
+                  <span className="text-lg font-display font-bold tracking-tight truncate" title={companyName}>
+                    {companyName}
+                  </span>
+                )}
               </div>
             </SheetTitle>
 
@@ -243,10 +277,18 @@ export function AppSidebar() {
         {/* Logo */}
         <div className="flex items-center gap-2 px-4 py-4 border-b border-border">
           <CompanyMark logoUrl={logoUrl} initials={initials} companyName={companyName} />
-          {!collapsed && (
-            <span className="text-lg font-display font-bold tracking-tight truncate" title={companyName}>
-              {companyName}
-            </span>
+          {canSwitch ? (
+            <CompanySwitcher
+              companies={companies}
+              activeCompanyId={activeCompanyId}
+              collapsed={collapsed}
+            />
+          ) : (
+            !collapsed && (
+              <span className="text-lg font-display font-bold tracking-tight truncate" title={companyName}>
+                {companyName}
+              </span>
+            )
           )}
         </div>
 

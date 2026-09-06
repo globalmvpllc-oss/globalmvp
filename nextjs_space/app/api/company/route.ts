@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getSessionUser, requireUserCompany } from '@/lib/auth-helpers';
+import { getSessionUser, getUserCompanyId, requireUserCompany } from '@/lib/auth-helpers';
 import { companySchema, validateBody, describeValidationError } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { isAcceptableLogoValue } from '@/lib/logo';
@@ -38,12 +38,31 @@ export async function POST(request: Request) {
     // could each pass the check and create a second, unreachable company.
     const result = await prisma.$transaction(
       async (tx: TxClient) => {
-        const existingMember = await tx.companyMember.findFirst({
-          where: { userId: user.id },
+        /**
+         * Double-submit guard.
+         *
+         * This used to refuse outright if the user belonged to any company at
+         * all, which was both the concurrency guard and the reason a second
+         * company could not exist. A user may now hold several, so the check
+         * narrowed to what it was actually protecting against: the same
+         * onboarding form submitted twice, which arrives twice with the same
+         * name. Two deliberately different companies pass; a resubmitted one
+         * does not.
+         *
+         * Serializable is what makes it a guard rather than a suggestion — two
+         * concurrent identical submissions cannot both read "no match" and
+         * both insert.
+         */
+        const duplicate = await tx.company.findFirst({
+          where: { name: data.name, members: { some: { userId: user.id } } },
           select: { id: true },
         });
-        if (existingMember) {
-          return { kind: 'error' as const, status: 409, message: 'You already belong to a company' };
+        if (duplicate) {
+          return {
+            kind: 'error' as const,
+            status: 409,
+            message: 'You already have a company with that name',
+          };
         }
 
         const created = await tx.company.create({
@@ -90,17 +109,28 @@ export async function POST(request: Request) {
   }
 }
 
+/**
+ * The signed-in user's active company.
+ *
+ * Resolved through `getUserCompanyId`, not a `findFirst` of its own: this is
+ * what the sidebar draws and what onboarding checks, so it has to name the same
+ * company every API route is scoped to. Its own lookup returned an arbitrary
+ * membership, which for a user with two companies meant the sidebar could show
+ * one company's name above another company's data.
+ *
+ * The 200-with-null contract for a user who has no company is deliberate and
+ * unchanged — the layout guard and the onboarding check both read it.
+ */
 export async function GET() {
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const member = await prisma.companyMember.findFirst({
-      where: { userId: user.id },
-      include: { company: true },
-    });
-    if (!member) return NextResponse.json(null);
-    return NextResponse.json(member.company);
+    const companyId = await getUserCompanyId();
+    if (!companyId) return NextResponse.json(null);
+
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    return NextResponse.json(company ?? null);
   } catch (error) {
     return handleApiError('company:GET', error, { fallbackMessage: 'Failed to fetch company' });
   }

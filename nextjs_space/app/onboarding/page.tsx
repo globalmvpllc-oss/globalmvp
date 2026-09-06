@@ -12,6 +12,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { safeRedirectPath } from '@/lib/safe-redirect';
+import { writeActiveCompanyCookie } from '@/lib/active-company';
 
 /**
  * `useSearchParams` makes this page dynamic. Without saying so, `next build`
@@ -39,14 +40,34 @@ export default function OnboardingPage() {
    * new user off this site.
    */
   const destination = safeRedirectPath(searchParams.get('callbackUrl'), '/dashboard');
+
+  /**
+   * Whether this run is adding a further company rather than the first one.
+   *
+   * The switcher links here with `add=1`. Without it the guard below bounces
+   * anyone who already has a company, which is what used to make a second one
+   * unreachable.
+   *
+   * It is not a permission: it only decides whether this screen redirects. The
+   * decision about whether a company may be created at all belongs to
+   * POST /api/company, which authorises against the session, and the guard in
+   * `(app)/layout.tsx` still sends a company-less user here regardless.
+   */
+  const addingAnother = searchParams.get('add') === '1';
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   /** Why the last attempt failed, shown next to the finish button. */
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
 
-  // Guard: redirect if user already has a company
+  // Guard: redirect if user already has a company, unless they came here to
+  // add another on purpose.
   useEffect(() => {
+    if (addingAnother) {
+      setChecking(false);
+      return;
+    }
     fetch('/api/company')
       .then((r) => r.json())
       .then((c) => {
@@ -57,7 +78,7 @@ export default function OnboardingPage() {
         }
       })
       .catch(() => setChecking(false));
-  }, [router, destination]);
+  }, [router, destination, addingAnother]);
 
   const [form, setForm] = useState({
     name: '', country: 'US', defaultCurrency: 'USD', businessType: 'Freelancer',
@@ -84,8 +105,25 @@ export default function OnboardingPage() {
         body: JSON.stringify(form),
       });
       if (res.ok) {
-        // Success path unchanged: the spinner stays up through the navigation
-        // so the button cannot be pressed twice mid-redirect.
+        /**
+         * The company just created becomes the active one.
+         *
+         * Written before navigating so the very first render of the
+         * destination is already scoped to it — otherwise someone who just
+         * created their second company would land on the first one's
+         * dashboard. `refresh()` drops the router cache, which would
+         * otherwise replay a page rendered under the previous company.
+         *
+         * Only ever the id the server just returned. Nothing is trusted from
+         * the form, and the cookie is re-checked against membership on the
+         * next request anyway.
+         */
+        const created = await res.json().catch(() => null);
+        if (created?.id) writeActiveCompanyCookie(created.id);
+
+        // Success path otherwise unchanged: the spinner stays up through the
+        // navigation so the button cannot be pressed twice mid-redirect.
+        router.refresh();
         router.replace(destination);
         return;
       }
