@@ -177,7 +177,7 @@ export const tr: Dictionary = {
 
   'billing.planned': 'Planlanan',
   'billing.plannedNote':
-    'Planlanan olarak işaretlenen özellikler plana dahildir ancak henüz geliştirilmedi. Bugün hiçbir planda kullanılamaz.',
+    'Planlanan özellikler henüz kullanılabilir değildir ve bugün ödediğiniz kapsama dahil değildir. Yayına alındıklarında burada kullanılabilir olarak listelenecektir.',
   'billing.teamMembersNote':
     'Ekip üyesi daveti henüz mümkün değil; bu nedenle plandan bağımsız olarak her şirketin tek üyesi vardır.',
 
@@ -386,7 +386,7 @@ export const tr: Dictionary = {
     'İşletme adınızı, ülkenizi ve varsayılan para biriminizi ekleyin. Kategoriler sizin için oluşturulur.',
   'landing.how.step3Title': 'Finansınızı takip edin',
   'landing.how.step3Body':
-    'Müşteri ekleyin, fatura gönderin, gider ve ödeme kaydedin. Paneliniz kendi kendini doldurur.',
+    'Müşteri ekleyin, fatura oluşturun, gider ve ödeme kaydedin. Paneliniz kendi kendini doldurur.',
 
   'landing.benefits.eyebrow': 'Neden işe yarar',
   'landing.benefits.title': 'Daha az idari iş, daha net rakamlar',
@@ -559,7 +559,7 @@ export const tr: Dictionary = {
     'Sade ekranlar, sade dil. Öğrenilecek hesap planı ya da çift taraflı kayıt yok.',
   'landing.finance.step3Title': 'Finanslarınızı takip edin',
   'landing.finance.step3Body':
-    'Müşteri ekleyin, fatura gönderin, gider ve ödeme kaydedin. Pano kendini doldurur.',
+    'Müşteri ekleyin, fatura oluşturun, gider ve ödeme kaydedin. Pano kendini doldurur.',
   'landing.finance.featuresTitle': 'Neler var',
   'landing.finance.feature1': 'Ciro, gider ve alacakları gösteren finansal pano',
   'landing.finance.feature2': 'Satır kalemleri, vergi ve iskontolu faturalar',
@@ -578,7 +578,7 @@ export const tr: Dictionary = {
   'landing.invoicing.eyebrow': 'Faturalama ve ödeme takibi',
   'landing.invoicing.title': 'Alacağınızı takip eden basit faturalama',
   'landing.invoicing.subtitle':
-    'Birkaç dakikada fatura hazırlayın, gönderin ve hangilerinin ödendiğini, kısmen ödendiğini veya geciktiğini tek bakışta görün.',
+    'Birkaç dakikada fatura hazırlayın, PDF olarak indirin ve hangilerinin ödendiğini, kısmen ödendiğini veya geciktiğini tek bakışta görün.',
   'landing.invoicing.point1': 'Satır kalemi, vergi ve iskonto',
   'landing.invoicing.point2': 'Kısmi ödeme desteği',
   'landing.invoicing.point3': 'PDF fatura dahil',
@@ -593,7 +593,7 @@ export const tr: Dictionary = {
   'landing.invoicing.benefit3Title': 'Sizin faturanız, sizin markanız',
   'landing.invoicing.benefit3Body':
     'Logonuz, işletme bilgileriniz ve vergi bilgileriniz müşterinizin aldığı PDF üzerinde görünür.',
-  'landing.invoicing.step3Title': 'İlk faturanızı gönderin',
+  'landing.invoicing.step3Title': 'İlk faturanızı oluşturun',
   'landing.invoicing.step3Body':
     'Müşteri ekleyin, kalemleri girin ve PDF indirin. Numaralandırma sizin için yapılır.',
   'landing.invoicing.featuresTitle': 'Faturalama neler yapar',
@@ -603,7 +603,7 @@ export const tr: Dictionary = {
   'landing.invoicing.feature4': 'Kendi önekinizle sıralı fatura numaralandırma',
   'landing.invoicing.feature5': 'Logonuzu ve işletme bilgilerinizi taşıyan PDF faturalar',
   'landing.invoicing.feature6': 'Her fatura ve ödemeye bağlı müşteri kayıtları',
-  'landing.invoicing.closingTitle': 'İlk faturanızı bugün gönderin',
+  'landing.invoicing.closingTitle': 'İlk faturanızı bugün oluşturun',
   'landing.invoicing.closingBody':
     'Ücretsiz planla başlayın ve kimin ne borcu olduğunu tam olarak görün.',
 

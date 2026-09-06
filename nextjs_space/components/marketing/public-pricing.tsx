@@ -17,7 +17,10 @@ import { translate, type TranslationKey } from '@/lib/i18n';
  * Two things differ from the account view:
  *
  *   - `currentPlan` is 'free', because a visitor has no subscription. That is
- *     what the free tier is: the absence of one.
+ *     what the free tier is: the absence of one. `showCurrentPlan` is false so
+ *     that this is not announced as a Current plan badge: technically true of
+ *     the account model, but read by someone who has never signed up it says
+ *     they are already on a plan, which they are not.
  *   - `actionsAvailable` is false, so no checkout button is rendered. A visitor
  *     is not signed in and cannot be charged; the call to action is signup, and
  *     each card's action lives in the section below rather than in the card.
@@ -65,6 +68,7 @@ export async function PublicPricing({ id = 'pricing' }: { id?: string }) {
             savings={savings}
             actionsAvailable={false}
             plannedInCards={false}
+            showCurrentPlan={false}
           />
         </div>
 

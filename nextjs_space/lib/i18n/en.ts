@@ -193,7 +193,7 @@ export const en = {
 
   'billing.planned': 'Planned',
   'billing.plannedNote':
-    'Features marked Planned are part of the plan but are not built yet. They are not available today on any plan.',
+    'Planned features are not available yet and are not part of what you pay for today. They will be listed as available here once they ship.',
   'billing.teamMembersNote':
     'Team members cannot be invited yet, so every company currently has a single member regardless of plan.',
 
@@ -219,7 +219,7 @@ export const en = {
   'feature.reports': 'Basic reports',
   'feature.branding': 'Company branding',
   'feature.currencies': 'Multiple currencies',
-  'feature.billing': 'Billing management',
+  'feature.billing': 'Subscription management',
   'feature.advancedReports': 'Advanced reports',
   'feature.dataExport': 'Data export',
   'feature.bulkExport': 'Bulk / monthly export',
@@ -416,7 +416,7 @@ export const en = {
     'Add your business name, country and default currency. Categories are created for you.',
   'landing.how.step3Title': 'Track your finances',
   'landing.how.step3Body':
-    'Add customers, send invoices, record expenses and payments. Your dashboard fills itself in.',
+    'Add customers, create invoices, record expenses and payments. Your dashboard fills itself in.',
 
   'landing.benefits.eyebrow': 'Why it helps',
   'landing.benefits.title': 'Less admin, clearer numbers',
@@ -595,7 +595,7 @@ export const en = {
     'Plain screens and plain language. There is no chart of accounts and no double-entry bookkeeping to learn.',
   'landing.finance.step3Title': 'Track your finances',
   'landing.finance.step3Body':
-    'Add customers, send invoices, record expenses and payments. The dashboard fills itself in.',
+    'Add customers, create invoices, record expenses and payments. The dashboard fills itself in.',
   'landing.finance.featuresTitle': 'What you get',
   'landing.finance.feature1': 'Financial dashboard with revenue, expenses and outstanding balances',
   'landing.finance.feature2': 'Invoices with line items, tax and discounts',
@@ -614,7 +614,7 @@ export const en = {
   'landing.invoicing.eyebrow': 'Invoicing and payment tracking',
   'landing.invoicing.title': 'Simple invoicing that tracks what you are owed',
   'landing.invoicing.subtitle':
-    'Build an invoice in a couple of minutes, send it, and see at a glance which ones are paid, partly paid or overdue.',
+    'Build an invoice in a couple of minutes, download the PDF, and see at a glance which ones are paid, partly paid or overdue.',
   'landing.invoicing.point1': 'Line items, tax and discounts',
   'landing.invoicing.point2': 'Partial payments supported',
   'landing.invoicing.point3': 'PDF invoices included',
@@ -629,7 +629,7 @@ export const en = {
   'landing.invoicing.benefit3Title': 'Your invoice, your branding',
   'landing.invoicing.benefit3Body':
     'Your logo, business details and tax information appear on the PDF your customer receives.',
-  'landing.invoicing.step3Title': 'Send your first invoice',
+  'landing.invoicing.step3Title': 'Create your first invoice',
   'landing.invoicing.step3Body':
     'Add a customer, add line items, and download the PDF. Numbering is handled for you.',
   'landing.invoicing.featuresTitle': 'What the invoicing does',
@@ -639,7 +639,7 @@ export const en = {
   'landing.invoicing.feature4': 'Sequential invoice numbering with your own prefix',
   'landing.invoicing.feature5': 'PDF invoices carrying your logo and business details',
   'landing.invoicing.feature6': 'Customer records linked to every invoice and payment',
-  'landing.invoicing.closingTitle': 'Send your first invoice today',
+  'landing.invoicing.closingTitle': 'Create your first invoice today',
   'landing.invoicing.closingBody':
     'Start on the free plan and see exactly who owes you what.',
 

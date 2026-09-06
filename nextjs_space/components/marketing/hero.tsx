@@ -50,9 +50,15 @@ export function Hero() {
               Two spans rather than one sentence: the break between the offer's
               two halves is deliberate, so it falls in the same place at every
               width instead of wherever the line happens to run out.
+
+              The {' '} between them is for everything that reads the DOM rather
+              than looks at it - screen readers, copy-paste, and search-engine
+              text extraction - which would otherwise see the two halves run
+              together as one word. Whitespace between two block-level spans is
+              dropped in layout, so the visual break is unchanged.
             */}
             <p className="mx-auto mt-5 max-w-2xl text-center font-display text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
-              <span className="block">{t('landing.heroTagline')}</span>
+              <span className="block">{t('landing.heroTagline')}</span>{' '}
               <span className="block">{t('landing.heroTaglineTrial')}</span>
             </p>
 

@@ -67,6 +67,7 @@ export function PlanSelector({
   savings,
   actionsAvailable,
   plannedInCards = true,
+  showCurrentPlan = true,
 }: {
   currentPlan: Plan;
   prices: PlanPrices;
@@ -84,8 +85,20 @@ export function PlanSelector({
    * Planned badge and the same explanatory note.
    */
   plannedInCards?: boolean;
+  /**
+   * Whether the plan the reader is on is marked as theirs - the badge on the
+   * card, the ring around it and the highlighted column in the table.
+   *
+   * True inside the account, where `currentPlan` came from a real subscription
+   * and pointing it out is the whole reason the reader is on the page. False on
+   * the public marketing pages: `currentPlan` is 'free' there only because a
+   * visitor has no subscription, and telling someone who has never signed up
+   * that they are "already on" a plan is untrue to them and confusing to a
+   * visitor arriving from an ad. The plans themselves are unchanged either way.
+   */
+  showCurrentPlan?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, intl } = useI18n();
   const [interval, setInterval] = useState<BillingInterval>('month');
 
   const fill = (key: TranslationKey, values: Record<string, string | number>) =>
@@ -94,11 +107,21 @@ export function PlanSelector({
       t(key)
     );
 
-  /** A limit as the reader should see it: a number, or "Unlimited". */
+  /** Whether a comparison-table column is the reader's own plan. */
+  const isCurrentColumn = (plan: Plan) => showCurrentPlan && plan === currentPlan;
+
+  /**
+   * A limit as the reader should see it: a number, or "Unlimited".
+   *
+   * `intl` rather than the runtime default, which on the server is whatever the
+   * host happens to be set to - an English page was printing "1.000", which an
+   * English reader takes for one point nought. EN reads 1,000 and TR 1.000, each
+   * correct for its own reader.
+   */
   const limitLabel = (plan: Plan, resource: LimitedResource, monthly: boolean) => {
     const limit = PLAN_LIMITS[plan][resource];
     if (limit === null) return t('billing.unlimited');
-    return `${limit.toLocaleString()}${monthly ? ` ${t('billing.perMonthShort')}` : ''}`;
+    return `${limit.toLocaleString(intl)}${monthly ? ` ${t('billing.perMonthShort')}` : ''}`;
   };
 
   return (
@@ -128,7 +151,7 @@ export function PlanSelector({
       {/* Plan cards */}
       <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
         {PLANS.map((plan) => {
-          const isCurrent = currentPlan === plan;
+          const isCurrent = showCurrentPlan && currentPlan === plan;
           const price = plan === 'free' ? undefined : prices[plan]?.[interval];
           const saving = plan === 'free' ? null : savings[plan] ?? null;
           const planned = plannedCapabilities(plan);
@@ -284,11 +307,11 @@ export function PlanSelector({
                         'px-3 py-2 text-center font-medium',
                         // The reader's own column, carried down every row so the
                         // comparison is anchored to where they actually are.
-                        plan === currentPlan && 'bg-primary/5 text-primary'
+                        isCurrentColumn(plan) && 'bg-primary/5 text-primary'
                       )}
                     >
                       {t(PLAN_NAME[plan])}
-                      {plan === currentPlan ? (
+                      {isCurrentColumn(plan) ? (
                         <span className="block text-[10px] font-normal text-muted-foreground">
                           {t('billing.currentPlanBadge')}
                         </span>
@@ -311,7 +334,7 @@ export function PlanSelector({
                         key={plan}
                         className={cn(
                           'px-3 py-2 text-center text-xs font-medium',
-                          plan === currentPlan && 'bg-primary/5'
+                          isCurrentColumn(plan) && 'bg-primary/5'
                         )}
                       >
                         {limitLabel(plan, row.resource, row.monthly)}
@@ -343,7 +366,7 @@ export function PlanSelector({
                           key={plan}
                           className={cn(
                             'px-3 py-2 text-center',
-                            plan === currentPlan && 'bg-primary/5'
+                            isCurrentColumn(plan) && 'bg-primary/5'
                           )}
                         >
                           {delivered ? (
