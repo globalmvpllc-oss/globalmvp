@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
+import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'KVKK Aydınlatma Metni',
@@ -18,9 +19,20 @@ export default function KvkkPage() {
     >
       <LegalSection heading="Veri sorumlusu">
         <p>
-          Kişisel verileriniz, CorpControl hizmetini sunmaktan sorumlu olan tüzel kişi tarafından, veri
-          sorumlusu sıfatıyla işlenmektedir. Bu metinde geçen &ldquo;biz&rdquo; ifadesi bu tüzel kişiyi
-          belirtir. Başvuru ve iletişim yolları için{' '}
+          Kişisel verileriniz, veri sorumlusu sıfatıyla{' '}
+          <strong>{companyInfo.legalName}</strong> tarafından işlenmektedir. Bu metinde geçen
+          &ldquo;biz&rdquo; ifadesi {companyInfo.legalName} şirketini belirtir.
+        </p>
+        <p>
+          {companyInfo.legalName}, Amerika Birleşik Devletleri&rsquo;nde kurulu ve yerleşik bir
+          limited şirkettir (LLC). Adresi: {companyAddressLine}.
+        </p>
+        <p>
+          İletişim: e-posta{' '}
+          <a href={companyMailto} className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            {companyInfo.email}
+          </a>
+          , telefon {companyInfo.phone}. Tüm kanallar için{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             iletişim sayfamıza
           </Link>{' '}
@@ -168,10 +180,15 @@ export default function KvkkPage() {
         <p>
           Haklarınıza ilişkin taleplerinizi, Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ'e
           uygun şekilde, kimliğinizi tevsik eden bilgilerle birlikte{' '}
+          <a href={companyMailto} className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            {companyInfo.email}
+          </a>{' '}
+          adresine e-posta ile veya yukarıda belirtilen posta adresine yazılı olarak
+          iletebilirsiniz. Diğer kanallar{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             iletişim sayfamızda
           </Link>{' '}
-          yayımlanan kanallar aracılığıyla iletebilirsiniz.
+          yayımlanmıştır.
         </p>
         <p>
           Talebiniz, niteliğine göre en kısa sürede ve her hâlükârda en geç otuz gün içinde

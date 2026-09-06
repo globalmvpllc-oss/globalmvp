@@ -15,6 +15,7 @@ const PUBLIC_ROUTES: Array<{ path: string; priority: number; changeFrequency: 'm
   { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
   { path: '/cookies', priority: 0.3, changeFrequency: 'yearly' },
   { path: '/kvkk', priority: 0.3, changeFrequency: 'yearly' },
+  { path: '/refund', priority: 0.3, changeFrequency: 'yearly' },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

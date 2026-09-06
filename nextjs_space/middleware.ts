@@ -25,6 +25,7 @@ export default async function middleware(req: NextRequest) {
     '/terms',
     '/cookies',
     '/kvkk',
+    '/refund',
     '/robots.txt',
     '/sitemap.xml',
   ]);

@@ -495,6 +495,7 @@ export const en = {
   'landing.footer.terms': 'Terms of Service',
   'landing.footer.cookies': 'Cookie Policy',
   'landing.footer.kvkk': 'KVKK Notice',
+  'landing.footer.refund': 'Refund Policy',
   'landing.footer.rights': 'All rights reserved.',
 
   // --- /pricing -------------------------------------------------------------
@@ -536,10 +537,14 @@ export const en = {
     'Access, correction, export or deletion requests under the data protection law that applies to you.',
   'contactPage.reachTitle': 'How to reach us',
   'contactPage.reachBody':
-    'Our published contact channels are being finalised and will appear on this page. Until they do, this page describes the kinds of enquiry we handle rather than listing an address we cannot yet stand behind.',
+    'Email is the fastest way to reach us and is answered as quickly as we reasonably can. You can also call the number below.',
+  // Labels only. The address, email and phone themselves come from
+  // `companyInfo` in lib/site.ts and are never translated.
+  'contactPage.emailLabel': 'Email',
+  'contactPage.phoneLabel': 'Phone',
   'contactPage.businessTitle': 'Business details',
   'contactPage.businessBody':
-    'CorpControl is operated by the entity responsible for providing the service. Registered business information will be published here once it is confirmed, alongside the contact channels above.',
+    'CorpControl is a service operated by the company below, a limited liability company registered in the United States.',
   // Split around two inline links. Turkish puts the verb after the link, so the
   // fragments are ordered lead → link → mid → link → tail rather than
   // interpolated, which keeps both languages grammatical.

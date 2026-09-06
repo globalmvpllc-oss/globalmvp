@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
+import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Cookie Policy',
@@ -77,11 +78,20 @@ export default function CookiesPage() {
 
       <LegalSection heading="More information">
         <p>
+          The cookies described here are set by <strong>{companyInfo.legalName}</strong>, a{' '}
+          {companyInfo.entityType} registered in {companyInfo.address.country} at{' '}
+          {companyAddressLine}, which operates CorpControl.
+        </p>
+        <p>
           For how information is handled once you are signed in, see the{' '}
           <Link href="/privacy" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             Privacy Policy
           </Link>
-          . For questions about this page, use our{' '}
+          . For questions about this page, email{' '}
+          <a href={companyMailto} className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            {companyInfo.email}
+          </a>{' '}
+          or use our{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             contact page
           </Link>

@@ -28,6 +28,7 @@ const COLUMNS: Array<{
       { href: '/terms', key: 'landing.footer.terms' },
       { href: '/cookies', key: 'landing.footer.cookies' },
       { href: '/kvkk', key: 'landing.footer.kvkk' },
+      { href: '/refund', key: 'landing.footer.refund' },
     ],
   },
 ];

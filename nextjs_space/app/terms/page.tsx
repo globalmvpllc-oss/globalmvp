@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
+import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -13,8 +14,24 @@ export default function TermsPage() {
     <LegalPage
       title="Terms of Service"
       updated="25 August 2026"
-      intro="These terms form the agreement between you and the provider of CorpControl. By creating an account or using the service, you accept them."
+      intro={`These terms form the agreement between you and ${companyInfo.legalName}, the provider of CorpControl. By creating an account or using the service, you accept them.`}
     >
+      <LegalSection heading="Who we are">
+        <p>
+          CorpControl is provided by <strong>{companyInfo.legalName}</strong>, a{' '}
+          {companyInfo.entityType} registered in {companyInfo.address.country} at{' '}
+          {companyAddressLine}. &ldquo;We&rdquo;, &ldquo;us&rdquo; and &ldquo;our&rdquo; in these
+          terms mean {companyInfo.legalName}.
+        </p>
+        <p>
+          Email{' '}
+          <a href={companyMailto} className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            {companyInfo.email}
+          </a>{' '}
+          or call {companyInfo.phone}.
+        </p>
+      </LegalSection>
+
       <LegalSection heading="What CorpControl is">
         <p>
           CorpControl is a software tool for recording and reviewing business finances: customers,
@@ -118,12 +135,34 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="Fees">
+      <LegalSection heading="Fees, renewal and cancellation">
         <p>
-          Where the service is offered free of charge, we may change that in future. If paid plans are
-          introduced, the price, billing cycle, renewal, refund and cancellation terms will be
-          presented to you before you commit to them, and you will not be charged without agreeing
-          first.
+          A free plan is available, and paid plans are offered alongside it. The plans currently on
+          sale, what each one includes and the price and billing cycle of each are published on the{' '}
+          <Link href="/pricing" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            pricing page
+          </Link>
+          . The price shown at checkout is the price charged, and nothing is charged before you
+          complete checkout.
+        </p>
+        <p>
+          Payments are taken by our payment provider, Polar, which handles the checkout, the payment
+          method and the billing history. We do not receive or store your card details.
+        </p>
+        <p>
+          A paid subscription renews automatically at the end of each billing period, at the price
+          then published for your plan, until you cancel it. You can cancel at any time from{' '}
+          <strong>Settings &rsaquo; Billing</strong>, which opens the customer billing portal.
+          Cancelling stops the next renewal; your paid features stay available until the end of the
+          period you have already paid for.
+        </p>
+        <p>
+          Refund terms are set out in our{' '}
+          <Link href="/refund" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            Refund Policy
+          </Link>
+          . If we change the price of a plan, the change applies from your next renewal and we will
+          tell you before it takes effect.
         </p>
       </LegalSection>
 
@@ -183,7 +222,11 @@ export default function TermsPage() {
 
       <LegalSection heading="Contact">
         <p>
-          For questions about these terms, use the details on our{' '}
+          For questions about these terms, email{' '}
+          <a href={companyMailto} className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            {companyInfo.email}
+          </a>{' '}
+          or use the details on our{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             contact page
           </Link>

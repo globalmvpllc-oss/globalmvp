@@ -466,6 +466,7 @@ export const tr: Dictionary = {
   'landing.footer.terms': 'Kullanım Koşulları',
   'landing.footer.cookies': 'Çerez Politikası',
   'landing.footer.kvkk': 'KVKK Aydınlatma Metni',
+  'landing.footer.refund': 'İade Politikası',
   'landing.footer.rights': 'Tüm hakları saklıdır.',
 
   // --- /pricing -------------------------------------------------------------
@@ -507,10 +508,12 @@ export const tr: Dictionary = {
     'Size uygulanan veri koruma mevzuatı kapsamındaki erişim, düzeltme, dışa aktarma veya silme talepleri.',
   'contactPage.reachTitle': 'Bize nasıl ulaşırsınız',
   'contactPage.reachBody':
-    'Yayımlanacak iletişim kanallarımız son haline getiriliyor ve bu sayfada yer alacak. O zamana kadar bu sayfa, henüz arkasında duramayacağımız bir adres yazmak yerine ele aldığımız başvuru türlerini anlatıyor.',
+    'Bize ulaşmanın en hızlı yolu e-postadır; makul olan en kısa sürede yanıtlıyoruz. Aşağıdaki numaradan da arayabilirsiniz.',
+  'contactPage.emailLabel': 'E-posta',
+  'contactPage.phoneLabel': 'Telefon',
   'contactPage.businessTitle': 'İşletme bilgileri',
   'contactPage.businessBody':
-    'CorpControl, hizmeti sunmaktan sorumlu olan tüzel kişi tarafından işletilmektedir. Tescilli işletme bilgileri, doğrulandığında yukarıdaki iletişim kanallarıyla birlikte burada yayımlanacaktır.',
+    'CorpControl, aşağıda bilgileri verilen şirket tarafından işletilmektedir; Amerika Birleşik Devletleri’nde kayıtlı bir limited şirkettir.',
   'contactPage.moreLead': 'Belirli bir şey mi arıyorsunuz? ',
   'contactPage.moreFaqLink': 'sıkça sorulan soruları',
   'contactPage.moreMid': ' okuyun veya bilgileri nasıl işlediğimizi ',

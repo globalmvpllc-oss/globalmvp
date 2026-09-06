@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
+import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -17,9 +18,17 @@ export default function PrivacyPage() {
     >
       <LegalSection heading="Who this policy is from">
         <p>
-          CorpControl is operated by the entity responsible for providing the CorpControl service,
-          referred to in this policy as &ldquo;we&rdquo; or &ldquo;us&rdquo;. If you need to reach us
-          about anything in this policy, use the details published on our{' '}
+          CorpControl is operated by <strong>{companyInfo.legalName}</strong>, a{' '}
+          {companyInfo.entityType} registered in {companyInfo.address.country} at{' '}
+          {companyAddressLine}. {companyInfo.legalName} is the controller of the personal information
+          described here and is referred to in this policy as &ldquo;we&rdquo; or &ldquo;us&rdquo;.
+        </p>
+        <p>
+          You can reach us at{' '}
+          <a href={companyMailto} className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            {companyInfo.email}
+          </a>{' '}
+          or on {companyInfo.phone}. Every published channel is listed on our{' '}
           <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             contact page
           </Link>

@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/section';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
+import { companyInfo, companyMailto, companyTel } from '@/lib/site';
 
 // Metadata stays in English: it is read by crawlers, which carry no locale
 // cookie, and the canonical URL is one document rather than one per language.
@@ -17,10 +18,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Contact channels are described by topic only. No email address, postal
- * address or registration number appears here, because none is recorded
- * anywhere in this repository and inventing one would be worse than
- * publishing nothing.
+ * The topics each enquiry channel covers. The contact details themselves are
+ * published below the list and come from `companyInfo`, so a change of address,
+ * address line or number is a single edit in lib/site.ts.
  */
 const CHANNELS: Array<{ icon: typeof Mail; title: TranslationKey; body: TranslationKey }> = [
   { icon: Mail, title: 'contactPage.generalTitle', body: 'contactPage.generalBody' },
@@ -63,6 +63,35 @@ export default function ContactPage() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {t('contactPage.reachBody')}
               </p>
+              {/*
+                Both details are real links rather than plain text: on a phone
+                they dial and compose directly, and a reviewer can confirm the
+                channel works without retyping it.
+              */}
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex flex-wrap gap-x-3">
+                  <dt className="font-medium text-foreground">{t('contactPage.emailLabel')}</dt>
+                  <dd>
+                    <a
+                      href={companyMailto}
+                      className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {companyInfo.email}
+                    </a>
+                  </dd>
+                </div>
+                <div className="flex flex-wrap gap-x-3">
+                  <dt className="font-medium text-foreground">{t('contactPage.phoneLabel')}</dt>
+                  <dd>
+                    <a
+                      href={companyTel}
+                      className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {companyInfo.phone}
+                    </a>
+                  </dd>
+                </div>
+              </dl>
             </div>
 
             <div className="mt-4 rounded-xl border border-border bg-muted/40 p-6">
@@ -70,6 +99,16 @@ export default function ContactPage() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {t('contactPage.businessBody')}
               </p>
+              <address className="mt-4 text-sm not-italic leading-relaxed text-muted-foreground">
+                <span className="font-medium text-foreground">{companyInfo.legalName}</span>
+                <br />
+                {companyInfo.address.street}, {companyInfo.address.suite}
+                <br />
+                {companyInfo.address.city}, {companyInfo.address.state}{' '}
+                {companyInfo.address.postalCode}
+                <br />
+                {companyInfo.address.country}
+              </address>
             </div>
 
             <p className="mt-10 text-sm text-muted-foreground">
