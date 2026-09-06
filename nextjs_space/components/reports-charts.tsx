@@ -2,61 +2,46 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
-import { format } from 'date-fns';
+import type { ReportsPayload } from '@/lib/reports-aggregate';
 
 const COLORS = ['#60B5FF', '#FF9149', '#FF9898', '#FF90BB', '#FF6363', '#80D8C3', '#A19AD3', '#72BF78'];
 
-export default function ReportsCharts({ data, defaultCurrency }: { data: any; defaultCurrency?: string }) {
-  const defCur = defaultCurrency || 'USD';
-
-  // Group monthly data by currency to avoid mixing
-  const monthlyByCurrency: Record<string, Record<string, { month: string; income: number; expenses: number }>> = {};
-
-  for (const inc of (data?.income ?? [])) {
-    if (inc?.status !== 'RECEIVED') continue;
-    const cur = inc?.currency || defCur;
-    const m = inc?.date ? format(new Date(inc.date), 'MMM yy') : 'Unknown';
-    if (!monthlyByCurrency[cur]) monthlyByCurrency[cur] = {};
-    if (!monthlyByCurrency[cur][m]) monthlyByCurrency[cur][m] = { month: m, income: 0, expenses: 0 };
-    monthlyByCurrency[cur][m].income += Number(inc?.amount) || 0;
-  }
-  for (const exp of (data?.expenses ?? [])) {
-    if (exp?.status !== 'PAID') continue;
-    const cur = exp?.currency || defCur;
-    const m = exp?.date ? format(new Date(exp.date), 'MMM yy') : 'Unknown';
-    if (!monthlyByCurrency[cur]) monthlyByCurrency[cur] = {};
-    if (!monthlyByCurrency[cur][m]) monthlyByCurrency[cur][m] = { month: m, income: 0, expenses: 0 };
-    monthlyByCurrency[cur][m].expenses += Number(exp?.amount) || 0;
-  }
-
-  const chartCurrencies = Object.keys(monthlyByCurrency);
-
-  // Expense categories (with currency label if multi-currency)
-  const catData: Record<string, number> = {};
-  for (const exp of (data?.expenses ?? [])) {
-    const cat = exp?.category ?? 'Other';
-    catData[cat] = (catData[cat] ?? 0) + (Number(exp?.amount) || 0);
-  }
-  const pieData = Object.entries(catData).map(([name, value]) => ({ name, value }));
-
-  // Invoice status distribution
-  const statusData: Record<string, number> = {};
-  for (const inv of (data?.invoices ?? [])) {
-    const s = inv?.status ?? 'DRAFT';
-    statusData[s] = (statusData[s] ?? 0) + 1;
-  }
-  const statusPie = Object.entries(statusData).map(([name, value]) => ({ name, value }));
+/**
+ * The reports charts.
+ *
+ * These series used to be derived here from the raw income, expense and invoice
+ * lists the page had fetched — which meant they inherited that fetch's page
+ * limits and drew whatever subset had come back. They now arrive already
+ * aggregated by Postgres from /api/reports, so this component only draws.
+ *
+ * Every Recharts key is unchanged: `month`, `income` and `expenses` on the bar
+ * chart, `value` on both pies. Only where the arrays come from is different.
+ *
+ * Two things the old derivation got wrong, both fixed by the move:
+ *   - months were bucketed with a local-time formatter, so a record written at
+ *     UTC midnight on the 1st fell into the previous month for any viewer west
+ *     of Greenwich. The server buckets in UTC, matching how the column is
+ *     written.
+ *   - the expense pie added every currency into one set of slices. It is now
+ *     grouped per currency, like every other total on the page, and drawn once
+ *     per currency exactly as the bar chart already was.
+ */
+export default function ReportsCharts({ report }: { report: ReportsPayload | null }) {
+  const currencies = report?.currencies ?? [];
+  const multiCurrency = currencies.length > 1;
+  const statusPie = report?.invoiceStatusCounts ?? [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Monthly Bar Chart — one per currency if multi-currency */}
-      {(chartCurrencies.length === 0 ? [defCur] : chartCurrencies).map((cur) => {
-        const barData = Object.values(monthlyByCurrency[cur] ?? {}).slice(-12);
+      {/* Monthly bar chart — one per currency, never mixing two. */}
+      {currencies.map((cur) => {
+        // The server returns a gap-free series; the last twelve are drawn.
+        const barData = (report?.monthly?.[cur] ?? []).slice(-12);
         return (
           <Card key={cur} className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-base">
-                Income vs Expenses{chartCurrencies.length > 1 ? ` (${cur})` : ''}
+                Income vs Expenses{multiCurrency ? ` (${cur})` : ''}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -80,28 +65,37 @@ export default function ReportsCharts({ data, defaultCurrency }: { data: any; de
         );
       })}
 
-      {/* Expense Categories */}
-      <Card>
-        <CardHeader><CardTitle className="text-base">Expense Categories</CardTitle></CardHeader>
-        <CardContent>
-          {pieData.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No expenses yet</p>
-          ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 10 }}>
-                    {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ fontSize: 11 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Expense categories — one pie per currency. */}
+      {currencies.map((cur) => {
+        const pieData = report?.expenseCategories?.[cur] ?? [];
+        return (
+          <Card key={cur}>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Expense Categories{multiCurrency ? ` (${cur})` : ''}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pieData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No expenses yet</p>
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 10 }}>
+                        {pieData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
-      {/* Invoice Status */}
+      {/* Invoice status — counts, so currency does not apply. */}
       <Card>
         <CardHeader><CardTitle className="text-base">Invoice Status</CardTitle></CardHeader>
         <CardContent>
