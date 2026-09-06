@@ -15,6 +15,11 @@ export default async function middleware(req: NextRequest) {
   const PUBLIC_PAGES = new Set([
     '/',
     '/pricing',
+    // Search-ad landing pages. Exact matches only, like every entry here, so a
+    // protected route cannot be opened by sharing a prefix with a public one.
+    '/finance',
+    '/invoicing',
+    '/expense-tracking',
     '/contact',
     '/privacy',
     '/terms',

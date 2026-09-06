@@ -66,11 +66,24 @@ export function PlanSelector({
   prices,
   savings,
   actionsAvailable,
+  plannedInCards = true,
 }: {
   currentPlan: Plan;
   prices: PlanPrices;
   savings: Partial<Record<PaidPlan, YearlySaving | null>>;
   actionsAvailable: boolean;
+  /**
+   * Whether the plan cards list capabilities that are named by a plan but not
+   * built yet.
+   *
+   * True inside the account, where a subscriber is entitled to see everything
+   * their plan covers. False on the public marketing pages: a visitor arriving
+   * from an ad is deciding what to pay for today, and a "What's included" list
+   * should therefore only contain what actually works today. The capabilities
+   * are not hidden — they stay in the comparison table below, with the same
+   * Planned badge and the same explanatory note.
+   */
+  plannedInCards?: boolean;
 }) {
   const { t } = useI18n();
   const [interval, setInterval] = useState<BillingInterval>('month');
@@ -226,8 +239,9 @@ export function PlanSelector({
                         </li>
                       ))}
 
-                    {/* Named by the plan but not built. Marked, never ticked. */}
-                    {planned.map((capability) => (
+                    {/* Named by the plan but not built. Marked, never ticked.
+                        Omitted from the public cards; see plannedInCards. */}
+                    {(plannedInCards ? planned : []).map((capability) => (
                       <li
                         key={capability.id}
                         className="flex items-center gap-2 text-xs text-muted-foreground"

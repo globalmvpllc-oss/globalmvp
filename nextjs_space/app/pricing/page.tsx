@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SkipLink } from '@/components/marketing/skip-link';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/section';
+import { PublicPricing } from '@/components/marketing/public-pricing';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
 
@@ -18,15 +19,6 @@ export const metadata: Metadata = {
   alternates: { canonical: '/pricing' },
 };
 
-const INCLUDED: TranslationKey[] = [
-  'pricingPage.f1',
-  'pricingPage.f2',
-  'pricingPage.f3',
-  'pricingPage.f4',
-  'pricingPage.f5',
-  'pricingPage.f6',
-  'pricingPage.f7',
-];
 
 export default function PricingPage() {
   const locale = getServerLocale();
@@ -51,48 +43,15 @@ export default function PricingPage() {
               </p>
             </div>
 
-            <div className="mx-auto mt-14 max-w-xl">
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-sm sm:p-10">
-                <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
-                  {t('pricingPage.cardEyebrow')}
-                </p>
-                <h2 className="mt-3 font-display text-2xl font-bold text-foreground">
-                  {t('pricingPage.cardTitle')}
-                </h2>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  {t('pricingPage.cardBody')}
-                </p>
-
-                <ul className="mt-8 space-y-3">
-                  {INCLUDED.map((item) => (
-                    <li key={item} className="flex gap-3 text-sm text-foreground">
-                      <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      {t(item)}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button asChild size="lg" className="mt-8 w-full">
-                  <Link href="/auth/signup">
-                    {t('landing.cta.startFree')}
-                    <ArrowRight aria-hidden="true" />
-                  </Link>
-                </Button>
-                <p className="mt-4 text-center text-xs text-muted-foreground">
-                  {t('pricingPage.noBankNote')}
-                </p>
-              </div>
-
-              <p className="mt-8 text-center text-sm text-muted-foreground">
-                {t('pricingPage.questionLead')}
-                <Link href="/contact" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                  {t('pricingPage.questionLink')}
-                </Link>
-                {t('pricingPage.questionTail')}
-              </p>
-            </div>
           </Container>
         </section>
+
+        {/* Real plans and prices, read from Polar through the same component the
+            account uses. The static single-card summary that stood here could
+            not show a figure and had to be kept in step with Polar by hand. */}
+        <PublicPricing id="plans" />
+
+
 
         <section className="py-16 sm:py-20" aria-labelledby="pricing-cta-heading">
           <Container>

@@ -8,7 +8,7 @@ import { ProductPreview } from '@/components/marketing/product-preview';
 import { FeatureGrid } from '@/components/marketing/feature-grid';
 import { HowItWorks } from '@/components/marketing/how-it-works';
 import { Benefits } from '@/components/marketing/benefits';
-import { PricingTeaser } from '@/components/marketing/pricing-teaser';
+import { PublicPricing } from '@/components/marketing/public-pricing';
 import { SecuritySection } from '@/components/marketing/security-section';
 import { Faq } from '@/components/marketing/faq';
 import { FinalCta } from '@/components/marketing/final-cta';
@@ -72,7 +72,7 @@ export default async function Home() {
         <FeatureGrid />
         <HowItWorks />
         <Benefits />
-        <PricingTeaser />
+        <PublicPricing />
         <SecuritySection />
         <Faq />
         <FinalCta />

@@ -518,4 +518,127 @@ export const tr: Dictionary = {
 
   // --- Legal page shell -----------------------------------------------------
   'legal.lastUpdated': 'Son güncelleme:',
+
+  // --- Public pricing ---------------------------------------------------------
+  'landing.pricing.trustLine': 'Ödemeler Polar üzerinden güvenli şekilde alınır. İstediğiniz zaman iptal edebilirsiniz.',
+  'landing.pricing.questionsCta': 'Soru sorun',
+
+  // --- Acquisition landing pages ----------------------------------------------
+  // Sayfalar İngilizce yayınlanıyor; bu çeviriler sözlük bütünlüğü için var.
+  'landing.shared.stepsEyebrow': 'Başlangıç',
+  'landing.shared.stepsTitle': 'Üç adım, sonrası iş',
+  'landing.shared.step1Title': 'Hesabınızı oluşturun',
+  'landing.shared.step1Body': 'Bir e-posta adresiyle kaydolun. Kurulum yok, yapılandırma yok.',
+  'landing.shared.step2Title': 'İşletmenizi ekleyin',
+  'landing.shared.step2Body': 'İşletme adı, ülke ve para birimi. Kategoriler sizin için oluşturulur.',
+  'landing.shared.seePricing': 'Fiyatları görün',
+  'landing.shared.seeHowItWorks': 'Nasıl çalıştığını görün',
+
+  // /finance
+  'landing.finance.metaTitle': 'Küçük İşletmeler için Finans Yönetimi Yazılımı',
+  'landing.finance.metaDescription':
+    'Gelir, gider, fatura ve ödemeleri tek yerde takip edin. CorpControl, muhasebe yazılımı karmaşası olmadan net bir finansal tablo sunar.',
+  'landing.finance.eyebrow': 'İşletme finans yönetimi',
+  'landing.finance.title': 'İşletme finanslarınızı karmaşa olmadan yönetin',
+  'landing.finance.subtitle':
+    'Faturalar, müşteriler, gelir, gider ve ödemeler tek çalışma alanında. Ne kazandığınızı, ne harcadığınızı ve size ne kaldığını her an bilin.',
+  'landing.finance.point1': 'Banka bağlantısı gerekmez',
+  'landing.finance.point2': 'Dakikalar içinde kurulum',
+  'landing.finance.point3': 'Ücretsiz planla başlayın',
+  'landing.finance.benefitsEyebrow': 'Ne işe yarar',
+  'landing.finance.benefitsTitle': 'Paranızın net bir görüntüsü',
+  'landing.finance.benefit1Title': 'Nerede olduğunuzu bilin',
+  'landing.finance.benefit1Body':
+    'Ciro, gider ve tahsil edilmemiş tutarlar tek panoda; para birimleri ayrı tutulur, toplamlar asla karışmaz.',
+  'landing.finance.benefit2Title': 'Tablo kovalamayı bırakın',
+  'landing.finance.benefit2Body':
+    'Bir kez kaydedin. Toplamlar, durumlar ve raporlar elle tutulmak yerine kendiliğinden oluşur.',
+  'landing.finance.benefit3Title': 'Çalışma şeklinize göre',
+  'landing.finance.benefit3Body':
+    'Sade ekranlar, sade dil. Öğrenilecek hesap planı ya da çift taraflı kayıt yok.',
+  'landing.finance.step3Title': 'Finanslarınızı takip edin',
+  'landing.finance.step3Body':
+    'Müşteri ekleyin, fatura gönderin, gider ve ödeme kaydedin. Pano kendini doldurur.',
+  'landing.finance.featuresTitle': 'Neler var',
+  'landing.finance.feature1': 'Ciro, gider ve alacakları gösteren finansal pano',
+  'landing.finance.feature2': 'Satır kalemleri, vergi ve iskontolu faturalar',
+  'landing.finance.feature3': 'Kategori ve vade tarihli gelir ve gider kayıtları',
+  'landing.finance.feature4': 'Tam ve kısmi ödeme takibi',
+  'landing.finance.feature5': 'Zaman içinde geliri gidere karşı gösteren raporlar',
+  'landing.finance.feature6': 'Ayrı raporlanan, birbirine karışmayan çoklu para birimi',
+  'landing.finance.closingTitle': 'İşletme finanslarınızın kontrolünü alın',
+  'landing.finance.closingBody':
+    'Ücretsiz planla başlayın ve rakamlarınızı bugün tek yerde görün.',
+
+  // /invoicing
+  'landing.invoicing.metaTitle': 'Küçük İşletmeler için Basit Faturalama Yazılımı',
+  'landing.invoicing.metaDescription':
+    'Fatura oluşturun, neyin ödendiğini ve neyin geciktiğini takip edin, tam veya kısmi ödeme kaydedin. Serbest çalışanlar ve küçük işletmeler için basit fatura yönetimi.',
+  'landing.invoicing.eyebrow': 'Faturalama ve ödeme takibi',
+  'landing.invoicing.title': 'Alacağınızı takip eden basit faturalama',
+  'landing.invoicing.subtitle':
+    'Birkaç dakikada fatura hazırlayın, gönderin ve hangilerinin ödendiğini, kısmen ödendiğini veya geciktiğini tek bakışta görün.',
+  'landing.invoicing.point1': 'Satır kalemi, vergi ve iskonto',
+  'landing.invoicing.point2': 'Kısmi ödeme desteği',
+  'landing.invoicing.point3': 'PDF fatura dahil',
+  'landing.invoicing.benefitsEyebrow': 'Ne işe yarar',
+  'landing.invoicing.benefitsTitle': 'Durumunu kendi takip eden faturalar',
+  'landing.invoicing.benefit1Title': 'Hiçbir vade gözden kaçmaz',
+  'landing.invoicing.benefit1Body':
+    'Her fatura kendi durumunu ve vadesini taşır; gecikenler panoda ve takvimde öne çıkar.',
+  'landing.invoicing.benefit2Title': 'Ödeme faturayı günceller',
+  'landing.invoicing.benefit2Body':
+    'Tam veya kısmi ödeme kaydedin; bakiye ve durum kendiliğinden güncellenir. Mutabakat için tablo tutmanıza gerek yok.',
+  'landing.invoicing.benefit3Title': 'Sizin faturanız, sizin markanız',
+  'landing.invoicing.benefit3Body':
+    'Logonuz, işletme bilgileriniz ve vergi bilgileriniz müşterinizin aldığı PDF üzerinde görünür.',
+  'landing.invoicing.step3Title': 'İlk faturanızı gönderin',
+  'landing.invoicing.step3Body':
+    'Müşteri ekleyin, kalemleri girin ve PDF indirin. Numaralandırma sizin için yapılır.',
+  'landing.invoicing.featuresTitle': 'Faturalama neler yapar',
+  'landing.invoicing.feature1': 'Miktar, vergi ve satır bazlı iskontolu çok satırlı faturalar',
+  'landing.invoicing.feature2': 'Taslak, gönderildi, kısmen ödendi, ödendi, gecikti ve iptal durumları',
+  'landing.invoicing.feature3': 'Tam ve kısmi ödeme kaydı',
+  'landing.invoicing.feature4': 'Kendi önekinizle sıralı fatura numaralandırma',
+  'landing.invoicing.feature5': 'Logonuzu ve işletme bilgilerinizi taşıyan PDF faturalar',
+  'landing.invoicing.feature6': 'Her fatura ve ödemeye bağlı müşteri kayıtları',
+  'landing.invoicing.closingTitle': 'İlk faturanızı bugün gönderin',
+  'landing.invoicing.closingBody':
+    'Ücretsiz planla başlayın ve kimin ne borcu olduğunu tam olarak görün.',
+
+  // /expenses
+  'landing.expenses.metaTitle': 'Basit İşletme Gider Takibi Yazılımı',
+  'landing.expenses.metaDescription':
+    'Excel tablosu olmadan işletme giderlerinizi takip edin. Harcamalarınızı kategori, tedarikçi ve vade tarihiyle kaydedin, gelirinize karşı görün.',
+  'landing.expenses.eyebrow': 'Gider takibi',
+  'landing.expenses.title': 'İşletme giderlerini tablolar olmadan takip edin',
+  'landing.expenses.subtitle':
+    'Harcamayı olduğu anda kategorisi, tedarikçisi ve vadesiyle kaydedin; kazandığınıza karşı görün.',
+  'landing.expenses.point1': 'Kategoriler hazır gelir',
+  'landing.expenses.point2': 'Ödenen ve ödenmeyen ayrı takip',
+  'landing.expenses.point3': 'Banka bağlantısı gerekmez',
+  'landing.expenses.benefitsEyebrow': 'Ne işe yarar',
+  'landing.expenses.benefitsTitle': 'Sonradan derlenen değil, anında kaydedilen giderler',
+  'landing.expenses.benefit1Title': 'Yıl sonu telaşı yok',
+  'landing.expenses.benefit1Body':
+    'Gideri olduğu anda kaydedin; yılı hafızanızdan ve fiş klasöründen yeniden kurmak zorunda kalmayın.',
+  'landing.expenses.benefit2Title': 'Ödenmemişleri görün',
+  'landing.expenses.benefit2Body':
+    'Ödenmemiş giderler vade taşır ve yaklaşan ödemeler arasında görünür; bir fatura gözden kaçmaz.',
+  'landing.expenses.benefit3Title': 'Harcama ve kazanç birlikte',
+  'landing.expenses.benefit3Body':
+    'Raporlar gideri zaman içinde gelirin yanına koyar ve harcamayı kategoriye göre ayırır.',
+  'landing.expenses.step3Title': 'Harcamanızı kaydedin',
+  'landing.expenses.step3Body':
+    'Kategorisi, tutarı ve vadesiyle bir gider ekleyin. İsterseniz bir tedarikçiye bağlayın.',
+  'landing.expenses.featuresTitle': 'Gider takibi neler yapar',
+  'landing.expenses.feature1': 'Açıklama, kategori, tutar ve para birimiyle giderler',
+  'landing.expenses.feature2': 'Vade tarihli ödendi ve ödenmedi durumu',
+  'landing.expenses.feature3': 'Harcamanıza bağlı tedarikçi kayıtları',
+  'landing.expenses.feature4': 'Bir gidere karşı kaydedilen ödemeler',
+  'landing.expenses.feature5': 'Raporlarda kategoriye göre harcama',
+  'landing.expenses.feature6': 'Takvimde faturalarla birlikte vade tarihleri',
+  'landing.expenses.closingTitle': 'Giderlerinizi düzgün bir yere koyun',
+  'landing.expenses.closingBody':
+    'Ücretsiz planla başlayın ve fişleri bir tabloda tutmayı bırakın.',
 };

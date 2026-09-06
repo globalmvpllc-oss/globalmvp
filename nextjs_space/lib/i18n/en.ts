@@ -548,6 +548,131 @@ export const en = {
   // Chrome only. The legal body copy is intentionally not translated; see the
   // note in components/marketing/legal-page.tsx.
   'legal.lastUpdated': 'Last updated:',
+
+  // --- Public pricing ---------------------------------------------------------
+  'landing.pricing.trustLine': 'Payments are processed securely by Polar. Cancel anytime.',
+  'landing.pricing.questionsCta': 'Ask a question',
+
+  // --- Acquisition landing pages ----------------------------------------------
+  // Three pages, one per search-ad group. Copy is written to match the intent of
+  // the keywords each group bids on, and every claim maps to something the
+  // product does today.
+  'landing.shared.stepsEyebrow': 'Getting started',
+  'landing.shared.stepsTitle': 'Three steps, then you are working',
+  'landing.shared.step1Title': 'Create your account',
+  'landing.shared.step1Body': 'Sign up with an email address. Nothing to install and nothing to configure.',
+  'landing.shared.step2Title': 'Add your business',
+  'landing.shared.step2Body': 'Your business name, country and currency. Categories are created for you.',
+  'landing.shared.seePricing': 'See pricing',
+  'landing.shared.seeHowItWorks': 'See how it works',
+
+  // /finance
+  'landing.finance.metaTitle': 'Small Business Finance Management Software',
+  'landing.finance.metaDescription':
+    'Track income, expenses, invoices and payments in one place. CorpControl gives small businesses a clear financial picture without accounting software.',
+  'landing.finance.eyebrow': 'Business finance management',
+  'landing.finance.title': 'Run your business finances without the complexity',
+  'landing.finance.subtitle':
+    'Invoices, customers, income, expenses and payments in one workspace, so you always know what you have earned, what you have spent and what you are still owed.',
+  'landing.finance.point1': 'No bank connection required',
+  'landing.finance.point2': 'Set up in minutes',
+  'landing.finance.point3': 'Free plan to start',
+  'landing.finance.benefitsEyebrow': 'Why it helps',
+  'landing.finance.benefitsTitle': 'A clear picture of your money',
+  'landing.finance.benefit1Title': 'Know where you stand',
+  'landing.finance.benefit1Body':
+    'Revenue, expenses and outstanding balances on one dashboard, kept separate per currency so totals are never mixed.',
+  'landing.finance.benefit2Title': 'Stop chasing spreadsheets',
+  'landing.finance.benefit2Body':
+    'Record something once. Totals, statuses and reports follow from it instead of being maintained by hand.',
+  'landing.finance.benefit3Title': 'Built for how you work',
+  'landing.finance.benefit3Body':
+    'Plain screens and plain language. There is no chart of accounts and no double-entry bookkeeping to learn.',
+  'landing.finance.step3Title': 'Track your finances',
+  'landing.finance.step3Body':
+    'Add customers, send invoices, record expenses and payments. The dashboard fills itself in.',
+  'landing.finance.featuresTitle': 'What you get',
+  'landing.finance.feature1': 'Financial dashboard with revenue, expenses and outstanding balances',
+  'landing.finance.feature2': 'Invoices with line items, tax and discounts',
+  'landing.finance.feature3': 'Income and expense records with categories and due dates',
+  'landing.finance.feature4': 'Full and partial payment tracking',
+  'landing.finance.feature5': 'Reports covering income against expenses over time',
+  'landing.finance.feature6': 'Multiple currencies, reported separately and never mixed',
+  'landing.finance.closingTitle': 'Take control of your business finances',
+  'landing.finance.closingBody':
+    'Start on the free plan and see your numbers in one place today.',
+
+  // /invoicing
+  'landing.invoicing.metaTitle': 'Simple Invoicing Software for Small Businesses',
+  'landing.invoicing.metaDescription':
+    'Create invoices, track what is paid and what is overdue, and record full or partial payments. Simple invoice management for freelancers and small businesses.',
+  'landing.invoicing.eyebrow': 'Invoicing and payment tracking',
+  'landing.invoicing.title': 'Simple invoicing that tracks what you are owed',
+  'landing.invoicing.subtitle':
+    'Build an invoice in a couple of minutes, send it, and see at a glance which ones are paid, partly paid or overdue.',
+  'landing.invoicing.point1': 'Line items, tax and discounts',
+  'landing.invoicing.point2': 'Partial payments supported',
+  'landing.invoicing.point3': 'PDF invoices included',
+  'landing.invoicing.benefitsEyebrow': 'Why it helps',
+  'landing.invoicing.benefitsTitle': 'Invoices that keep their own status',
+  'landing.invoicing.benefit1Title': 'Nothing slips past its due date',
+  'landing.invoicing.benefit1Body':
+    'Every invoice carries its status and due date, and overdue ones stand out on the dashboard and the calendar.',
+  'landing.invoicing.benefit2Title': 'Payments update the invoice',
+  'landing.invoicing.benefit2Body':
+    'Record a full or partial payment and the balance and status follow automatically. No spreadsheet to reconcile.',
+  'landing.invoicing.benefit3Title': 'Your invoice, your branding',
+  'landing.invoicing.benefit3Body':
+    'Your logo, business details and tax information appear on the PDF your customer receives.',
+  'landing.invoicing.step3Title': 'Send your first invoice',
+  'landing.invoicing.step3Body':
+    'Add a customer, add line items, and download the PDF. Numbering is handled for you.',
+  'landing.invoicing.featuresTitle': 'What the invoicing does',
+  'landing.invoicing.feature1': 'Multi-line invoices with quantity, tax and per-line discounts',
+  'landing.invoicing.feature2': 'Draft, sent, partly paid, paid, overdue and cancelled statuses',
+  'landing.invoicing.feature3': 'Full and partial payment recording',
+  'landing.invoicing.feature4': 'Sequential invoice numbering with your own prefix',
+  'landing.invoicing.feature5': 'PDF invoices carrying your logo and business details',
+  'landing.invoicing.feature6': 'Customer records linked to every invoice and payment',
+  'landing.invoicing.closingTitle': 'Send your first invoice today',
+  'landing.invoicing.closingBody':
+    'Start on the free plan and see exactly who owes you what.',
+
+  // /expenses
+  'landing.expenses.metaTitle': 'Simple Business Expense Tracking Software',
+  'landing.expenses.metaDescription':
+    'Track business expenses without spreadsheets. Record what you spend with categories, vendors and due dates, and see it against your income.',
+  'landing.expenses.eyebrow': 'Expense tracking',
+  'landing.expenses.title': 'Track business expenses without spreadsheets',
+  'landing.expenses.subtitle':
+    'Record what you spend as it happens, with a category, a vendor and a due date, and see it against what you have earned.',
+  'landing.expenses.point1': 'Categories created for you',
+  'landing.expenses.point2': 'Paid and unpaid tracked separately',
+  'landing.expenses.point3': 'No bank connection required',
+  'landing.expenses.benefitsEyebrow': 'Why it helps',
+  'landing.expenses.benefitsTitle': 'Expenses recorded once, not reconstructed later',
+  'landing.expenses.benefit1Title': 'No year-end reconstruction',
+  'landing.expenses.benefit1Body':
+    'Record an expense when it happens instead of rebuilding the year from memory and a folder of receipts.',
+  'landing.expenses.benefit2Title': 'See what is still unpaid',
+  'landing.expenses.benefit2Body':
+    'Unpaid expenses carry a due date and appear as upcoming payments, so a bill does not go unnoticed.',
+  'landing.expenses.benefit3Title': 'Spending against earning',
+  'landing.expenses.benefit3Body':
+    'Reports put expenses next to income over time and break spending down by category.',
+  'landing.expenses.step3Title': 'Record your spending',
+  'landing.expenses.step3Body':
+    'Add an expense with its category, amount and due date. Link it to a vendor if you want to.',
+  'landing.expenses.featuresTitle': 'What the expense tracking does',
+  'landing.expenses.feature1': 'Expenses with description, category, amount and currency',
+  'landing.expenses.feature2': 'Paid and unpaid status, with due dates',
+  'landing.expenses.feature3': 'Vendor records linked to what you spend',
+  'landing.expenses.feature4': 'Payments recorded against an expense',
+  'landing.expenses.feature5': 'Spending by category in reports',
+  'landing.expenses.feature6': 'Due dates on the calendar alongside invoices',
+  'landing.expenses.closingTitle': 'Put your expenses somewhere sensible',
+  'landing.expenses.closingBody':
+    'Start on the free plan and stop keeping receipts in a spreadsheet.',
 } as const;
 
 export type TranslationKey = keyof typeof en;

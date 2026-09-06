@@ -7,6 +7,9 @@ export const dynamic = 'force-dynamic';
 const PUBLIC_ROUTES: Array<{ path: string; priority: number; changeFrequency: 'monthly' | 'yearly' }> = [
   { path: '/', priority: 1, changeFrequency: 'monthly' },
   { path: '/pricing', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/finance', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/invoicing', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/expense-tracking', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/contact', priority: 0.5, changeFrequency: 'yearly' },
   { path: '/privacy', priority: 0.3, changeFrequency: 'yearly' },
   { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
