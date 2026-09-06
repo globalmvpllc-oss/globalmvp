@@ -7,7 +7,7 @@ import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/section';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
-import { companyInfo, companyMailto, companyTel } from '@/lib/site';
+import { companyInfo, companyMailto, companyMailtoWithSubject, companyTel } from '@/lib/site';
 
 // Metadata stays in English: it is read by crawlers, which carry no locale
 // cookie, and the canonical URL is one document rather than one per language.
@@ -18,14 +18,40 @@ export const metadata: Metadata = {
 };
 
 /**
- * The topics each enquiry channel covers. The contact details themselves are
- * published below the list and come from `companyInfo`, so a change of address,
- * address line or number is a single edit in lib/site.ts.
+ * The enquiry channels, each one a link that opens a message.
+ *
+ * There is a single published address, so the split is carried by the subject
+ * line rather than by three inboxes: everything lands in one place and sorts
+ * itself on arrival. The subjects stay English in both locales because they are
+ * read by whoever answers the mail, not by the sender.
+ *
+ * The address itself comes from `companyInfo`, so a change of address is a
+ * single edit in lib/site.ts.
  */
-const CHANNELS: Array<{ icon: typeof Mail; title: TranslationKey; body: TranslationKey }> = [
-  { icon: Mail, title: 'contactPage.generalTitle', body: 'contactPage.generalBody' },
-  { icon: LifeBuoy, title: 'contactPage.supportTitle', body: 'contactPage.supportBody' },
-  { icon: ShieldQuestion, title: 'contactPage.privacyTitle', body: 'contactPage.privacyBody' },
+const CHANNELS: Array<{
+  icon: typeof Mail;
+  title: TranslationKey;
+  body: TranslationKey;
+  subject: string;
+}> = [
+  {
+    icon: Mail,
+    title: 'contactPage.generalTitle',
+    body: 'contactPage.generalBody',
+    subject: 'General enquiry',
+  },
+  {
+    icon: LifeBuoy,
+    title: 'contactPage.supportTitle',
+    body: 'contactPage.supportBody',
+    subject: 'Support request',
+  },
+  {
+    icon: ShieldQuestion,
+    title: 'contactPage.privacyTitle',
+    body: 'contactPage.privacyBody',
+    subject: 'Privacy request',
+  },
 ];
 
 export default function ContactPage() {
@@ -48,12 +74,22 @@ export default function ContactPage() {
 
             <ul className="mt-12 space-y-4">
               {CHANNELS.map((channel) => (
-                <li key={channel.title} className="flex gap-4 rounded-xl border border-border bg-card p-6">
-                  <channel.icon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <div>
-                    <h2 className="font-semibold text-foreground">{t(channel.title)}</h2>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t(channel.body)}</p>
-                  </div>
+                <li key={channel.title}>
+                  {/*
+                    The whole card is the link, so the target is as large as the
+                    box it looks like. Same border, padding and background as
+                    before — only hover, focus ring and the pointer are new.
+                  */}
+                  <a
+                    href={companyMailtoWithSubject(channel.subject)}
+                    className="flex gap-4 rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <channel.icon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                    <div>
+                      <h2 className="font-semibold text-foreground">{t(channel.title)}</h2>
+                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t(channel.body)}</p>
+                    </div>
+                  </a>
                 </li>
               ))}
             </ul>

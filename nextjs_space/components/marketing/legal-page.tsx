@@ -9,8 +9,8 @@ import { translate } from '@/lib/i18n';
  * Shell for the public marketing and legal pages.
  *
  * The body copy on the legal pages is a working structure, not legal advice.
- * Placeholders written as [BRACKETED TEXT] mark where the real registered
- * business details must be inserted before these pages are relied upon.
+ * The registered business details these pages name come from `companyInfo` in
+ * lib/site.ts rather than being written into each page.
  *
  * Only the shell's own chrome ("Last updated:") follows the selected language.
  * The `title`, `intro` and `children` a page passes in are its authored legal
@@ -22,11 +22,21 @@ export function LegalPage({
   title,
   updated,
   intro,
+  lang,
   children,
 }: {
   title: string;
   updated?: string;
   intro?: string;
+  /**
+   * BCP 47 tag for the authored body copy, when it is not the language the
+   * surrounding page is being served in.
+   *
+   * /kvkk is Turkish whatever the selected locale, so it passes "tr" and the
+   * document stops claiming its body is English. Omitting the prop leaves the
+   * markup exactly as it was, which is what the other legal pages do.
+   */
+  lang?: string;
   children: React.ReactNode;
 }) {
   const locale = getServerLocale();
@@ -35,7 +45,7 @@ export function LegalPage({
     <div className="flex min-h-screen flex-col bg-background">
       <SkipLink />
       <SiteHeader />
-      <main id="main" className="flex-1 py-16 sm:py-20">
+      <main id="main" lang={lang} className="flex-1 py-16 sm:py-20">
         <Container>
           <div className="mx-auto max-w-3xl">
             <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">

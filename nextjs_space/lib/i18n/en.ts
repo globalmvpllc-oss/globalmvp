@@ -494,7 +494,8 @@ export const en = {
   'landing.footer.privacy': 'Privacy Policy',
   'landing.footer.terms': 'Terms of Service',
   'landing.footer.cookies': 'Cookie Policy',
-  'landing.footer.kvkk': 'KVKK Notice',
+  // Labelled with the language because the page itself is Turkish.
+  'landing.footer.kvkk': 'KVKK Notice (Türkçe)',
   'landing.footer.refund': 'Refund Policy',
   'landing.footer.rights': 'All rights reserved.',
 
@@ -525,16 +526,16 @@ export const en = {
   // --- /contact -------------------------------------------------------------
   'contactPage.title': 'Contact',
   'contactPage.intro':
-    'CorpControl is early, and we would rather hear from you than not. Here is what each kind of enquiry covers.',
+    'Pick the subject that fits and write to us — each one opens a message to our team.',
   'contactPage.generalTitle': 'General enquiries',
   'contactPage.generalBody':
     'Questions about what CorpControl does, whether it fits how you work, or pricing.',
   'contactPage.supportTitle': 'Support',
   'contactPage.supportBody':
-    'Something not behaving as expected. Tell us what you were doing when it happened and what you saw instead.',
+    'Something is not behaving as expected. Tell us what you were doing and what you saw instead.',
   'contactPage.privacyTitle': 'Privacy and data requests',
   'contactPage.privacyBody':
-    'Access, correction, export or deletion requests under the data protection law that applies to you.',
+    'You want to access, correct, export or delete personal data under the law that applies to you.',
   'contactPage.reachTitle': 'How to reach us',
   'contactPage.reachBody':
     'Email is the fastest way to reach us and is answered as quickly as we reasonably can. You can also call the number below.',

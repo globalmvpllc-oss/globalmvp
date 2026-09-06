@@ -496,16 +496,16 @@ export const tr: Dictionary = {
   // --- /contact -------------------------------------------------------------
   'contactPage.title': 'İletişim',
   'contactPage.intro':
-    'CorpControl henüz yolun başında ve sizden haber almamayı değil, almayı tercih ederiz. Her tür başvurunun neyi kapsadığı aşağıda.',
+    'Size uyan konuyu seçip bize yazın — her biri ekibimize bir e-posta açar.',
   'contactPage.generalTitle': 'Genel sorular',
   'contactPage.generalBody':
     'CorpControl’ün ne yaptığı, çalışma biçiminize uyup uymadığı veya fiyatlandırma hakkındaki sorular.',
   'contactPage.supportTitle': 'Destek',
   'contactPage.supportBody':
-    'Beklendiği gibi çalışmayan bir şey. Olduğu sırada ne yaptığınızı ve bunun yerine ne gördüğünüzü bize yazın.',
+    'Bir şey beklendiği gibi çalışmıyor. Ne yaptığınızı ve bunun yerine ne gördüğünüzü bize yazın.',
   'contactPage.privacyTitle': 'Gizlilik ve veri talepleri',
   'contactPage.privacyBody':
-    'Size uygulanan veri koruma mevzuatı kapsamındaki erişim, düzeltme, dışa aktarma veya silme talepleri.',
+    'Size uygulanan mevzuat kapsamında kişisel verilerinize erişmek, bunları düzeltmek, dışa aktarmak veya sildirmek istiyorsunuz.',
   'contactPage.reachTitle': 'Bize nasıl ulaşırsınız',
   'contactPage.reachBody':
     'Bize ulaşmanın en hızlı yolu e-postadır; makul olan en kısa sürede yanıtlıyoruz. Aşağıdaki numaradan da arayabilirsiniz.',

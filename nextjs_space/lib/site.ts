@@ -56,6 +56,17 @@ export const companyAddressLine = [
 /** `mailto:` target for the published contact address. */
 export const companyMailto = `mailto:${companyInfo.email}`;
 
+/**
+ * `mailto:` target carrying a pre-filled subject line.
+ *
+ * One published address handles every kind of enquiry, so the subject is what
+ * sorts them once they arrive. The subject is encoded rather than interpolated
+ * raw: a space or an ampersand in it would otherwise break the URL.
+ */
+export function companyMailtoWithSubject(subject: string): string {
+  return `${companyMailto}?subject=${encodeURIComponent(subject)}`;
+}
+
 /** `tel:` target for the published phone number. */
 export const companyTel = `tel:${companyInfo.phoneHref}`;
 

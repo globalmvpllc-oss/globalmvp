@@ -1,13 +1,30 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
-import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
+import { companyInfo, companyAddressLine, companyMailto, siteConfig } from '@/lib/site';
+
+const DESCRIPTION =
+  '6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında CorpControl kullanıcıları için aydınlatma metni. Türkçe yayımlanmıştır.';
 
 export const metadata: Metadata = {
   title: 'KVKK Aydınlatma Metni',
-  description:
-    '6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında CorpControl kullanıcıları için aydınlatma metni.',
+  description: DESCRIPTION,
   alternates: { canonical: '/kvkk' },
+  /**
+   * This document is Turkish whichever language the rest of the site is being
+   * read in, so it says so. `openGraph` replaces the root object rather than
+   * merging into it, so the shared fields are restated here alongside `locale`
+   * — otherwise declaring the locale would drop the site's card image.
+   */
+  openGraph: {
+    type: 'website',
+    siteName: siteConfig.name,
+    title: 'KVKK Aydınlatma Metni',
+    description: DESCRIPTION,
+    url: '/kvkk',
+    locale: 'tr_TR',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: `${siteConfig.name} dashboard` }],
+  },
 };
 
 export default function KvkkPage() {
@@ -16,7 +33,26 @@ export default function KvkkPage() {
       title="KVKK Aydınlatma Metni"
       updated="25 Ağustos 2026"
       intro="Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun 10. maddesi uyarınca, CorpControl hizmetini kullanan ilgili kişileri bilgilendirmek amacıyla hazırlanmıştır."
+      lang="tr"
     >
+      {/*
+        An English reader arriving from the footer meets a page of Turkish. One
+        line, marked `lang="en"` inside the Turkish body, says why it is Turkish
+        and where the English policy is — so the page reads as deliberate rather
+        than broken.
+      */}
+      <div lang="en" className="rounded-xl border border-border bg-muted/40 p-5 text-sm leading-relaxed text-muted-foreground">
+        <strong className="font-medium text-foreground">This notice is in Turkish.</strong> It is the
+        <span lang="tr">aydınlatma metni</span> required by Turkey&rsquo;s Personal Data Protection
+        Law No. 6698 (KVKK) and
+        is published in Turkish for data subjects in Turkey, which is who it addresses. For the
+        English-language account of how CorpControl handles personal information, see the{' '}
+        <Link href="/privacy" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+          Privacy Policy
+        </Link>
+        .
+      </div>
+
       <LegalSection heading="Veri sorumlusu">
         <p>
           Kişisel verileriniz, veri sorumlusu sıfatıyla{' '}
