@@ -46,9 +46,14 @@ export function Hero() {
               PLAN_LIMITS.free.customers (lib/billing/features.ts) and "15 days"
               is TRIAL_DAYS (lib/billing/trial.ts). If either changes, change the
               copy (EN and TR) to match — the claim must stay accurate.
+
+              Two spans rather than one sentence: the break between the offer's
+              two halves is deliberate, so it falls in the same place at every
+              width instead of wherever the line happens to run out.
             */}
-            <p className="mx-auto mt-5 max-w-2xl font-display text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
-              {t('landing.heroTagline')}
+            <p className="mx-auto mt-5 max-w-2xl text-center font-display text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+              <span className="block">{t('landing.heroTagline')}</span>
+              <span className="block">{t('landing.heroTaglineTrial')}</span>
             </p>
 
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

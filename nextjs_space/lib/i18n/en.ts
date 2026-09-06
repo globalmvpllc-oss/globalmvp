@@ -287,7 +287,12 @@ export const en = {
   // PLAN_LIMITS.free.customers (lib/billing/features.ts) and "15 days" is
   // TRIAL_DAYS (lib/billing/trial.ts). If either changes, change this copy (EN
   // and TR) to match — the claim must stay accurate.
-  'landing.heroTagline': 'Start free with 3 customers — enjoy all Pro features for 15 days.',
+  // Two keys rather than one string with a dash: the break is deliberate, so it
+  // lands in the same place at every width instead of wherever the line happens
+  // to run out. The second line is the offer and is set in title case to carry
+  // the emphasis.
+  'landing.heroTagline': 'Start free with 3 customers.',
+  'landing.heroTaglineTrial': 'Enjoy All Pro Features For 15 Days.',
 
   // Shared chrome: header, footer, skip link. Rendered on every public page,
   // including the legal ones whose body copy is deliberately not translated.
@@ -307,7 +312,7 @@ export const en = {
   'landing.cta.readFaq': 'Read the FAQ',
 
   'landing.hero.eyebrow': 'Business finance, simplified',
-  'landing.hero.title': 'Run your business finances without the complexity',
+  'landing.hero.title': 'Run Your Business Finances Without The Complexity',
   'landing.hero.subtitle':
     'CorpControl keeps invoices, customers, income, expenses and payments in one simple workspace — so you always know where your money stands, without learning accounting software.',
   'landing.hero.trustNoBank': 'No bank connection required',
@@ -571,7 +576,7 @@ export const en = {
   'landing.finance.metaDescription':
     'Track income, expenses, invoices and payments in one place. CorpControl gives small businesses a clear financial picture without accounting software.',
   'landing.finance.eyebrow': 'Business finance management',
-  'landing.finance.title': 'Run your business finances without the complexity',
+  'landing.finance.title': 'Run Your Business Finances Without The Complexity',
   'landing.finance.subtitle':
     'Invoices, customers, income, expenses and payments in one workspace, so you always know what you have earned, what you have spent and what you are still owed.',
   'landing.finance.point1': 'No bank connection required',

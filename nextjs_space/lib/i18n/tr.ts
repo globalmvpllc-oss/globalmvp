@@ -265,7 +265,8 @@ export const tr: Dictionary = {
   'category.otherExpense': 'Diğer Gider',
 
   // See en.ts: kept true by PLAN_LIMITS.free.customers (3) and TRIAL_DAYS (15).
-  'landing.heroTagline': '3 müşteriyle ücretsiz başlayın — 15 gün boyunca tüm Pro özellikleri kullanın.',
+  'landing.heroTagline': '3 müşteriyle ücretsiz başlayın.',
+  'landing.heroTaglineTrial': '15 Gün Boyunca Tüm Pro Özellikleri Kullanın.',
 
   'landing.skipToContent': 'İçeriğe geç',
   'landing.logoHome': 'CorpControl ana sayfa',
