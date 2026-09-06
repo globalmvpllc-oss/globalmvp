@@ -7,13 +7,17 @@ import {
   effectivePlan,
   isOnTrial,
 } from '@/lib/billing/trial';
+import { earliestCreatedAt } from '@/lib/billing/trial-anchor';
 
 /**
  * The automatic Pro trial.
  *
- * It is a pure function of Company.createdAt — a server-owned timestamp — so the
+ * It is a pure function of a server-owned timestamp — the trial anchor — so the
  * tests pin the window, its expiry, the rule that a purchase always wins, and
  * the fact that nothing a client could send can lengthen it.
+ *
+ * Which timestamp that is comes from ./trial-anchor: the owner's earliest
+ * company, so a person gets one trial rather than one per company they create.
  */
 
 const NOW = new Date('2026-06-15T12:00:00.000Z');
@@ -117,5 +121,163 @@ describe('the trial cannot be extended by client input', () => {
     // createdAt moves the boundary — there is no separate lever to pull.
     expect(isTrialActive(older, NOW)).toBe(false);
     expect(isTrialActive(newer, NOW)).toBe(true);
+  });
+});
+
+/**
+ * The trial anchor — one trial per person, not one per company.
+ *
+ * The defect these guard: the trial derived from each company's own createdAt.
+ * That was safe while a user could hold exactly one company. Once a user can
+ * hold several, it became a way to get Pro forever — create a company, use it
+ * free for 15 days, create another, repeat. `resolveTrialAnchor` answers with
+ * the owner's *earliest* company instead, so a second company inherits the
+ * first company's window rather than opening a new one.
+ */
+describe('earliestCreatedAt', () => {
+  it('picks the oldest timestamp whatever order the rows arrive in', () => {
+    const first = daysAgo(40);
+    const middle = daysAgo(20);
+    const last = daysAgo(3);
+
+    for (const rows of [
+      [{ createdAt: first }, { createdAt: middle }, { createdAt: last }],
+      [{ createdAt: last }, { createdAt: first }, { createdAt: middle }],
+      [{ createdAt: middle }, { createdAt: last }, { createdAt: first }],
+    ]) {
+      expect(earliestCreatedAt(rows)).toEqual(first);
+    }
+  });
+
+  it('accepts ISO strings alongside Dates', () => {
+    const older = daysAgo(9);
+    expect(
+      earliestCreatedAt([{ createdAt: daysAgo(2) }, { createdAt: older.toISOString() }])
+    ).toEqual(older);
+  });
+
+  it('ignores unusable values rather than throwing', () => {
+    const real = daysAgo(5);
+    expect(
+      earliestCreatedAt([
+        { createdAt: null },
+        { createdAt: undefined },
+        { createdAt: 'not a date' },
+        { createdAt: real },
+      ])
+    ).toEqual(real);
+  });
+
+  it('returns null for no rows, and for rows with nothing usable', () => {
+    expect(earliestCreatedAt([])).toBeNull();
+    expect(earliestCreatedAt([{ createdAt: null }, { createdAt: 'rubbish' }])).toBeNull();
+  });
+});
+
+describe('one membership — unchanged from before', () => {
+  it('anchors on that company, exactly as the old behaviour did', () => {
+    const created = daysAgo(3);
+    const anchor = earliestCreatedAt([{ createdAt: created }]);
+
+    expect(anchor).toEqual(created);
+    expect(isTrialActive(anchor, NOW)).toBe(true);
+    expect(trialDaysRemaining(anchor, NOW)).toBe(12);
+    expect(effectivePlan('free', anchor, NOW)).toBe('pro');
+  });
+
+  it('is expired for a single company older than the window, as before', () => {
+    const anchor = earliestCreatedAt([{ createdAt: daysAgo(16) }]);
+    expect(isTrialActive(anchor, NOW)).toBe(false);
+    expect(effectivePlan('free', anchor, NOW)).toBe('free');
+  });
+});
+
+describe('THE EXPLOIT: a second company must not open a second trial', () => {
+  it('gives the second company the first window, not 15 fresh days', () => {
+    const firstCompany = daysAgo(3);
+    const secondCompany = NOW; // created today, on day 3 of the trial
+
+    const anchor = earliestCreatedAt([{ createdAt: firstCompany }, { createdAt: secondCompany }]);
+
+    // Anchored on the first company, so both companies share one window.
+    expect(anchor).toEqual(firstCompany);
+    expect(trialEndsAt(anchor)).toEqual(trialEndsAt(firstCompany));
+    expect(trialDaysRemaining(anchor, NOW)).toBe(12);
+
+    // The bug, stated as the assertion that must never pass again: anchoring on
+    // the new company would restart the clock at a full 15 days.
+    expect(trialDaysRemaining(anchor, NOW)).not.toBe(TRIAL_DAYS);
+    expect(trialEndsAt(anchor)!.getTime()).toBeLessThan(trialEndsAt(secondCompany)!.getTime());
+  });
+
+  it('gives no trial at all to a company created after the window closed', () => {
+    const firstCompany = daysAgo(40);
+    const secondCompany = NOW;
+
+    const anchor = earliestCreatedAt([{ createdAt: firstCompany }, { createdAt: secondCompany }]);
+
+    expect(anchor).toEqual(firstCompany);
+    expect(isTrialActive(anchor, NOW)).toBe(false);
+    expect(effectivePlan('free', anchor, NOW)).toBe('free');
+    expect(isOnTrial('free', anchor, NOW)).toBe(false);
+    expect(trialDaysRemaining(anchor, NOW)).toBe(0);
+  });
+
+  it('cannot be reset by creating company after company', () => {
+    // Ten companies, one every three days, starting well outside the window.
+    // However many are added, the anchor stays on the first and the trial stays
+    // closed.
+    const first = daysAgo(30);
+    const rows = Array.from({ length: 10 }, (_, i) => ({ createdAt: daysAgo(30 - i * 3) }));
+
+    const anchor = earliestCreatedAt(rows);
+    expect(anchor).toEqual(first);
+    expect(isTrialActive(anchor, NOW)).toBe(false);
+    expect(effectivePlan('free', anchor, NOW)).toBe('free');
+  });
+
+  it('holds regardless of the order the memberships come back in', () => {
+    const first = daysAgo(20);
+    const rows = [{ createdAt: NOW }, { createdAt: daysAgo(5) }, { createdAt: first }];
+
+    expect(earliestCreatedAt(rows)).toEqual(first);
+    expect(isTrialActive(earliestCreatedAt(rows), NOW)).toBe(false);
+  });
+});
+
+describe('a purchase always wins, on every company', () => {
+  it('keeps a paid plan whatever the anchor says', () => {
+    for (const anchor of [daysAgo(1), daysAgo(40), null, undefined]) {
+      expect(effectivePlan('pro', anchor, NOW)).toBe('pro');
+      expect(effectivePlan('business', anchor, NOW)).toBe('business');
+      expect(isOnTrial('pro', anchor, NOW)).toBe(false);
+      expect(isOnTrial('business', anchor, NOW)).toBe(false);
+    }
+  });
+
+  it('does not downgrade a paying customer whose trial anchor has expired', () => {
+    // The case that matters: a long-standing user buys Pro, then adds a company.
+    // The shared anchor is long closed, and the purchase must still stand.
+    const anchor = earliestCreatedAt([{ createdAt: daysAgo(400) }, { createdAt: NOW }]);
+    expect(effectivePlan('pro', anchor, NOW)).toBe('pro');
+  });
+});
+
+describe('no memberships, and unusable timestamps', () => {
+  it('yields no trial and does not throw', () => {
+    const anchor = earliestCreatedAt([]);
+    expect(anchor).toBeNull();
+    expect(() => isTrialActive(anchor, NOW)).not.toThrow();
+    expect(isTrialActive(anchor, NOW)).toBe(false);
+    expect(trialEndsAt(anchor)).toBeNull();
+    expect(trialDaysRemaining(anchor, NOW)).toBeNull();
+    expect(effectivePlan('free', anchor, NOW)).toBe('free');
+  });
+
+  it('keeps the existing null handling for an unparseable anchor', () => {
+    expect(trialEndsAt('not a date')).toBeNull();
+    expect(trialDaysRemaining('not a date', NOW)).toBeNull();
+    expect(isTrialActive('not a date', NOW)).toBe(false);
+    expect(effectivePlan('free', 'not a date', NOW)).toBe('free');
   });
 });

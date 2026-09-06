@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { resolvePlan } from './granted-plan';
+import { resolveTrialAnchor } from './trial-anchor';
 import { PLAN_LIMITS, isOverLimit, limitFor, type LimitedResource } from './features';
 import type { Plan } from './plans';
 
@@ -40,34 +41,46 @@ export function currentMonthRange(now: Date = new Date()): { gte: Date; lt: Date
 /**
  * Resolves the company's effective plan.
  *
- * A purchased subscription wins; otherwise the first-15-days Pro trial (derived
- * from Company.createdAt) substitutes for Free while it is open. Limits below
- * are then measured against this effective plan, so a company on trial gets the
- * Pro allowances server-side, not just in the UI.
+ * A purchased subscription wins; otherwise the 15-day Pro trial substitutes for
+ * Free while it is open. Limits below are then measured against this effective
+ * plan, so a company on trial gets the Pro allowances server-side, not just in
+ * the UI.
+ *
+ * The trial anchor comes from `resolveTrialAnchor`, the same resolver the
+ * billing page uses, so what the screen says about the trial and what the server
+ * actually enforces can never drift apart. It is the owner's earliest company —
+ * not this company's `createdAt`, which would hand every new company a fresh
+ * 15 days.
+ *
+ * The two reads are independent, so they run concurrently: one round trip of
+ * latency rather than two.
  */
 export async function getCurrentPlan(companyId: string): Promise<Plan> {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: {
-      createdAt: true,
-      grantedPlan: true,
-      grantedPlanUntil: true,
-      subscription: {
-        select: {
-          plan: true,
-          status: true,
-          currentPeriodEnd: true,
-          cancelAtPeriodEnd: true,
-          trialEndsAt: true,
+  const [company, trialAnchor] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        grantedPlan: true,
+        grantedPlanUntil: true,
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true,
+            trialEndsAt: true,
+          },
         },
       },
-    },
-  });
+    }),
+    resolveTrialAnchor(companyId),
+  ]);
+
   return resolvePlan({
     subscription: company?.subscription ?? null,
     grantedPlan: company?.grantedPlan ?? null,
     grantedPlanUntil: company?.grantedPlanUntil ?? null,
-    companyCreatedAt: company?.createdAt ?? null,
+    trialAnchor,
   });
 }
 

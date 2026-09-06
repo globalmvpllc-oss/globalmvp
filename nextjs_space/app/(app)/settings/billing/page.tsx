@@ -7,6 +7,7 @@ import { getServerLocale } from '@/lib/i18n/server';
 import { translate, intlLocale, type Locale, type TranslationKey } from '@/lib/i18n';
 import { billingState, currentPlan, daysRemaining } from '@/lib/billing/access';
 import { isOnTrial, trialDaysRemaining, TRIAL_DAYS } from '@/lib/billing/trial';
+import { resolveTrialAnchor } from '@/lib/billing/trial-anchor';
 import { isBillingConfigured, isPaidPlan, isBillingInterval } from '@/lib/billing/plans';
 import { yearlySaving } from '@/lib/billing/pricing';
 import { getPlanPricing } from '@/lib/billing/pricing-server';
@@ -105,17 +106,21 @@ export default async function BillingPage({
     loadFailed = true;
   }
 
-  // Company creation date drives the automatic Pro trial (first 15 days). A read
-  // failure here only hides the trial banner; it never takes the page down.
-  let companyCreatedAt: Date | null = null;
+  /**
+   * What the 15-day Pro trial is measured from.
+   *
+   * The same resolver the server-side limits use, so this banner cannot claim a
+   * trial the enforcement disagrees with. It is the owner's earliest company
+   * rather than this company's own creation date — otherwise a user's second
+   * company would show a fresh 15 days.
+   *
+   * A read failure here only hides the banner; it never takes the page down.
+   */
+  let trialAnchor: Date | null = null;
   try {
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-      select: { createdAt: true },
-    });
-    companyCreatedAt = company?.createdAt ?? null;
+    trialAnchor = await resolveTrialAnchor(companyId);
   } catch {
-    companyCreatedAt = null;
+    trialAnchor = null;
   }
 
   /**
@@ -144,8 +149,8 @@ export default async function BillingPage({
 
   // The automatic Pro trial only applies to a company still on Free; a purchase
   // always wins. The banner reflects the same rule the server-side limits use.
-  const onTrial = isOnTrial(plan, companyCreatedAt);
-  const trialDays = onTrial ? trialDaysRemaining(companyCreatedAt) : null;
+  const onTrial = isOnTrial(plan, trialAnchor);
+  const trialDays = onTrial ? trialDaysRemaining(trialAnchor) : null;
 
   /**
    * Whether the actions on this page can do anything.

@@ -52,7 +52,7 @@ describe('resolvePlan precedence', () => {
   it('an active Polar subscription wins over a grant', () => {
     expect(
       resolvePlan(
-        { subscription: activeSub('pro'), grantedPlan: 'business', grantedPlanUntil: null, companyCreatedAt: OLD },
+        { subscription: activeSub('pro'), grantedPlan: 'business', grantedPlanUntil: null, trialAnchor: OLD },
         NOW
       )
     ).toBe('pro');
@@ -61,7 +61,7 @@ describe('resolvePlan precedence', () => {
   it('a grant wins over Free when there is no active subscription', () => {
     expect(
       resolvePlan(
-        { subscription: null, grantedPlan: 'business', grantedPlanUntil: null, companyCreatedAt: OLD },
+        { subscription: null, grantedPlan: 'business', grantedPlanUntil: null, trialAnchor: OLD },
         NOW
       )
     ).toBe('business');
@@ -70,7 +70,7 @@ describe('resolvePlan precedence', () => {
   it('an expired grant is ignored', () => {
     expect(
       resolvePlan(
-        { subscription: null, grantedPlan: 'pro', grantedPlanUntil: daysAgo(1), companyCreatedAt: OLD },
+        { subscription: null, grantedPlan: 'pro', grantedPlanUntil: daysAgo(1), trialAnchor: OLD },
         NOW
       )
     ).toBe('free');
@@ -79,7 +79,7 @@ describe('resolvePlan precedence', () => {
   it('a future-dated grant applies', () => {
     expect(
       resolvePlan(
-        { subscription: null, grantedPlan: 'pro', grantedPlanUntil: daysAhead(30), companyCreatedAt: OLD },
+        { subscription: null, grantedPlan: 'pro', grantedPlanUntil: daysAhead(30), trialAnchor: OLD },
         NOW
       )
     ).toBe('pro');
@@ -89,7 +89,7 @@ describe('resolvePlan precedence', () => {
     const revoked: SubscriptionLike = { plan: 'business', status: 'revoked', currentPeriodEnd: daysAhead(10) };
     expect(
       resolvePlan(
-        { subscription: revoked, grantedPlan: 'pro', grantedPlanUntil: null, companyCreatedAt: OLD },
+        { subscription: revoked, grantedPlan: 'pro', grantedPlanUntil: null, trialAnchor: OLD },
         NOW
       )
     ).toBe('pro');
@@ -98,7 +98,7 @@ describe('resolvePlan precedence', () => {
   it('falls back to the automatic trial when Free and recently created', () => {
     expect(
       resolvePlan(
-        { subscription: null, grantedPlan: null, grantedPlanUntil: null, companyCreatedAt: daysAgo(2) },
+        { subscription: null, grantedPlan: null, grantedPlanUntil: null, trialAnchor: daysAgo(2) },
         NOW
       )
     ).toBe('pro');
@@ -107,7 +107,7 @@ describe('resolvePlan precedence', () => {
   it('is Free with no subscription, no grant, and a lapsed trial', () => {
     expect(
       resolvePlan(
-        { subscription: null, grantedPlan: null, grantedPlanUntil: null, companyCreatedAt: OLD },
+        { subscription: null, grantedPlan: null, grantedPlanUntil: null, trialAnchor: OLD },
         NOW
       )
     ).toBe('free');

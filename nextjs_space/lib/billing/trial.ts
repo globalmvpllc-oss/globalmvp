@@ -3,17 +3,33 @@ import type { Plan } from './plans';
 /**
  * The automatic Pro trial.
  *
- * Every company gets Pro for its first 15 days, derived purely from
- * Company.createdAt — there is no trial row, no flag and no schema change, so
- * nothing a client sends can start, extend or reset it. The window is a fixed
- * function of a server-owned timestamp.
+ * A person gets Pro for 15 days to evaluate the product — once. The window runs
+ * from the *trial anchor*: the creation date of the earliest company its owner
+ * has ever had, resolved by `./trial-anchor`, not the creation date of the
+ * company being asked about.
+ *
+ * That distinction is the whole point. While a user could hold exactly one
+ * company, anchoring to `Company.createdAt` was the same thing. Once a user can
+ * hold several, it stopped being: create a company, use Pro free for 15 days,
+ * create another, repeat — unlimited Pro, never paying. A second company now
+ * falls inside the first company's window if it is still open, and outside it if
+ * it has closed.
+ *
+ * There is still no trial row, no flag and no schema change, so nothing a client
+ * sends can start, extend or reset it. The window remains a fixed function of
+ * server-owned timestamps.
  *
  * A purchased plan always wins: the trial only ever substitutes for Free, and
  * only while it is open. Once the window closes the company is Free again unless
  * it has bought a plan. Nothing is charged when the trial ends — Polar is the
  * only thing that ever charges, and only after a real checkout.
  *
- * Pure: no Prisma, no environment, so the rule can be tested directly.
+ * Unrelated to `Subscription.trialEndsAt`, which is Polar's own field for a
+ * purchased subscription. Two different things; they are never merged.
+ *
+ * Pure: no Prisma, no environment, so the rule can be tested directly. The
+ * functions take a timestamp and go on taking one — only which timestamp the
+ * callers pass has changed.
  */
 
 /** Length of the trial, in days. */
@@ -28,23 +44,23 @@ function toDate(value: Date | string | null | undefined): Date | null {
 }
 
 /**
- * When the trial ends: createdAt + 15 days.
+ * When the trial ends: anchor + 15 days.
  *
- * Returns null when createdAt is missing or unparseable, so a caller can tell
+ * Returns null when the anchor is missing or unparseable, so a caller can tell
  * "no trial" from "trial over" rather than inventing a date.
  */
-export function trialEndsAt(companyCreatedAt: Date | string | null | undefined): Date | null {
-  const created = toDate(companyCreatedAt);
-  if (!created) return null;
-  return new Date(created.getTime() + TRIAL_DAYS * DAY_MS);
+export function trialEndsAt(trialAnchor: Date | string | null | undefined): Date | null {
+  const anchored = toDate(trialAnchor);
+  if (!anchored) return null;
+  return new Date(anchored.getTime() + TRIAL_DAYS * DAY_MS);
 }
 
 /** Whether the trial window is still open. */
 export function isTrialActive(
-  companyCreatedAt: Date | string | null | undefined,
+  trialAnchor: Date | string | null | undefined,
   now: Date = new Date()
 ): boolean {
-  const ends = trialEndsAt(companyCreatedAt);
+  const ends = trialEndsAt(trialAnchor);
   if (!ends) return false;
   return ends.getTime() > now.getTime();
 }
@@ -52,14 +68,14 @@ export function isTrialActive(
 /**
  * Whole days left in the trial, floored, never negative.
  *
- * Null when there is no usable creation date. Floored because telling someone 3
- * days when 3.9 remain is the safe rounding.
+ * Null when there is no usable anchor. Floored because telling someone 3 days
+ * when 3.9 remain is the safe rounding.
  */
 export function trialDaysRemaining(
-  companyCreatedAt: Date | string | null | undefined,
+  trialAnchor: Date | string | null | undefined,
   now: Date = new Date()
 ): number | null {
-  const ends = trialEndsAt(companyCreatedAt);
+  const ends = trialEndsAt(trialAnchor);
   if (!ends) return null;
   const ms = ends.getTime() - now.getTime();
   return ms <= 0 ? 0 : Math.floor(ms / DAY_MS);
@@ -75,11 +91,11 @@ export function trialDaysRemaining(
  */
 export function effectivePlan(
   paidPlan: Plan,
-  companyCreatedAt: Date | string | null | undefined,
+  trialAnchor: Date | string | null | undefined,
   now: Date = new Date()
 ): Plan {
   if (paidPlan !== 'free') return paidPlan;
-  return isTrialActive(companyCreatedAt, now) ? 'pro' : 'free';
+  return isTrialActive(trialAnchor, now) ? 'pro' : 'free';
 }
 
 /**
@@ -89,8 +105,8 @@ export function effectivePlan(
  */
 export function isOnTrial(
   paidPlan: Plan,
-  companyCreatedAt: Date | string | null | undefined,
+  trialAnchor: Date | string | null | undefined,
   now: Date = new Date()
 ): boolean {
-  return paidPlan === 'free' && isTrialActive(companyCreatedAt, now);
+  return paidPlan === 'free' && isTrialActive(trialAnchor, now);
 }

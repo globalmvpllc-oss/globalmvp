@@ -10,8 +10,9 @@ import { effectivePlan } from './trial';
  *   2. Otherwise an admin grant, if it has no expiry or has not expired. Grants
  *      live on Company, never on Subscription, because the Polar webhook owns
  *      that table and would overwrite anything written there.
- *   3. Otherwise Free — which the automatic first-15-days trial may still lift
- *      to Pro (see ./trial).
+ *   3. Otherwise Free — which the automatic 15-day trial may still lift to Pro
+ *      (see ./trial). The trial anchor is resolved by ./trial-anchor and is the
+ *      owner's earliest company, not this company's own creation date.
  *
  * Pure, so the precedence can be tested without Prisma.
  */
@@ -42,7 +43,14 @@ export interface PlanInputs {
   subscription: SubscriptionLike | null | undefined;
   grantedPlan: string | null | undefined;
   grantedPlanUntil: Date | string | null | undefined;
-  companyCreatedAt: Date | string | null | undefined;
+  /**
+   * When this company's trial window opens — see ./trial-anchor.
+   *
+   * Named for what it is rather than where it came from: it used to be the
+   * company's own `createdAt`, and calling it that now would be a comment that
+   * lies.
+   */
+  trialAnchor: Date | string | null | undefined;
 }
 
 /** The effective plan, applying the order above. */
@@ -56,5 +64,5 @@ export function resolvePlan(inputs: PlanInputs, now: Date = new Date()): Plan {
   if (granted && isGrantActive(inputs.grantedPlanUntil, now)) return granted;
 
   // 3. Free — possibly lifted to Pro by the automatic trial.
-  return effectivePlan('free', inputs.companyCreatedAt, now);
+  return effectivePlan('free', inputs.trialAnchor, now);
 }
