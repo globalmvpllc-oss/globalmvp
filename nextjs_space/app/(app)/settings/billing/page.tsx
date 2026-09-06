@@ -7,7 +7,7 @@ import { getServerLocale } from '@/lib/i18n/server';
 import { translate, intlLocale, type Locale, type TranslationKey } from '@/lib/i18n';
 import { billingState, currentPlan, daysRemaining } from '@/lib/billing/access';
 import { isOnTrial, trialDaysRemaining, TRIAL_DAYS } from '@/lib/billing/trial';
-import { isBillingConfigured } from '@/lib/billing/plans';
+import { isBillingConfigured, isPaidPlan, isBillingInterval } from '@/lib/billing/plans';
 import { yearlySaving } from '@/lib/billing/pricing';
 import { getPlanPricing } from '@/lib/billing/pricing-server';
 import { PlanSelector } from '@/components/billing-plans';
@@ -55,8 +55,27 @@ const PLAN_LABEL: Record<string, TranslationKey> = {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams?: { checkout?: string };
+  searchParams?: { checkout?: string; plan?: string; interval?: string };
 }) {
+  /**
+   * The plan the reader asked for before they had an account.
+   *
+   * The public pricing cards link here through signup carrying `?plan=` and
+   * `?interval=`, so that someone who decided to buy on the marketing page does
+   * not have to find that decision again at the bottom of this one. It marks
+   * the card and sets the interval toggle — nothing more. Checkout is one
+   * further click, deliberately: signing in should not, by itself, put anyone
+   * in front of a payment form they did not just ask for.
+   *
+   * Both are narrowed by the same guards the checkout route uses. An unknown or
+   * hand-edited value is simply ignored and the page renders as it always has;
+   * neither parameter reaches a query or a Polar lookup.
+   */
+  const askedForPlan = searchParams?.plan;
+  const askedForInterval = searchParams?.interval;
+  const requestedPlan = isPaidPlan(askedForPlan) ? askedForPlan : undefined;
+  const requestedInterval = isBillingInterval(askedForInterval) ? askedForInterval : undefined;
+
   // companyId comes from the session, never from a request parameter. Without a
   // company the user has not finished onboarding.
   const companyId = await getUserCompanyId();
@@ -261,6 +280,8 @@ export default async function BillingPage({
           prices={pricing.prices}
           savings={savings}
           actionsAvailable={actionsAvailable}
+          highlightPlan={requestedPlan}
+          initialInterval={requestedInterval}
         />
       ) : null}
 

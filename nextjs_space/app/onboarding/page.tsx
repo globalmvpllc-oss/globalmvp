@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,14 @@ import { BarChart3, Building2, Globe, Coins, Briefcase, MapPin, ChevronRight, Ch
 import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 
+/**
+ * `useSearchParams` makes this page dynamic. Without saying so, `next build`
+ * refuses to prerender it and fails the whole build rather than shipping a page
+ * whose HTML would be wrong for half its visitors.
+ */
+export const dynamic = 'force-dynamic';
 
 const BUSINESS_TYPES = [
   'Freelancer', 'Sole Proprietor', 'LLC', 'Corporation', 'Partnership', 'Agency', 'E-commerce', 'Consultant', 'Other',
@@ -19,6 +26,19 @@ const BUSINESS_TYPES = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  /**
+   * Where to go once there is a company: the dashboard, as always, unless the
+   * visitor said otherwise before they had an account.
+   *
+   * This is the last link in the chain that starts on the public pricing — a
+   * plan pressed there travels through signup to here, and lands on Settings ›
+   * Billing with that plan marked. Validated rather than trusted, by the same
+   * helper the auth pages use, so a hand-written `callbackUrl` cannot send a
+   * new user off this site.
+   */
+  const destination = safeRedirectPath(searchParams.get('callbackUrl'), '/dashboard');
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   /** Why the last attempt failed, shown next to the finish button. */
@@ -31,13 +51,13 @@ export default function OnboardingPage() {
       .then((r) => r.json())
       .then((c) => {
         if (c?.id) {
-          router.replace('/dashboard');
+          router.replace(destination);
         } else {
           setChecking(false);
         }
       })
       .catch(() => setChecking(false));
-  }, [router]);
+  }, [router, destination]);
 
   const [form, setForm] = useState({
     name: '', country: 'US', defaultCurrency: 'USD', businessType: 'Freelancer',
@@ -66,7 +86,7 @@ export default function OnboardingPage() {
       if (res.ok) {
         // Success path unchanged: the spinner stays up through the navigation
         // so the button cannot be pressed twice mid-redirect.
-        router.replace('/dashboard');
+        router.replace(destination);
         return;
       }
 

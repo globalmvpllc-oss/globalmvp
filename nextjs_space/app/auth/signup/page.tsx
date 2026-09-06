@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart3, Mail, Lock, User } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 import { GoogleSignInButton } from '@/components/google-signin-button';
+import { withCallbackUrl } from '@/lib/safe-redirect';
+
+/**
+ * `useSearchParams` makes this page dynamic. Without saying so, `next build`
+ * refuses to prerender it and fails the whole build rather than shipping a page
+ * whose HTML would be wrong for half its visitors.
+ */
+export const dynamic = 'force-dynamic';
 
 export default function SignupPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  /**
+   * Where the new account should end up, when the visitor asked for somewhere
+   * in particular — a plan they pressed Upgrade on, on the public pricing.
+   *
+   * Signup does not go there itself: a new account has no company yet, so it
+   * still goes to onboarding, and the destination is handed on rather than
+   * resolved here. Onboarding validates and follows it once the company exists.
+   */
+  const callbackUrl = searchParams.get('callbackUrl');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,7 +55,7 @@ export default function SignupPage() {
       if (!res.ok) { setError(data?.error ?? 'Signup failed'); setLoading(false); return; }
       const result = await signIn('credentials', { email, password, redirect: false });
       if (result?.ok) {
-        router.replace('/onboarding');
+        router.replace(withCallbackUrl('/onboarding', callbackUrl));
       } else {
         setError('Account created but login failed. Please sign in.');
         setLoading(false);
@@ -92,7 +111,9 @@ export default function SignupPage() {
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
               {t('auth.haveAccount')}{' '}
-              <Link href="/auth/login" className="text-primary font-medium hover:underline">{t('auth.signIn')}</Link>
+              {/* Carries the destination across: an existing customer who
+                  followed a plan link must not lose it by signing in instead. */}
+              <Link href={withCallbackUrl('/auth/login', callbackUrl)} className="text-primary font-medium hover:underline">{t('auth.signIn')}</Link>
             </div>
           </CardContent>
         </Card>

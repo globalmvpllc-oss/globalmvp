@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart3, Mail, Lock } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 import { GoogleSignInButton } from '@/components/google-signin-button';
+import { safeRedirectPath, withCallbackUrl } from '@/lib/safe-redirect';
+
+/**
+ * `useSearchParams` makes this page dynamic. Without saying so, `next build`
+ * refuses to prerender it and fails the whole build rather than shipping a page
+ * whose HTML would be wrong for half its visitors.
+ */
+export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  /**
+   * Where to go once signed in.
+   *
+   * Usually the dashboard, which is what this always did. But a visitor who
+   * pressed Upgrade on the public pricing arrives here with the plan they chose
+   * in `callbackUrl`, and dropping them on the dashboard instead loses the
+   * thing they came to do. Validated rather than trusted — see safeRedirectPath;
+   * anything that is not an internal path falls back to the dashboard.
+   */
+  const callbackUrl = searchParams.get('callbackUrl');
+  const destination = safeRedirectPath(callbackUrl, '/dashboard');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -43,7 +64,7 @@ export default function LoginPage() {
     setError('');
     const result = await signIn('credentials', { email, password, redirect: false });
     if (result?.ok) {
-      router.replace('/dashboard');
+      router.replace(destination);
     } else {
       setError(t('auth.invalidCredentials'));
       setLoading(false);
@@ -93,7 +114,9 @@ export default function LoginPage() {
             </form>
             <div className="mt-4 text-center text-sm text-muted-foreground">
               {t('auth.noAccount')}{' '}
-              <Link href="/auth/signup" className="text-primary font-medium hover:underline">Create one</Link>
+              {/* Carries the destination across: someone who came here for a
+                  plan and turns out to need an account must not lose it. */}
+              <Link href={withCallbackUrl('/auth/signup', callbackUrl)} className="text-primary font-medium hover:underline">Create one</Link>
             </div>
           </CardContent>
         </Card>

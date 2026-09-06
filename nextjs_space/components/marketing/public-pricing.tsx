@@ -21,9 +21,13 @@ import { translate, type TranslationKey } from '@/lib/i18n';
  *     that this is not announced as a Current plan badge: technically true of
  *     the account model, but read by someone who has never signed up it says
  *     they are already on a plan, which they are not.
- *   - `actionsAvailable` is false, so no checkout button is rendered. A visitor
- *     is not signed in and cannot be charged; the call to action is signup, and
- *     each card's action lives in the section below rather than in the card.
+ *   - `actionsAvailable` is false, so no checkout button is rendered: a visitor
+ *     is not signed in and cannot be charged. `signupCta` then makes each paid
+ *     card's action a link into signup carrying that plan and the chosen
+ *     interval, which signup, onboarding and Settings › Billing hand on until
+ *     the reader is standing in front of the plan they picked. Before that flag
+ *     existed the card rendered a disabled button, so someone who had read the
+ *     prices and decided to buy pressed Upgrade and nothing happened.
  *
  * The cards omit capabilities marked Planned. Someone deciding what to pay for
  * should see what works today; the planned ones remain in the comparison table
@@ -69,6 +73,7 @@ export async function PublicPricing({ id = 'pricing' }: { id?: string }) {
             actionsAvailable={false}
             plannedInCards={false}
             showCurrentPlan={false}
+            signupCta
           />
         </div>
 

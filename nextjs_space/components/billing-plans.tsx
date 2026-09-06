@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { Check, Minus, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/i18n-provider';
 import { BillingActions } from '@/components/billing-actions';
+import { withCallbackUrl } from '@/lib/safe-redirect';
 import { formatCurrency } from '@/lib/currencies';
 import {
   CAPABILITIES,
@@ -68,6 +71,9 @@ export function PlanSelector({
   actionsAvailable,
   plannedInCards = true,
   showCurrentPlan = true,
+  signupCta = false,
+  highlightPlan,
+  initialInterval = 'month',
 }: {
   currentPlan: Plan;
   prices: PlanPrices;
@@ -97,9 +103,59 @@ export function PlanSelector({
    * visitor arriving from an ad. The plans themselves are unchanged either way.
    */
   showCurrentPlan?: boolean;
+  /**
+   * Whether a paid card's call to action is a link into signup carrying the
+   * plan and interval, rather than a checkout button.
+   *
+   * False inside the account, where the reader has a session and checkout can
+   * actually start. True on the public marketing pages, where it cannot: a
+   * visitor arriving from an ad has no account, so the only honest next step is
+   * to create one. Until now those cards rendered a disabled button, which to
+   * that visitor is a price they have decided to pay and a control that does
+   * nothing when pressed.
+   *
+   * Deliberately separate from `actionsAvailable`. That flag means "this
+   * deployment has Polar configured", and it is false in Settings › Billing too
+   * when it is not — there the disabled button and the panel explaining why are
+   * the right answer, and must stay. Payment configuration is also irrelevant
+   * to whether a visitor may open an account, so the public link is rendered
+   * either way.
+   */
+  signupCta?: boolean;
+  /**
+   * A plan to mark and scroll to, because the reader asked for it before they
+   * had an account and has just arrived from that link.
+   *
+   * Marking only. Checkout is never started for them: being thrown at a payment
+   * page by the act of signing in reads as a trap, and the second click is what
+   * makes the charge theirs. Undefined — the default — leaves the cards exactly
+   * as they were.
+   */
+  highlightPlan?: PaidPlan;
+  /**
+   * Which interval the toggle starts on. The reader may have chosen yearly on
+   * the public page before signing up; carrying it over means the figure they
+   * decided on is the figure still in front of them. Defaults to monthly, which
+   * is what the toggle has always started on.
+   */
+  initialInterval?: BillingInterval;
 }) {
   const { t, intl } = useI18n();
-  const [interval, setInterval] = useState<BillingInterval>('month');
+  const [interval, setInterval] = useState<BillingInterval>(initialInterval);
+
+  /**
+   * Bring the requested plan into view.
+   *
+   * Billing is a long page and the card can be well below the fold, so without
+   * this the ring marking the plan is drawn somewhere the reader cannot see.
+   * Once only, on arrival: re-running it would yank the page back while someone
+   * is reading further down.
+   */
+  const highlighted = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!highlightPlan) return;
+    highlighted.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightPlan]);
 
   const fill = (key: TranslationKey, values: Record<string, string | number>) =>
     Object.entries(values).reduce<string>(
@@ -109,6 +165,18 @@ export function PlanSelector({
 
   /** Whether a comparison-table column is the reader's own plan. */
   const isCurrentColumn = (plan: Plan) => showCurrentPlan && plan === currentPlan;
+
+  /**
+   * Where a public card's call to action goes: signup, carrying the plan and
+   * interval so that the reader's choice survives account creation and
+   * onboarding and is still on screen when they arrive at billing.
+   *
+   * The destination is only ever a path, and every page that hands it on
+   * validates it through the same helper — so this cannot become a way to point
+   * our own signup link at somebody else's site.
+   */
+  const signupHref = (plan: PaidPlan) =>
+    withCallbackUrl('/auth/signup', `/settings/billing?plan=${plan}&interval=${interval}`);
 
   /**
    * A limit as the reader should see it: a number, or "Unlimited".
@@ -152,6 +220,7 @@ export function PlanSelector({
       <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
         {PLANS.map((plan) => {
           const isCurrent = showCurrentPlan && currentPlan === plan;
+          const isHighlighted = plan === highlightPlan;
           const price = plan === 'free' ? undefined : prices[plan]?.[interval];
           const saving = plan === 'free' ? null : savings[plan] ?? null;
           const planned = plannedCapabilities(plan);
@@ -159,9 +228,14 @@ export function PlanSelector({
           return (
             <Card
               key={plan}
+              ref={isHighlighted ? highlighted : undefined}
               className={cn(
                 'flex h-full flex-col',
-                isCurrent && 'border-primary ring-1 ring-primary/20'
+                isCurrent && 'border-primary ring-1 ring-primary/20',
+                // Drawn over the current-plan ring when both apply: the reader
+                // followed a link asking for this plan, and that is the thing
+                // they are looking for on the page.
+                isHighlighted && 'border-primary ring-2 ring-primary/40'
               )}
             >
               <CardContent className="flex flex-1 flex-col space-y-4 py-5">
@@ -230,12 +304,29 @@ export function PlanSelector({
                 )}
 
                 {plan !== 'free' && !isCurrent ? (
-                  <BillingActions
-                    enabled={actionsAvailable}
-                    showUpgrade
-                    onlyPlan={plan}
-                    interval={interval}
-                  />
+                  signupCta ? (
+                    /* A link, not a button: the visitor has no session, so
+                       there is nothing to post to. It carries the plan and the
+                       interval they are looking at through signup and
+                       onboarding to Settings › Billing, where the card is
+                       waiting for them and one more click starts checkout. */
+                    <Link
+                      href={signupHref(plan)}
+                      className={cn(
+                        buttonVariants({ variant: plan === 'business' ? 'outline' : 'default' }),
+                        'w-full'
+                      )}
+                    >
+                      {t(plan === 'pro' ? 'billing.upgradePro' : 'billing.upgradeBusiness')}
+                    </Link>
+                  ) : (
+                    <BillingActions
+                      enabled={actionsAvailable}
+                      showUpgrade
+                      onlyPlan={plan}
+                      interval={interval}
+                    />
+                  )
                 ) : null}
 
                 {/* Limits first: they are the substance of the plan. */}
