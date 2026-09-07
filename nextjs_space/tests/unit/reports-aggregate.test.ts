@@ -26,6 +26,7 @@ const base = (over: Partial<ReportsInput> = {}): ReportsInput => ({
   income: [],
   expenses: [],
   expenseCategories: [],
+  unpaidExpenses: [],
   invoices: [],
   invoiceStatuses: [],
   hasRecords: true,

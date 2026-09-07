@@ -13,6 +13,22 @@ import type { DecimalLike } from '@/lib/payment-math';
  * tested without a live database. The route maps `groupBy` results onto the
  * plain input types below and calls `buildReport`.
  *
+ * ## What "expenses" means here
+ *
+ * One thing, everywhere on the page: money that has left the business. The
+ * total, the monthly series and the category pie all count PAID expenses.
+ *
+ * The pie used to count every status, which it had done since the arithmetic
+ * lived in the browser. It was carried over unchanged when the summing moved to
+ * Postgres — correctly, since that task was about where the adding happened and
+ * not about redefining a figure — but it left a reader able to add the slices
+ * up, compare them with the total printed above, and find a gap with nothing to
+ * explain it. The slices and the total are now the same money.
+ *
+ * What is recorded but unpaid is carried separately, as `unpaidExpenses`, for
+ * the page to name beside the pie. The expenses screen is where that side of
+ * the business is actually managed, split into paid and unpaid.
+ *
  * ## Currency
  *
  * Money is grouped per currency and never summed across currencies. No
@@ -37,6 +53,12 @@ export interface DatedCurrencySum {
 export interface CategoryCurrencySum {
   currency: string | null;
   category: string | null;
+  amount: DecimalLike | null;
+}
+
+/** A plain per-currency sum. */
+export interface CurrencySum {
+  currency: string | null;
   amount: DecimalLike | null;
 }
 
@@ -71,6 +93,20 @@ export interface CurrencyTotals {
    * turn a figure worth investigating into one that looks settled.
    */
   outstanding: string;
+  /**
+   * Recorded but not yet paid, and deliberately not part of `expenses`.
+   *
+   * Every expense figure on this page means money that has left the business:
+   * the total, the monthly series and the category pie all count PAID. That is
+   * one definition, and it is the right one for a page that reports what
+   * happened rather than what is planned.
+   *
+   * The cost of that choice is that a company which records bills ahead of
+   * paying them cannot see them here at all — so this carries the amount, for
+   * the page to name beside the pie. It is a pointer to the expenses screen,
+   * not a second total to be added to anything.
+   */
+  unpaidExpenses: string;
 }
 
 /** One bar on the monthly chart. Numbers: this series is for display only. */
@@ -114,8 +150,10 @@ export interface ReportsInput {
   income: DatedCurrencySum[];
   /** PAID expenses, summed per (currency, date). */
   expenses: DatedCurrencySum[];
-  /** Expenses summed per (currency, category), for the pie. */
+  /** PAID expenses summed per (currency, category), for the pie. */
   expenseCategories: CategoryCurrencySum[];
+  /** UNPAID expenses summed per currency, for the note beside the pie. */
+  unpaidExpenses: CurrencySum[];
   /** Invoice money summed per currency. */
   invoices: InvoiceCurrencySum[];
   /** Invoice counts per status. */
@@ -146,6 +184,7 @@ export function emptyTotals(): CurrencyTotals {
     invoiced: '0.00',
     collected: '0.00',
     outstanding: '0.00',
+    unpaidExpenses: '0.00',
   };
 }
 
@@ -225,7 +264,13 @@ function currencyOf(raw: string | null | undefined, fallback: string): string {
 export function buildReport(input: ReportsInput): ReportsPayload {
   const fallback = input.defaultCurrency || 'USD';
 
-  interface Running { income: Decimal; expenses: Decimal; invoiced: Decimal; collected: Decimal }
+  interface Running {
+    income: Decimal;
+    expenses: Decimal;
+    invoiced: Decimal;
+    collected: Decimal;
+    unpaidExpenses: Decimal;
+  }
   const totals = new Map<string, Running>();
   const ensure = (currency: string): Running => {
     let running = totals.get(currency);
@@ -235,6 +280,7 @@ export function buildReport(input: ReportsInput): ReportsPayload {
         expenses: new Decimal(0),
         invoiced: new Decimal(0),
         collected: new Decimal(0),
+        unpaidExpenses: new Decimal(0),
       };
       totals.set(currency, running);
     }
@@ -284,6 +330,14 @@ export function buildReport(input: ReportsInput): ReportsPayload {
     running.collected = running.collected.plus(dec(row.amountPaid));
   }
 
+  // Unpaid expenses. A currency whose only activity is an unpaid bill still
+  // gets an entry, so the page can say so rather than rendering nothing at all
+  // and looking as though the company has recorded nothing.
+  for (const row of input.unpaidExpenses ?? []) {
+    const running = ensure(currencyOf(row.currency, fallback));
+    running.unpaidExpenses = running.unpaidExpenses.plus(dec(row.amount));
+  }
+
   // Expense categories, per currency so two currencies never share a slice.
   const categories = new Map<string, Map<string, Decimal>>();
   for (const row of input.expenseCategories) {
@@ -319,6 +373,7 @@ export function buildReport(input: ReportsInput): ReportsPayload {
       invoiced: running.invoiced.toFixed(2),
       collected: running.collected.toFixed(2),
       outstanding: running.invoiced.minus(running.collected).toFixed(2),
+      unpaidExpenses: running.unpaidExpenses.toFixed(2),
     };
 
     const byMonth = months.get(currency) ?? new Map<string, { income: Decimal; expenses: Decimal }>();

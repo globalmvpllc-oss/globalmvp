@@ -873,6 +873,9 @@ export const en = {
   'reports.invoiceStatus': 'Invoice Status',
   'reports.noData': 'No data yet',
   'reports.noExpenses': 'No expenses yet',
+  'reports.noPaidExpenses': 'No expenses paid yet in this period',
+  'reports.unpaidNotShown':
+    '{amount} of recorded expenses are still unpaid. This page counts money that has left the business, so they are not shown here — see Expenses.',
   'reports.noInvoices': 'No invoices yet',
 
   // --- Customers ------------------------------------------------------------

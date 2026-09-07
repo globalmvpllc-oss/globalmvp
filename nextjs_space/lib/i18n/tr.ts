@@ -834,6 +834,9 @@ export const tr: Dictionary = {
   'reports.invoiceStatus': 'Fatura durumu',
   'reports.noData': 'Henüz veri yok',
   'reports.noExpenses': 'Henüz gider yok',
+  'reports.noPaidExpenses': 'Bu dönemde henüz ödenmiş gider yok',
+  'reports.unpaidNotShown':
+    'Kayıtlı giderlerin {amount} tutarındaki kısmı henüz ödenmedi. Bu sayfa işletmeden çıkan parayı sayar, bu yüzden burada görünmezler — Giderler sayfasına bakın.',
   'reports.noInvoices': 'Henüz fatura yok',
 
   // --- Customers ------------------------------------------------------------

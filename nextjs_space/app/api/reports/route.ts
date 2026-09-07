@@ -45,7 +45,7 @@ import { ISSUED_INVOICE_STATUSES } from '@/lib/invoice-status';
  * ## Which records count
  *
  *   income     RECEIVED only
- *   expenses   PAID only, for the totals and the monthly series
+ *   expenses   PAID only — the total, the monthly series and the category pie
  *   invoices   issued only, for invoiced and collected
  *
  * The invoice line used to read "every status, drafts included", preserved
@@ -60,8 +60,10 @@ import { ISSUED_INVOICE_STATUSES } from '@/lib/invoice-status';
  * its whole job is to show how many invoices are sitting in draft, and
  * filtering them out would empty the slice that matters most.
  *
- * The expense-category pie keeps its own pre-existing behaviour of counting
- * every expense regardless of status; see the note at that query.
+ * The expense-category pie used to count every status, so its slices added up
+ * to more than the total printed above them. It now counts PAID like everything
+ * else on the page. What is recorded but unpaid is fetched separately and shown
+ * as a note beside the pie rather than mixed into it — see that query.
  */
 export async function GET(request: Request) {
   try {
@@ -80,6 +82,7 @@ export async function GET(request: Request) {
       incomeSums,
       expenseSums,
       categorySums,
+      unpaidSums,
       invoiceSums,
       invoiceStatuses,
       invoiceCount,
@@ -106,14 +109,24 @@ export async function GET(request: Request) {
         _sum: { amount: true },
       }),
 
-      // The category pie counts expenses of every status, which is what it
-      // counted when the page reduced the raw list in the browser. That makes
-      // it disagree with the PAID-only "Total Expenses" card — a pre-existing
-      // inconsistency, preserved here rather than silently redefined, since
-      // changing it would move a number this task is not meant to move.
+      // The category pie: PAID, the same money the "Total Expenses" card counts
+      // and the same window. The two therefore reconcile exactly — the slices
+      // for a currency sum to that currency's total, which is the property a
+      // reader will check by eye.
       prisma.expenseTransaction.groupBy({
         by: ['currency', 'category'],
-        where: { companyId, ...dateFilter },
+        where: { companyId, status: 'PAID', ...dateFilter },
+        _sum: { amount: true },
+      }),
+
+      // Recorded but unpaid, for the note beside the pie. Filtering the pie to
+      // PAID is right for a page that reports what happened, but on its own it
+      // would leave a company that records bills ahead of paying them unable to
+      // see them here at all. This names the amount without adding it to
+      // anything.
+      prisma.expenseTransaction.groupBy({
+        by: ['currency'],
+        where: { companyId, status: 'UNPAID', ...dateFilter },
         _sum: { amount: true },
       }),
 
@@ -156,6 +169,10 @@ export async function GET(request: Request) {
       expenseCategories: categorySums.map((row) => ({
         currency: row.currency,
         category: row.category,
+        amount: row._sum.amount,
+      })),
+      unpaidExpenses: unpaidSums.map((row) => ({
+        currency: row.currency,
         amount: row._sum.amount,
       })),
       invoices: invoiceSums.map((row) => ({

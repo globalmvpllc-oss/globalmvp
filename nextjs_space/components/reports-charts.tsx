@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { useI18n } from '@/components/i18n-provider';
+import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import type { ReportsPayload } from '@/lib/reports-aggregate';
 
@@ -28,6 +29,17 @@ const COLORS = ['#60B5FF', '#FF9149', '#FF9898', '#FF90BB', '#FF6363', '#80D8C3'
  *     grouped per currency, like every other total on the page, and drawn once
  *     per currency exactly as the bar chart already was.
  *
+ * ## What the expense pie counts
+ *
+ * PAID expenses, the same money the "Total Expenses" card counts, so the slices
+ * for a currency sum to that currency's total. It used to count every status,
+ * which let a reader add the slices up, compare them with the total above, and
+ * find a gap with nothing to explain it.
+ *
+ * Recorded-but-unpaid spending is named underneath instead of being mixed in —
+ * one figure, clearly not part of the pie, pointing at the expenses screen
+ * where paid and unpaid are managed side by side.
+ *
  * ## Slice labels
  *
  * The two pies are labelled from values the database stores: an invoice status
@@ -37,7 +49,7 @@ const COLORS = ['#60B5FF', '#FF9149', '#FF9898', '#FF90BB', '#FF6363', '#80D8C3'
  * here writes a label back.
  */
 export default function ReportsCharts({ report }: { report: ReportsPayload | null }) {
-  const { t, category } = useI18n();
+  const { t, category, fill } = useI18n();
   const currencies = report?.currencies ?? [];
   const multiCurrency = currencies.length > 1;
   const statusPie = (report?.invoiceStatusCounts ?? []).map((slice) => ({
@@ -85,6 +97,15 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
           ...slice,
           name: category(slice.name),
         }));
+        const unpaid = Number(report?.byCurrency?.[cur]?.unpaidExpenses ?? '0');
+        const unpaidNote =
+          unpaid > 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {fill('reports.unpaidNotShown', {
+                amount: formatCurrency(unpaid, cur),
+              })}
+            </p>
+          ) : null;
         return (
           <Card key={cur}>
             <CardHeader>
@@ -94,7 +115,14 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
             </CardHeader>
             <CardContent>
               {pieData.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
+                <>
+                  {/* "No expenses yet" would be untrue for a company that has
+                      recorded bills and not paid them; say which it is. */}
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    {unpaid > 0 ? t('reports.noPaidExpenses') : t('reports.noExpenses')}
+                  </p>
+                  {unpaidNote}
+                </>
               ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -107,6 +135,8 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
                   </ResponsiveContainer>
                 </div>
               )}
+              {/* Outside the fixed-height chart box, which would clip it. */}
+              {pieData.length > 0 ? unpaidNote : null}
             </CardContent>
           </Card>
         );
