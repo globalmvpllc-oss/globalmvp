@@ -120,6 +120,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Providers>
           </I18nProvider>
         </ThemeProvider>
+        <Script
+          src="https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
