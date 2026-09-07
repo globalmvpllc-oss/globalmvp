@@ -9,12 +9,28 @@ export const LOCALES = ['en', 'tr'] as const;
 export type Locale = (typeof LOCALES)[number];
 
 /**
- * English is the default, always.
+ * English is the fallback, and the answer whenever nothing better is known.
  *
- * Deliberately not derived from `Accept-Language` or `navigator.language`: a
- * Turkish-locale browser must still open the application in English until the
- * user chooses otherwise. Locale detection would also make the first server
- * render depend on a request header, which is how hydration mismatches start.
+ * This used to read "English is the default, always", and refused to look at
+ * `Accept-Language` at all. That was right while every visitor was a signed-in
+ * user with a settled preference, and wrong once acquisition traffic arrived:
+ * someone clicking a Turkish advert has chosen nothing, and answering them in
+ * English costs the click twice over.
+ *
+ * The rule now, in `lib/i18n/detect.ts`:
+ *
+ *   detection runs **only** when the NEXT_LOCALE cookie is absent.
+ *
+ * Once a value exists — set by the switcher, or written by that first
+ * detection — the cookie decides and nothing is detected again. The old
+ * guarantee therefore still holds where it mattered: a user who has chosen
+ * English keeps English on a Turkish browser in Turkey, for good.
+ *
+ * The hydration half of the old note is still a live constraint, not a stale
+ * one, and is honoured rather than dropped. The decision never reaches the
+ * renderer as a header: middleware writes it into the request's cookie header
+ * before the page renders, so the server render and the first client render
+ * both read one value from one place — see `withLocaleCookie`.
  */
 export const DEFAULT_LOCALE: Locale = 'en';
 
@@ -31,11 +47,21 @@ export const LOCALE_LABELS: Record<Locale, string> = {
 
 const DICTIONARIES: Record<Locale, Dictionary> = { en, tr };
 
+/**
+ * Whether a value is one of the locales this application ships.
+ *
+ * Distinct from `resolveLocale` on purpose: this answers "is it supported?",
+ * where `resolveLocale` answers "what should I use?". Detection needs the
+ * first, because an unrecognised cookie has to fall through to the next signal
+ * rather than resolve to English and stop there.
+ */
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === 'string' && (LOCALES as readonly string[]).includes(value);
+}
+
 /** Narrows an arbitrary value to a supported locale, falling back to English. */
 export function resolveLocale(value: unknown): Locale {
-  return typeof value === 'string' && (LOCALES as readonly string[]).includes(value)
-    ? (value as Locale)
-    : DEFAULT_LOCALE;
+  return isLocale(value) ? value : DEFAULT_LOCALE;
 }
 
 /**
