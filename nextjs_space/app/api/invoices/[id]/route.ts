@@ -21,7 +21,27 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     const invoice = await prisma.invoice.findFirst({
       where: { id: params.id, companyId },
-      include: { items: true, customer: true, payments: true },
+      include: {
+        items: true,
+        customer: true,
+        payments: true,
+        // A cheque received against this invoice explains why it is still
+        // unpaid. Without it the page shows an unsettled invoice with no
+        // account of the instrument sitting one table away.
+        chequeInstruments: {
+          select: {
+            id: true,
+            instrument: true,
+            status: true,
+            amount: true,
+            currency: true,
+            dueDate: true,
+            chequeNumber: true,
+            bankName: true,
+          },
+          orderBy: { dueDate: 'asc' },
+        },
+      },
     });
     if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(invoice);

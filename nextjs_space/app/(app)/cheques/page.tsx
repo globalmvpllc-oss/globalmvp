@@ -29,7 +29,7 @@ import {
   CHEQUE_INSTRUMENTS,
   CHEQUE_INSTRUMENT_LABEL_KEYS,
   getChequeStatusBadge,
-  isTerminal,
+  isSettled,
   nextStatuses,
   statusesForDirection,
   type ChequeStatus,
@@ -96,8 +96,40 @@ export default function ChequesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
 
+  /**
+   * The invoices or expenses this cheque could settle.
+   *
+   * Refetched whenever the choice changes, because the answer depends on all
+   * of it: direction decides invoices or expenses, currency because the
+   * settling path refuses a mismatch, and the party because a cheque from one
+   * customer settling another customer's invoice is almost always a mistake.
+   */
+  const [linkable, setLinkable] = useState<any[]>([]);
+
   const update = (key: keyof ChequeForm, value: string) =>
-    setForm((prev: ChequeForm) => ({ ...prev, [key]: value }));
+    setForm((prev: ChequeForm) => {
+      const next = { ...prev, [key]: value };
+
+      /**
+       * A link that no longer applies is cleared, never left behind.
+       *
+       * A received cheque cannot carry an expenseId, and an invoice chosen for
+       * one customer is not the right invoice once the customer, currency or
+       * direction changes. Leaving a stale id would send the server a link the
+       * user can no longer see.
+       */
+      if (key === 'direction') {
+        next.invoiceId = '';
+        next.expenseId = '';
+        if (value === 'RECEIVED') next.vendorId = '';
+        else next.customerId = '';
+      }
+      if (key === 'currency' || key === 'customerId' || key === 'vendorId') {
+        next.invoiceId = '';
+        next.expenseId = '';
+      }
+      return next;
+    });
 
   const fetchAll = useCallback(async () => {
     try {
@@ -145,6 +177,26 @@ export default function ChequesPage() {
       .catch(() => {});
   }, []);
 
+  // Loaded only while the dialog is open: a picker nobody is looking at is a
+  // request nobody needs.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+
+    const query = new URLSearchParams({ direction: form.direction, currency: form.currency });
+    if (form.direction === 'RECEIVED' && form.customerId) query.set('customerId', form.customerId);
+    if (form.direction === 'ISSUED' && form.vendorId) query.set('vendorId', form.vendorId);
+
+    fetch(`/api/cheques/linkable?${query}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (active) setLinkable(Array.isArray(d) ? d : []); })
+      // A picker that fails to load must not stop somebody recording a cheque;
+      // the link is optional by design.
+      .catch(() => { if (active) setLinkable([]); });
+
+    return () => { active = false; };
+  }, [open, form.direction, form.currency, form.customerId, form.vendorId]);
+
   const openCreate = () => {
     setEditingId(null);
     setForm({ ...EMPTY_FORM, issueDate: todayCalendarInput(), dueDate: todayCalendarInput() });
@@ -173,6 +225,30 @@ export default function ChequesPage() {
     setOpen(true);
   };
 
+  /**
+   * A note when the cheque does not match what the document owes.
+   *
+   * Deliberately a warning rather than a block. A customer paying a round
+   * number against an odd balance, or one cheque covering part of a large
+   * invoice, are both ordinary; refusing them would be wrong. Saying nothing at
+   * all is what turns into a support question three weeks later.
+   */
+  const selectedDoc = linkable.find(
+    (doc: any) => doc?.id === (form.direction === 'RECEIVED' ? form.invoiceId : form.expenseId)
+  );
+  const mismatch = (() => {
+    if (!selectedDoc || !form.amount) return null;
+    const amount = Number(form.amount);
+    const outstanding = Number(selectedDoc.outstanding);
+    if (!Number.isFinite(amount) || !Number.isFinite(outstanding) || amount === outstanding) {
+      return null;
+    }
+    return fill(amount > outstanding ? 'cheques.amountOver' : 'cheques.amountUnder', {
+      amount: formatCurrency(amount, form.currency),
+      outstanding: formatCurrency(outstanding, form.currency),
+    });
+  })();
+
   const handleSave = async () => {
     if (!form.amount || Number(form.amount) <= 0) {
       toast.error(t('cheques.amountRequired'));
@@ -196,8 +272,15 @@ export default function ChequesPage() {
       for (const key of ['bankName', 'chequeNumber', 'drawerName', 'notes'] as const) {
         if (form[key]) payload[key] = form[key];
       }
-      if (form.direction === 'RECEIVED' && form.customerId) payload.customerId = form.customerId;
-      if (form.direction === 'ISSUED' && form.vendorId) payload.vendorId = form.vendorId;
+      // Only the link that matches the direction is ever sent. The server
+      // checks it against this company before storing it either way.
+      if (form.direction === 'RECEIVED') {
+        if (form.customerId) payload.customerId = form.customerId;
+        if (form.invoiceId) payload.invoiceId = form.invoiceId;
+      } else {
+        if (form.vendorId) payload.vendorId = form.vendorId;
+        if (form.expenseId) payload.expenseId = form.expenseId;
+      }
 
       const res = await fetch(editingId ? `/api/cheques/${editingId}` : '/api/cheques', {
         method: editingId ? 'PUT' : 'POST',
@@ -484,7 +567,7 @@ export default function ChequesPage() {
                               {t(getChequeStatusBadge(next).labelKey)}
                             </DropdownMenuItem>
                           ))}
-                          {!isTerminal(row?.status) ? (
+                          {!isSettled(row?.status) ? (
                             <DropdownMenuItem onClick={() => openEdit(row)}>
                               <Pencil className="mr-2 h-4 w-4" /> {t('common.edit')}
                             </DropdownMenuItem>
@@ -649,6 +732,48 @@ export default function ChequesPage() {
                 </Select>
               </div>
             )}
+
+            {/* Which document this settles. Optional in both directions: a
+                cheque paying down a balance rather than one invoice is
+                legitimate and must stay possible. */}
+            <div className="space-y-1">
+              <Label>
+                {form.direction === 'RECEIVED' ? t('cheques.linkedInvoice') : t('cheques.linkedExpense')}
+              </Label>
+              <Select
+                value={(form.direction === 'RECEIVED' ? form.invoiceId : form.expenseId) || NONE}
+                onValueChange={(v: string) =>
+                  update(form.direction === 'RECEIVED' ? 'invoiceId' : 'expenseId', v === NONE ? '' : v)
+                }
+              >
+                <SelectTrigger><SelectValue placeholder={t('cheques.linkNone')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>{t('cheques.linkNone')}</SelectItem>
+                  {linkable.map((doc: any) => (
+                    <SelectItem key={doc?.id} value={doc?.id ?? ''}>
+                      {/* Enough to tell two documents apart: what it is, when
+                          it is due, and how much of it is still owed. */}
+                      {doc?.label}
+                      {doc?.party ? ` · ${doc.party}` : ''}
+                      {' · '}
+                      {doc?.date ? formatCalendarDate(doc.date, 'MMM d, yyyy', intl) : ''}
+                      {' · '}
+                      {fill('cheques.outstandingOf', {
+                        outstanding: formatCurrency(doc?.outstanding ?? 0, doc?.currency ?? form.currency),
+                        total: formatCurrency(doc?.total ?? 0, doc?.currency ?? form.currency),
+                      })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {linkable.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t('cheques.noLinkable')}</p>
+              ) : null}
+              {/* Warned, never blocked: over- and under-payment are both real. */}
+              {mismatch ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">{mismatch}</p>
+              ) : null}
+            </div>
 
             <div className="space-y-1">
               <Label>{t('common.notes')}</Label>

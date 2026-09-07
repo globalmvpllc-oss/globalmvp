@@ -23,6 +23,7 @@ import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 import { formatCalendarDate, toCalendarInput } from '@/lib/calendar-date';
 import { useI18n } from '@/components/i18n-provider';
+import { getChequeStatusBadge } from '@/lib/cheque-status';
 
 export default function ExpensesPage() {
   const { t, fill, locale, intl, category: categoryLabel } = useI18n();
@@ -357,6 +358,26 @@ export default function ExpensesPage() {
                     </DropdownMenu>
                   </div>
                 </div>
+
+                {/* An issued cheque explains why this is still unpaid. One line
+                    rather than a panel: the cheque screen is where they are
+                    managed, this is only the account of where it went. */}
+                {(row?.chequeInstruments?.length ?? 0) > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{t('cheques.onExpense')}:</span>
+                    {(row?.chequeInstruments ?? []).map((chq: any) => (
+                      <span key={chq?.id} className="inline-flex items-center gap-1">
+                        {chq?.chequeNumber ? `${chq.chequeNumber} · ` : ''}
+                        {fill('cheques.dueOn', {
+                          date: chq?.dueDate ? formatCalendarDate(chq.dueDate, 'MMM d', intl) : '',
+                        })}
+                        <Badge className={getChequeStatusBadge(chq?.status).color}>
+                          {t(getChequeStatusBadge(chq?.status).labelKey)}
+                        </Badge>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

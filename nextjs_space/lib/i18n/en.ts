@@ -1373,6 +1373,16 @@ export const en = {
   'cheques.linkedInvoice': 'Settles invoice',
   'cheques.linkedExpense': 'Settles expense',
   'cheques.linkNone': 'Not linked to a document',
+  'cheques.outstandingOf': '{outstanding} of {total} outstanding',
+  'cheques.noLinkable':
+    'Nothing open in this currency to settle. The cheque can still be recorded without one.',
+  'cheques.amountOver':
+    'This is {amount} against {outstanding} still owed. The extra will not be applied when it clears.',
+  'cheques.amountUnder':
+    'This is {amount} against {outstanding} still owed, so the document will remain partly unpaid.',
+  'cheques.onInvoice': 'Cheques and notes received',
+  'cheques.onExpense': 'Cheque issued',
+  'cheques.dueOn': 'due {date}',
   'cheques.customer': 'From customer',
   'cheques.vendor': 'To supplier',
   'cheques.calendarReceived': 'Cheque due — {name}',

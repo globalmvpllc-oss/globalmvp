@@ -1334,6 +1334,16 @@ export const tr: Dictionary = {
   'cheques.linkedInvoice': 'Kapattığı fatura',
   'cheques.linkedExpense': 'Kapattığı gider',
   'cheques.linkNone': 'Bir belgeye bağlı değil',
+  'cheques.outstandingOf': '{total} tutarın {outstanding} kısmı açık',
+  'cheques.noLinkable':
+    'Bu para biriminde kapatılacak açık bir belge yok. Çek yine de belgesiz kaydedilebilir.',
+  'cheques.amountOver':
+    'Tutar {amount}, kalan borç {outstanding}. Aradaki fark tahsil edildiğinde işlenmeyecek.',
+  'cheques.amountUnder':
+    'Tutar {amount}, kalan borç {outstanding}; belge kısmen açık kalmaya devam edecek.',
+  'cheques.onInvoice': 'Alınan çek ve senetler',
+  'cheques.onExpense': 'Verilen çek',
+  'cheques.dueOn': 'vade {date}',
   'cheques.customer': 'Müşteriden',
   'cheques.vendor': 'Tedarikçiye',
   'cheques.calendarReceived': 'Çek vadesi — {name}',

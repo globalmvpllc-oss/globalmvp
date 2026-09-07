@@ -41,6 +41,13 @@ import { computePaymentSummary } from '@/lib/payment-math';
  * cleared, and the business has the cash, but the product has no document to
  * post it against. Recording the income separately is the existing answer.
  *
+ * ## Bouncing after clearing
+ *
+ * A cheque marked cleared can still be returned by the bank, so CLEARED and
+ * PAID both allow a move to BOUNCED. That move deletes the Payment the clear
+ * created and re-derives the document, leaving it exactly as it was before —
+ * the reverse of settling, through the same mechanism.
+ *
  * ## Concurrency
  *
  * Serializable, like the payment routes and for the same reason: the status is
@@ -101,6 +108,44 @@ export async function PATCH(request: Request, { params }: { params: { id: string
             paymentDate: parseCalendarDate(data.paymentDate) ?? parseCalendarDate(now)!,
             paymentMethod: data.paymentMethod ?? company?.defaultPaymentMethod ?? 'bank_transfer',
           });
+        }
+
+        /**
+         * A bounce undoes whatever the clear did.
+         *
+         * This is the whole point of the state. A cheque marked cleared on its
+         * due date and returned by the bank a week later must leave the invoice
+         * exactly as it was before the clear — same amount owed, same status —
+         * and must not leave a Payment row behind claiming money that never
+         * arrived. Without this the application tells the user they have been
+         * paid when the bank sent the cheque back.
+         *
+         * The payment is deleted and the document re-derived, which is
+         * precisely what `DELETE /api/payments/[id]` does: one way to remove a
+         * payment, not two. `recalculateInvoicePaymentState` then recomputes
+         * amountPaid from the payment rows that remain and derives the status
+         * from that, so a part-paid invoice returns to PARTIALLY_PAID and a
+         * fully unpaid one returns to SENT.
+         *
+         * `paymentId` is cleared in the same statement, so the instrument never
+         * points at a row that no longer exists.
+         */
+        if (data.status === 'BOUNCED' && cheque.paymentId) {
+          const payment = await tx.payment.findFirst({
+            where: { id: cheque.paymentId, companyId },
+            select: { id: true, invoiceId: true, expenseId: true },
+          });
+
+          if (payment) {
+            // Scoped by companyId as well as id: the read and the delete are
+            // separate statements, and a row that changed hands between them
+            // still must not be removed.
+            await tx.payment.deleteMany({ where: { id: payment.id, companyId } });
+            if (payment.invoiceId) await recalculateInvoicePaymentState(payment.invoiceId, tx);
+            if (payment.expenseId) await recalculateExpensePaymentState(payment.expenseId, tx);
+          }
+
+          paymentId = null;
         }
 
         await tx.chequeInstrument.update({

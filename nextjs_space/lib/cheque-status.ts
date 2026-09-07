@@ -4,9 +4,9 @@ import type { TranslationKey } from '@/lib/i18n';
  * The lifecycle of a cheque or promissory note.
  *
  * Modelled the way `lib/invoice-status.ts` models an invoice: an explicit
- * transition table, terminal states, and a `canTransition` guard — so an
- * invalid jump is refused by the model rather than by whoever happened to write
- * the screen.
+ * transition table, final states, and a `canTransition` guard — so an invalid
+ * jump is refused by the model rather than by whoever happened to write the
+ * screen.
  *
  * ## Two directions, two lifecycles
  *
@@ -23,6 +23,26 @@ import type { TranslationKey } from '@/lib/i18n';
  * BOUNCED (karşılıksız) is a first-class state in both, not a flag. It is the
  * case that actually costs a business money, and recording it must be a normal
  * action rather than an edit of a field.
+ *
+ * ## Settled is not the same as final
+ *
+ * Two ideas that were one, and had to be separated.
+ *
+ * `SETTLED_STATUSES` is "no longer live": the instrument has left the drawer,
+ * so it stops counting towards what is held. CLEARED, PAID, BOUNCED, CANCELLED.
+ *
+ * `FINAL_STATUSES` is "can never change again": BOUNCED and CANCELLED only.
+ *
+ * CLEARED used to be both, and that was wrong. A business marks a cheque
+ * cleared on its due date and the bank returns it days later — that *is* the
+ * karşılıksız case, and refusing the transition forced the user to delete the
+ * instrument and its payment by hand, losing the record of the bounce, which is
+ * the one thing they most need to keep. CLEARED and PAID may now move to
+ * BOUNCED, and the route reverses the payment when they do.
+ *
+ * They remain settled throughout, so no total counts a cleared cheque as held,
+ * and neither can be edited: the amount of a cheque that has already produced a
+ * payment is history.
  *
  * ## What a state means for money
  *
@@ -50,15 +70,15 @@ export const CHEQUE_STATUSES = [
   'PORTFOLIO',
   /** Received, handed to the bank, outcome not yet known. */
   'PRESENTED',
-  /** Received, the money arrived. Terminal. */
+  /** Received, the money arrived. Settled — but a bank can still return it. */
   'CLEARED',
   /** Issued, written and not yet honoured. */
   'OUTSTANDING',
-  /** Issued, the money left. Terminal. */
+  /** Issued, the money left. Settled — but a bank can still return it. */
   'PAID',
-  /** Either direction: karşılıksız. Terminal. */
+  /** Either direction: karşılıksız. Final. */
   'BOUNCED',
-  /** Either direction: withdrawn before it settled. Terminal. */
+  /** Either direction: withdrawn before it settled. Final. */
   'CANCELLED',
 ] as const;
 export type ChequeStatus = (typeof CHEQUE_STATUSES)[number];
@@ -72,15 +92,15 @@ export const INITIAL_STATUS: Record<ChequeDirection, ChequeStatus> = {
 /**
  * The transition table, per direction.
  *
- * An empty array is a terminal state. Read down the column to see the whole
+ * An empty array is a final state. Read down the column to see the whole
  * lifecycle:
  *
- *   RECEIVED   PORTFOLIO -> PRESENTED -> CLEARED
+ *   RECEIVED   PORTFOLIO -> PRESENTED -> CLEARED -> BOUNCED
  *                                     -> BOUNCED
  *              PORTFOLIO -> BOUNCED      (presented by someone else, returned)
  *              PORTFOLIO -> CANCELLED
  *
- *   ISSUED     OUTSTANDING -> PAID
+ *   ISSUED     OUTSTANDING -> PAID -> BOUNCED
  *                          -> BOUNCED
  *                          -> CANCELLED
  *
@@ -93,7 +113,10 @@ const ALLOWED_TRANSITIONS: Record<ChequeDirection, Record<string, ChequeStatus[]
   RECEIVED: {
     PORTFOLIO: ['PRESENTED', 'BOUNCED', 'CANCELLED'],
     PRESENTED: ['CLEARED', 'BOUNCED'],
-    CLEARED: [],
+    // A cleared cheque can still come back: see "Settled is not the same as
+    // final" above. The route deletes the payment the clear created and
+    // re-derives the invoice, so the document returns to what it owed.
+    CLEARED: ['BOUNCED'],
     BOUNCED: [],
     CANCELLED: [],
     // Not reachable for this direction; listed so a mis-set row is inert
@@ -103,7 +126,8 @@ const ALLOWED_TRANSITIONS: Record<ChequeDirection, Record<string, ChequeStatus[]
   },
   ISSUED: {
     OUTSTANDING: ['PAID', 'BOUNCED', 'CANCELLED'],
-    PAID: [],
+    // Symmetric: our own cheque was marked paid and the bank returned it.
+    PAID: ['BOUNCED'],
     BOUNCED: [],
     CANCELLED: [],
     PORTFOLIO: [],
@@ -111,11 +135,22 @@ const ALLOWED_TRANSITIONS: Record<ChequeDirection, Record<string, ChequeStatus[]
   },
 };
 
-/** Statuses an instrument can never leave. */
-export const TERMINAL_STATUSES = ['CLEARED', 'PAID', 'BOUNCED', 'CANCELLED'] as const;
+/**
+ * Statuses in which an instrument is no longer live.
+ *
+ * What "held in portfolio" excludes, and what freezes a record against editing:
+ * the amount of a cheque that has already produced a payment is history.
+ * A settled instrument is not necessarily finished — see FINAL_STATUSES.
+ */
+export const SETTLED_STATUSES = ['CLEARED', 'PAID', 'BOUNCED', 'CANCELLED'] as const;
+
+/** Statuses an instrument can never leave, whatever happens next. */
+export const FINAL_STATUSES = ['BOUNCED', 'CANCELLED'] as const;
 
 /**
  * The two statuses that mean money actually moved.
+ *
+ * Reaching one creates a Payment; leaving one for BOUNCED deletes it again.
  *
  * These are the only points in either lifecycle at which any figure in the
  * product changes, and even then the instrument does not change it: reaching
@@ -137,9 +172,14 @@ export function isChequeStatus(value: unknown): value is ChequeStatus {
   return typeof value === 'string' && (CHEQUE_STATUSES as readonly string[]).includes(value);
 }
 
-/** True when a status can never be left. */
-export function isTerminal(status: unknown): boolean {
-  return typeof status === 'string' && (TERMINAL_STATUSES as readonly string[]).includes(status);
+/** True when an instrument has left the drawer — settled, bounced or cancelled. */
+export function isSettled(status: unknown): boolean {
+  return typeof status === 'string' && (SETTLED_STATUSES as readonly string[]).includes(status);
+}
+
+/** True when no further transition is possible from here. */
+export function isFinal(status: unknown): boolean {
+  return typeof status === 'string' && (FINAL_STATUSES as readonly string[]).includes(status);
 }
 
 /** True when reaching this status means money moved. */
@@ -195,10 +235,11 @@ export function statusesForDirection(direction: unknown): ChequeStatus[] {
  * Whether an instrument is still live — neither settled nor written off.
  *
  * This is what "held in portfolio" means for the totals: PORTFOLIO and
- * PRESENTED for a received instrument, OUTSTANDING for an issued one.
+ * PRESENTED for a received instrument, OUTSTANDING for an issued one. A cleared
+ * cheque is not held even though it can still bounce.
  */
 export function isOpen(status: unknown): boolean {
-  return isChequeStatus(status) && !isTerminal(status);
+  return isChequeStatus(status) && !isSettled(status);
 }
 
 /** Display labels. The stored value is never translated; only these are. */

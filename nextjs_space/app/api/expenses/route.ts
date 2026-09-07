@@ -43,7 +43,22 @@ export async function GET(request: Request) {
             ],
           }
         : { companyId },
-      include: { vendor: { select: { name: true } } },
+      include: {
+        vendor: { select: { name: true } },
+        // An issued cheque explains why an expense is still unpaid.
+        chequeInstruments: {
+          select: {
+            id: true,
+            instrument: true,
+            status: true,
+            amount: true,
+            currency: true,
+            dueDate: true,
+            chequeNumber: true,
+          },
+          orderBy: { dueDate: 'asc' },
+        },
+      },
       orderBy: { date: 'desc' },
       // One extra row is fetched purely to detect truncation.
       take: (range ? RANGE_MAX : take) + 1,

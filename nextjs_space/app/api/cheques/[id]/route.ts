@@ -6,7 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { chequeUpdateSchema, validateBody } from '@/lib/validation';
 import { parseCalendarDate } from '@/lib/calendar-date';
-import { isTerminal } from '@/lib/cheque-status';
+import { isSettled } from '@/lib/cheque-status';
 import { verifyLinks } from '../route';
 
 /**
@@ -61,9 +61,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
      * Editing the amount of a cleared cheque would leave the Payment it
      * produced disagreeing with it, and editing a bounced one would rewrite the
      * evidence of the bounce. Both are corrections that belong in a new row, so
-     * the whole record is frozen once it reaches a terminal state.
+     * the whole record is frozen once it settles — including a cleared one,
+     * which can still move to BOUNCED but must not have its figures rewritten
+     * underneath the payment it created.
      */
-    if (isTerminal(existing.status)) {
+    if (isSettled(existing.status)) {
       return NextResponse.json(
         {
           error: `This instrument is ${existing.status.toLowerCase()} and can no longer be edited. Record a new one instead.`,

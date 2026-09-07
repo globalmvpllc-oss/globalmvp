@@ -4,16 +4,18 @@ import {
   CHEQUE_STATUSES,
   CHEQUE_STATUS_LABEL_KEYS,
   INITIAL_STATUS,
+  SETTLED_STATUSES,
   SETTLING_STATUSES,
-  TERMINAL_STATUSES,
+  FINAL_STATUSES,
   canTransition,
   getChequeStatusBadge,
   isChequeDirection,
   isChequeInstrument,
   isChequeStatus,
+  isFinal,
   isOpen,
+  isSettled,
   isSettling,
-  isTerminal,
   nextStatuses,
   statusesForDirection,
   type ChequeStatus,
@@ -40,8 +42,14 @@ describe('the shape of the lifecycle', () => {
     expect(INITIAL_STATUS.ISSUED).toBe('OUTSTANDING');
   });
 
-  it('names four terminal states', () => {
-    expect([...TERMINAL_STATUSES].sort()).toEqual(['BOUNCED', 'CANCELLED', 'CLEARED', 'PAID']);
+  it('separates settled from final', () => {
+    // Settled is "no longer in the drawer"; final is "can never change again".
+    // CLEARED is the first without being the second: a bank can still return a
+    // cheque the business has already marked cleared.
+    expect([...SETTLED_STATUSES].sort()).toEqual(['BOUNCED', 'CANCELLED', 'CLEARED', 'PAID']);
+    expect([...FINAL_STATUSES].sort()).toEqual(['BOUNCED', 'CANCELLED']);
+    expect(isSettled('CLEARED')).toBe(true);
+    expect(isFinal('CLEARED')).toBe(false);
   });
 
   it('treats exactly the two settling states as money', () => {
@@ -118,10 +126,10 @@ describe('an issued cheque', () => {
   });
 });
 
-describe('terminal states stay terminal', () => {
-  it('lets nothing leave a terminal state, in either direction', () => {
+describe('final states stay final', () => {
+  it('lets nothing leave a final state, in either direction', () => {
     for (const direction of CHEQUE_DIRECTIONS) {
-      for (const from of TERMINAL_STATUSES) {
+      for (const from of FINAL_STATUSES) {
         for (const to of CHEQUE_STATUSES) {
           expect(canTransition(direction, from, to), `${direction} ${from}->${to}`).toBe(false);
         }
@@ -131,15 +139,45 @@ describe('terminal states stay terminal', () => {
   });
 
   it('reports a bounced instrument as closed, not open', () => {
-    expect(isTerminal('BOUNCED')).toBe(true);
+    expect(isSettled('BOUNCED')).toBe(true);
+    expect(isFinal('BOUNCED')).toBe(true);
     expect(isOpen('BOUNCED')).toBe(false);
   });
 
   it('reports a live instrument as open', () => {
     for (const status of ['PORTFOLIO', 'PRESENTED', 'OUTSTANDING']) {
       expect(isOpen(status), status).toBe(true);
-      expect(isTerminal(status), status).toBe(false);
+      expect(isSettled(status), status).toBe(false);
     }
+  });
+});
+
+describe('a cleared cheque can still come back', () => {
+  it('allows the bounce that a returned cheque needs recording as', () => {
+    // The case this exists for: marked cleared on the due date, returned by the
+    // bank a week later. Refusing it forced the user to delete the instrument
+    // and its payment by hand, losing the record of the bounce.
+    expect(canTransition('RECEIVED', 'CLEARED', 'BOUNCED')).toBe(true);
+    expect(canTransition('ISSUED', 'PAID', 'BOUNCED')).toBe(true);
+  });
+
+  it('allows nothing else out of a settled state', () => {
+    for (const to of CHEQUE_STATUSES) {
+      if (to === 'BOUNCED') continue;
+      expect(canTransition('RECEIVED', 'CLEARED', to), `CLEARED->${to}`).toBe(false);
+      expect(canTransition('ISSUED', 'PAID', to), `PAID->${to}`).toBe(false);
+    }
+  });
+
+  it('never counts a cleared cheque as held, bounce-able or not', () => {
+    // The reversal must not leak into the portfolio totals: settled is settled.
+    expect(isOpen('CLEARED')).toBe(false);
+    expect(isOpen('PAID')).toBe(false);
+  });
+
+  it('offers exactly one move from a settled state', () => {
+    expect(nextStatuses('RECEIVED', 'CLEARED')).toEqual(['BOUNCED']);
+    expect(nextStatuses('ISSUED', 'PAID')).toEqual(['BOUNCED']);
   });
 });
 

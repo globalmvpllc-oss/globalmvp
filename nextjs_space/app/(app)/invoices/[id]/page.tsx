@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
 import { useI18n } from '@/components/i18n-provider';
+import { getChequeStatusBadge, CHEQUE_INSTRUMENT_LABEL_KEYS } from '@/lib/cheque-status';
 import { resolveStoredFileUrl } from '@/lib/company-identity';
 import { generateInvoiceHtml } from '@/lib/invoice-html';
 import { format } from 'date-fns';
@@ -422,6 +423,51 @@ export default function InvoiceDetailPage() {
       {/* Notes */}
       {invoice?.notes && (
         <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{t('common.notes')}</p><p className="text-sm mt-1">{invoice.notes}</p></CardContent></Card>
+      )}
+
+      {/* Cheques and notes received against this invoice.
+          Read-only: the cheque list is where they are managed. Shown above the
+          payment history because an instrument in the drawer is the reason a
+          payment is *not* there yet. */}
+      {(invoice?.chequeInstruments?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">{t('cheques.onInvoice')}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {(invoice?.chequeInstruments ?? []).map((chq: any) => {
+                const badge = getChequeStatusBadge(chq?.status);
+                return (
+                  <Link
+                    key={chq?.id}
+                    href="/cheques"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded bg-muted/50 px-3 py-2 hover:bg-muted"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {t(CHEQUE_INSTRUMENT_LABEL_KEYS[
+                          chq?.instrument === 'PROMISSORY_NOTE' ? 'PROMISSORY_NOTE' : 'CHEQUE'
+                        ])}
+                        {chq?.chequeNumber ? ` · ${chq.chequeNumber}` : ''}
+                        {chq?.bankName ? ` · ${chq.bankName}` : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {fill('cheques.dueOn', {
+                          date: chq?.dueDate ? formatCalendarDate(chq.dueDate, 'MMM d, yyyy', intl) : '',
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm">
+                        {formatCurrency(chq?.amount ?? 0, chq?.currency ?? invoice?.currency ?? 'USD')}
+                      </span>
+                      <Badge className={badge.color}>{t(badge.labelKey)}</Badge>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Payment history */}
