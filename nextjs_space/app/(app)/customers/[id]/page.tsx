@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, FileText, Mail, Phone, MapPin, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
+import { isIssuedInvoice } from '@/lib/invoice-status';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { readErrorMessage } from '@/lib/api-feedback';
@@ -142,8 +143,23 @@ export default function CustomerDetailPage() {
             <p className="text-sm text-muted-foreground text-center py-4">{t('reports.noInvoices')}</p>
           ) : (
             <div className="space-y-2">
+              {/* Said once, above the rows, rather than repeated on each one. */}
+              {(customer?.invoices ?? []).some((inv: any) => !isIssuedInvoice(inv?.status)) && (
+                <p className="pb-1 text-xs text-muted-foreground">{t('customers.notCountedNote')}</p>
+              )}
               {(customer?.invoices ?? []).map((inv: any) => {
                 const si = getStatusBadge(inv?.status ?? 'DRAFT');
+                /**
+                 * Whether this row is part of the figures above.
+                 *
+                 * Drafts and cancelled invoices stay in the list — finding a
+                 * draft and finishing it is what the list is for — but they are
+                 * not money owed, so their amount is dimmed rather than set in
+                 * the same weight as a real one. Without that, a reader adding
+                 * the column up by eye would not arrive at the Total Invoiced
+                 * card and would have no idea why.
+                 */
+                const counted = isIssuedInvoice(inv?.status);
                 return (
                   <Link key={inv?.id} href={`/invoices/${inv?.id}`} className="flex flex-wrap items-center justify-between gap-3 py-3 px-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -154,7 +170,12 @@ export default function CustomerDetailPage() {
                       </div>
                     </div>
                     <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
-                      <span className="font-mono text-sm">{formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}</span>
+                      <span
+                        className={`font-mono text-sm ${counted ? '' : 'text-muted-foreground/70 line-through decoration-1'}`}
+                        title={counted ? undefined : t('customers.notCounted')}
+                      >
+                        {formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}
+                      </span>
                       <Badge className={si?.color ?? ''}>{t(si.labelKey)}</Badge>
                     </div>
                   </Link>

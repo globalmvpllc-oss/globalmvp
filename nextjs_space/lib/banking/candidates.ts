@@ -2,6 +2,9 @@ import Decimal from 'decimal.js';
 import { prisma } from '@/lib/db';
 import type { BankDirection, MatchCandidate, MatchTargetType } from './types';
 import { MAX_DATE_DISTANCE_DAYS } from './matching';
+// Invoices that can still receive money. The same set the dashboard's
+// receivables use — one question, one definition.
+import { OPEN_INVOICE_STATUSES } from '@/lib/invoice-status';
 
 /**
  * Assembling the pool of records a bank line could belong to.
@@ -17,8 +20,7 @@ import { MAX_DATE_DISTANCE_DAYS } from './matching';
  * log.
  */
 
-/** Invoices that can still receive money. */
-const OPEN_INVOICE_STATUSES = ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'];
+
 
 /** Per-kind ceiling on rows pulled into the pool. The date and amount windows
  *  already make the result small; this bounds the pathological case. */
@@ -167,7 +169,7 @@ export async function loadCandidates(query: CandidateQuery): Promise<MatchCandid
       where: {
         companyId,
         currency: transaction.currency,
-        status: { in: OPEN_INVOICE_STATUSES },
+        status: { in: [...OPEN_INVOICE_STATUSES] },
         dueDate: window,
         ...unlinked,
       },

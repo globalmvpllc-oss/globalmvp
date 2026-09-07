@@ -496,9 +496,13 @@ export function AccountStatement({
  * Explains why the closing balance differs from the Outstanding card above.
  *
  * Silent when the two agree. When they do not, the cause is named rather than
- * left for someone to discover: this statement deliberately leaves off draft
- * and cancelled invoices (which Outstanding counts) and deliberately includes
- * amounts expected but never invoiced (which Outstanding does not).
+ * left for someone to discover: this statement includes amounts expected from
+ * the customer that were never invoiced, which Outstanding does not.
+ *
+ * It used to name a second cause — drafts, which Outstanding counted and the
+ * statement did not. That gap is gone: the card no longer counts unissued
+ * documents as money owed, so explaining a difference that can no longer arise
+ * would only send the reader looking for one.
  */
 function ReconciliationNote({
   reconciliation,
@@ -509,23 +513,15 @@ function ReconciliationNote({
 }) {
   const { t, fill } = useI18n();
 
-  const excluded = Number(reconciliation.excludedInvoices);
   const uninvoiced = Number(reconciliation.uninvoicedReceivables);
   const difference = Number(reconciliation.difference);
-  if (difference === 0 && excluded === 0 && uninvoiced === 0) return null;
+  if (difference === 0 && uninvoiced === 0) return null;
 
   return (
     <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
       <Info className="mt-0.5 h-4 w-4 shrink-0" />
       <div className="space-y-1">
         <p className="font-medium text-foreground">{t('statement.reconcileTitle')}</p>
-        {excluded !== 0 && (
-          <p>
-            {fill('statement.reconcileExcluded', {
-              amount: formatCurrency(reconciliation.excludedInvoices, currency),
-            })}
-          </p>
-        )}
         {uninvoiced !== 0 && (
           <p>
             {fill('statement.reconcileUninvoiced', {

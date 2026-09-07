@@ -9,8 +9,7 @@ import { buildStatement, STATEMENT_MAX_ROWS } from '@/lib/statement-ledger';
 import {
   customerMovements,
   reconcileStatement,
-  STATEMENT_INVOICE_STATUSES,
-  EXCLUDED_INVOICE_STATUSES,
+  ISSUED_INVOICE_STATUSES,
   STATEMENT_INCOME_STATUS,
   type Reconciliation,
 } from '@/lib/statement-sources';
@@ -38,13 +37,13 @@ import Decimal from 'decimal.js';
  *
  * ## Reconciliation with the customer page
  *
- * The detail page shows `outstanding` = SUM(total) - SUM(amountPaid) over
- * invoices of every status. This ledger deliberately omits DRAFT and CANCELLED
- * invoices and deliberately includes uninvoiced EXPECTED income, so the two
- * figures can differ. The difference is computed here from aggregates — not
- * from the row list, so it cannot be thrown off by truncation — and returned
- * per currency, so the screen can explain the gap instead of contradicting the
- * card above it.
+ * Both this ledger and the detail page's `outstanding` now cover exactly the
+ * issued invoices — the page used to sum every status, which reported unissued
+ * drafts as a receivable. What is left to explain is the uninvoiced EXPECTED
+ * income the ledger carries and the card does not. That difference is computed
+ * from aggregates rather than from the row list, so truncation cannot throw it
+ * off, and it is returned per currency so the screen can explain the gap
+ * instead of contradicting the card above it.
  */
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
@@ -74,18 +73,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
     });
     if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    const ledgerStatuses = [...STATEMENT_INVOICE_STATUSES];
-    const excludedStatuses = [...EXCLUDED_INVOICE_STATUSES];
+    const ledgerStatuses = [...ISSUED_INVOICE_STATUSES];
 
-    const [
-      company,
-      invoices,
-      payments,
-      income,
-      invoiceSums,
-      excludedSums,
-      expectedSums,
-    ] = await Promise.all([
+    const [company, invoices, payments, income, invoiceSums, expectedSums] = await Promise.all([
       prisma.company.findUnique({ where: { id: companyId }, select: { defaultCurrency: true } }),
 
       prisma.invoice.findMany({
@@ -141,14 +131,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
       // Aggregated by Postgres, so the reconciliation figures are never derived
       // from a truncated list even when the row queries above hit their cap.
+      // Scoped to the same statuses the ledger draws, so this is the very
+      // figure the card shows rather than a second definition of it.
       prisma.invoice.groupBy({
         by: ['currency'],
-        where: { companyId, customerId: customer.id },
-        _sum: { total: true, amountPaid: true },
-      }),
-      prisma.invoice.groupBy({
-        by: ['currency'],
-        where: { companyId, customerId: customer.id, status: { in: excludedStatuses } },
+        where: { companyId, customerId: customer.id, status: { in: ledgerStatuses } },
         _sum: { total: true, amountPaid: true },
       }),
       prisma.incomeTransaction.groupBy({
@@ -204,12 +191,6 @@ export async function GET(request: Request, { params }: { params: { id: string }
         value: net(row._sum.total, row._sum.amountPaid),
       }))
     );
-    const excluded = sumsByCurrency(
-      excludedSums.map((row) => ({
-        currency: row.currency,
-        value: net(row._sum.total, row._sum.amountPaid),
-      }))
-    );
     const expected = sumsByCurrency(
       expectedSums.map((row) => ({
         currency: row.currency,
@@ -218,12 +199,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
     );
 
     // Every currency that appears anywhere gets a reconciliation entry, so a
-    // currency present only as a draft invoice is still explained rather than
+    // currency present only as uninvoiced income is still explained rather than
     // silently absent.
     const currencies = new Set<string>([
       ...statement.currencies,
       ...outstanding.keys(),
-      ...excluded.keys(),
       ...expected.keys(),
     ]);
 
@@ -232,7 +212,6 @@ export async function GET(request: Request, { params }: { params: { id: string }
       reconciliation[currency] = reconcileStatement({
         outstanding: outstanding.get(currency) ?? new Decimal(0),
         statementBalance: statement.byCurrency[currency]?.accountBalance ?? '0.00',
-        excludedInvoices: excluded.get(currency) ?? new Decimal(0),
         uninvoicedReceivables: expected.get(currency) ?? new Decimal(0),
       });
     }

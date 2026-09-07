@@ -9,9 +9,9 @@ import {
   vendorMovements,
   outstandingByCurrency,
   reconcileStatement,
-  isStatementInvoice,
-  STATEMENT_INVOICE_STATUSES,
-  EXCLUDED_INVOICE_STATUSES,
+  isIssuedInvoice,
+  ISSUED_INVOICE_STATUSES,
+  UNISSUED_INVOICE_STATUSES,
   type LedgerInvoice,
 } from '@/lib/statement-sources';
 import { generateStatementHtml } from '@/lib/statement-html';
@@ -322,13 +322,13 @@ describe('customerMovements — what counts as a movement', () => {
   });
 
   it('covers every invoice status exactly once, on the ledger or off it', () => {
-    const covered = [...STATEMENT_INVOICE_STATUSES, ...EXCLUDED_INVOICE_STATUSES].sort();
+    const covered = [...ISSUED_INVOICE_STATUSES, ...UNISSUED_INVOICE_STATUSES].sort();
     expect(covered).toEqual([...INVOICE_STATUSES].sort());
   });
 
   it('keeps DRAFT and CANCELLED invoices off the statement', () => {
-    for (const status of EXCLUDED_INVOICE_STATUSES) {
-      expect(isStatementInvoice(status)).toBe(false);
+    for (const status of UNISSUED_INVOICE_STATUSES) {
+      expect(isIssuedInvoice(status)).toBe(false);
     }
     const movements = customerMovements({
       invoices: [
@@ -344,13 +344,13 @@ describe('customerMovements — what counts as a movement', () => {
 
   it('includes every issued status', () => {
     const movements = customerMovements({
-      invoices: STATEMENT_INVOICE_STATUSES.map((status, index) =>
+      invoices: ISSUED_INVOICE_STATUSES.map((status: string, index: number) =>
         invoice({ id: String(index), status })
       ),
       payments: [],
       income: [],
     });
-    expect(movements).toHaveLength(STATEMENT_INVOICE_STATUSES.length);
+    expect(movements).toHaveLength(ISSUED_INVOICE_STATUSES.length);
     expect(movements.every((m) => m.kind === 'invoice')).toBe(true);
   });
 
@@ -425,15 +425,38 @@ describe('customer statement reconciles with the customer page', () => {
     expect(outstanding).toEqual({ USD: '4000.00', EUR: '0.00' });
   });
 
-  it('explains the gap when drafts and uninvoiced income are in play', () => {
-    const withExtras: LedgerInvoice[] = [
+  it('agrees with the card even when the customer has drafts', () => {
+    // The assertion that stops the two drifting apart again: add an unissued
+    // invoice and *neither* figure may move.
+    const withDraft: LedgerInvoice[] = [
       ...invoices,
       { id: 'd', invoiceNumber: 'INV-4', status: 'DRAFT', currency: 'USD', total: '700.00', amountPaid: '0.00', issueDate: '2026-05-01' },
+      { id: 'e', invoiceNumber: 'INV-5', status: 'CANCELLED', currency: 'EUR', total: '400.00', amountPaid: '0.00', issueDate: '2026-05-02' },
     ];
     const statement = buildStatement({
       defaultCurrency: 'USD',
+      movements: customerMovements({ invoices: withDraft, payments, income: [] }),
+    });
+    const outstanding = outstandingByCurrency(withDraft, 'USD');
+
+    expect(outstanding).toEqual({ USD: '4000.00', EUR: '0.00' });
+    expect(statement.byCurrency.USD.accountBalance).toBe(outstanding.USD);
+    expect(statement.byCurrency.EUR.accountBalance).toBe(outstanding.EUR);
+
+    const reconciliation = reconcileStatement({
+      outstanding: outstanding.USD,
+      statementBalance: statement.byCurrency.USD.accountBalance,
+      uninvoicedReceivables: '0.00',
+    });
+    expect(reconciliation.difference).toBe('0.00');
+    expect(reconciliation.reconciles).toBe(true);
+  });
+
+  it('explains the gap that uninvoiced income still creates', () => {
+    const statement = buildStatement({
+      defaultCurrency: 'USD',
       movements: customerMovements({
-        invoices: withExtras,
+        invoices,
         payments,
         income: [
           { id: 'i1', description: 'Retainer', status: 'EXPECTED', currency: 'USD', amount: '150.00', date: '2026-05-02' },
@@ -441,26 +464,24 @@ describe('customer statement reconciles with the customer page', () => {
       }),
     });
 
-    const outstanding = outstandingByCurrency(withExtras, 'USD');
-    expect(outstanding.USD).toBe('4700.00');
+    const outstanding = outstandingByCurrency(invoices, 'USD');
+    expect(outstanding.USD).toBe('4000.00');
 
     const reconciliation = reconcileStatement({
       outstanding: outstanding.USD,
       statementBalance: statement.byCurrency.USD.accountBalance,
-      excludedInvoices: '700.00',
       uninvoicedReceivables: '150.00',
     });
 
     expect(reconciliation.statementBalance).toBe('4150.00');
-    expect(reconciliation.difference).toBe('-550.00');
+    expect(reconciliation.difference).toBe('150.00');
     expect(reconciliation.reconciles).toBe(true);
   });
 
-  it('flags a difference that drafts and uninvoiced income do not explain', () => {
+  it('flags a difference that uninvoiced income does not explain', () => {
     const reconciliation = reconcileStatement({
       outstanding: '1000.00',
       statementBalance: '400.00',
-      excludedInvoices: '0.00',
       uninvoicedReceivables: '0.00',
     });
     expect(reconciliation.reconciles).toBe(false);
@@ -471,7 +492,6 @@ describe('customer statement reconciles with the customer page', () => {
     const reconciliation = reconcileStatement({
       outstanding: null,
       statementBalance: null,
-      excludedInvoices: null,
       uninvoicedReceivables: null,
     });
     expect(reconciliation).toMatchObject({
@@ -485,10 +505,21 @@ describe('customer statement reconciles with the customer page', () => {
   it('groups outstanding per currency and never sums across them', () => {
     expect(
       outstandingByCurrency([
-        { currency: 'USD', total: '100.00', amountPaid: '0.00' },
-        { currency: 'EUR', total: '100.00', amountPaid: '0.00' },
+        { status: 'SENT', currency: 'USD', total: '100.00', amountPaid: '0.00' },
+        { status: 'SENT', currency: 'EUR', total: '100.00', amountPaid: '0.00' },
       ])
     ).toEqual({ USD: '100.00', EUR: '100.00' });
+  });
+
+  it('keeps a currency out of the totals entirely when its only invoice is a draft', () => {
+    // The production shape of the bug: every invoice in EUR was a draft, and
+    // the card reported EUR 24,992 owed.
+    expect(
+      outstandingByCurrency([
+        { status: 'SENT', currency: 'USD', total: '100.00', amountPaid: '0.00' },
+        { status: 'DRAFT', currency: 'EUR', total: '24992.00', amountPaid: '0.00' },
+      ])
+    ).toEqual({ USD: '100.00' });
   });
 });
 

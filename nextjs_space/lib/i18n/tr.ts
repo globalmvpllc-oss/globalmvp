@@ -710,12 +710,10 @@ export const tr: Dictionary = {
   'statement.kind.payment': 'Ödeme',
   'statement.kind.settlement': 'Ödendi işaretlendi',
   'statement.reconcileTitle': 'Kalan tutardan neden farklı',
-  'statement.reconcileExcluded':
-    'Taslak ve iptal edilmiş faturalar kalan tutara girer ama ekstrede hiç yer almaz: {amount}',
   'statement.reconcileUninvoiced':
     'Bu müşteriden beklenen ama hiç faturalanmamış tutarlar ekstrede yer alır, kalan tutarda yer almaz: {amount}',
   'statement.reconcileMismatch':
-    'Kalan tutar {outstanding} görünürken bu ekstre {balance} ile kapanıyor ve fark taslaklarla ya da faturasız tutarlarla açıklanmıyor. Bunun olağan nedeni, faturasının kesildiğinden farklı bir para biriminde kaydedilen ve bu yüzden o faturayı hiç kapatmayan bir ödemedir.',
+    'Kalan tutar {outstanding} görünürken bu ekstre {balance} ile kapanıyor ve fark faturasız tutarlarla açıklanmıyor. Bunun olağan nedeni, faturasının kesildiğinden farklı bir para biriminde kaydedilen ve bu yüzden o faturayı hiç kapatmayan bir ödemedir.',
   'statement.pdfNotConfigured':
     'PDF servisi yapılandırılmamış, dosyayı tarayıcınız üretecek.',
   'statement.pdfOpeningPrint': 'Bunun yerine yazdırma görünümü açılıyor.',
@@ -873,6 +871,9 @@ export const tr: Dictionary = {
   'customers.totalInvoiced': 'Toplam faturalanan',
   'customers.totalPaid': 'Toplam tahsilat',
   'customers.outstanding': 'Kalan bakiye',
+  'customers.notCounted': 'Yukarıdaki toplamlara dahil değil',
+  'customers.notCountedNote':
+    'Taslak ve iptal edilmiş faturalar burada görünür ama yukarıdaki toplamlara dahil edilmez — bunlar tahsil edilecek bir alacak değildir.',
   'customers.invoiceHistory': 'Fatura geçmişi',
 
   // --- Invoices -------------------------------------------------------------

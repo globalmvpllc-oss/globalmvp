@@ -6,6 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import Decimal from 'decimal.js';
 import { getMonthRange } from '@/lib/timezone';
+import { OPEN_INVOICE_STATUSES } from '@/lib/invoice-status';
 
 /**
  * Dashboard API — currency-safe aggregation.
@@ -66,9 +67,12 @@ export async function GET() {
         where: { companyId, status: 'PAID', date: { gte: startOfMonth, lt: startOfNextMonth } },
         _sum: { amount: true },
       }),
-      // Receivables by currency (outstanding invoices)
+      // Receivables by currency (outstanding invoices). The status list is
+      // shared, not written out again: it used to appear here, in the bank
+      // matcher and nowhere else that needed it, and the surfaces that
+      // forgot it reported drafts as money owed.
       prisma.invoice.findMany({
-        where: { companyId, status: { in: ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'] } },
+        where: { companyId, status: { in: [...OPEN_INVOICE_STATUSES] } },
         select: { total: true, amountPaid: true, currency: true },
       }),
       // Upcoming payments by currency (unpaid expenses)
@@ -81,7 +85,7 @@ export async function GET() {
       prisma.invoice.findMany({
         where: {
           companyId,
-          status: { in: ['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'] },
+          status: { in: [...OPEN_INVOICE_STATUSES] },
           dueDate: { lte: thirtyDaysOut },
         },
         include: { customer: { select: { name: true } } },

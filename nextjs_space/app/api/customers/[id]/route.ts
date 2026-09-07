@@ -7,6 +7,7 @@ import { customerSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { buildCustomerUpdateData } from '@/lib/customer-fields';
 import Decimal from 'decimal.js';
+import { isIssuedInvoice } from '@/lib/invoice-status';
 
 interface CurrencyTotals {
   totalInvoiced: string;
@@ -42,10 +43,24 @@ export async function GET(request: Request, { params }: { params: { id: string }
     });
     if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    // Totals are grouped per currency. Summing a 1000 USD invoice with a
-    // 1000 EUR invoice into "2000" is financially meaningless.
+    /**
+     * Totals are grouped per currency. Summing a 1000 USD invoice with a
+     * 1000 EUR invoice into "2000" is financially meaningless.
+     *
+     * Only issued invoices count. This used to sum every status, so a customer
+     * with four unissued drafts was shown as owing $5,841 and €24,992 that they
+     * had never been billed for — a draft is a document being written, not a
+     * claim on anybody. The filter is `isIssuedInvoice`, the same definition the
+     * statement below these cards and the dashboard's receivables both use, so
+     * the three cannot drift apart again.
+     *
+     * `customer.invoices` deliberately keeps every status: the Invoice History
+     * list underneath needs drafts, because finding and finishing one is the
+     * whole point of having it. What changes here is the money, not the list.
+     */
     const perCurrency = new Map<string, { invoiced: Decimal; paid: Decimal }>();
     for (const inv of customer.invoices ?? []) {
+      if (!isIssuedInvoice(inv.status)) continue;
       const cur = inv.currency || 'USD';
       const bucket = perCurrency.get(cur) ?? { invoiced: new Decimal(0), paid: new Decimal(0) };
       bucket.invoiced = bucket.invoiced.plus(new Decimal(inv.total.toString()));

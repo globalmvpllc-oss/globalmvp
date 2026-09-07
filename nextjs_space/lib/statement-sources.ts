@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js';
 import type { DecimalLike } from '@/lib/payment-math';
 import type { StatementMovement } from '@/lib/statement-ledger';
+import { isIssuedInvoice } from '@/lib/invoice-status';
 
 /**
  * What counts as a movement on an account statement.
@@ -18,10 +19,11 @@ import type { StatementMovement } from '@/lib/statement-ledger';
  * and this statement is a document you hand to that customer. A CANCELLED
  * invoice is not a debt either: cancelling it is precisely the act of saying so.
  *
- * This is the one place the statement deliberately departs from the customer
- * page's `outstanding`, which is `SUM(total) - SUM(amountPaid)` over invoices
- * of *every* status. `reconcileStatement` below quantifies the gap so the two
- * screens can explain each other instead of merely disagreeing.
+ * The customer detail cards above the statement now apply the same filter —
+ * they used to sum every status, which is what reported four unissued drafts as
+ * a five-figure receivable. The two therefore agree on invoices, and what is
+ * left for `reconcileStatement` to explain is only the uninvoiced income the
+ * ledger carries and the cards do not.
  *
  * ## Which income belongs
  *
@@ -52,24 +54,19 @@ import type { StatementMovement } from '@/lib/statement-ledger';
  * synthetic row, explained at `vendorMovements`.
  */
 
-export const STATEMENT_INVOICE_STATUSES = [
-  'SENT',
-  'VIEWED',
-  'PARTIALLY_PAID',
-  'PAID',
-  'OVERDUE',
-] as const;
-
-/** Statuses kept off the ledger, and therefore the source of the reconciliation gap. */
-export const EXCLUDED_INVOICE_STATUSES = ['DRAFT', 'CANCELLED'] as const;
-
-/** True when an invoice in this status has been issued and is not cancelled. */
-export function isStatementInvoice(status: unknown): boolean {
-  return (
-    typeof status === 'string' &&
-    (STATEMENT_INVOICE_STATUSES as readonly string[]).includes(status)
-  );
-}
+/**
+ * Which invoices reach the ledger.
+ *
+ * Re-exported from `lib/invoice-status.ts` rather than restated here. This file
+ * used to own the list, and while the customer cards and the reports totals
+ * carried their own (unfiltered) idea of the same thing, the two disagreed by
+ * the value of every draft. One definition, three readers.
+ */
+export {
+  ISSUED_INVOICE_STATUSES,
+  UNISSUED_INVOICE_STATUSES,
+  isIssuedInvoice,
+} from '@/lib/invoice-status';
 
 /** Income status treated as an uninvoiced receivable. */
 export const STATEMENT_INCOME_STATUS = 'EXPECTED';
@@ -146,7 +143,7 @@ export function customerMovements(input: {
   const movements: StatementMovement[] = [];
 
   for (const invoice of input.invoices ?? []) {
-    if (!isStatementInvoice(invoice.status)) continue;
+    if (!isIssuedInvoice(invoice.status)) continue;
     movements.push({
       id: `invoice:${invoice.id}`,
       kind: 'invoice',
@@ -282,18 +279,24 @@ export function vendorMovements(input: {
 /**
  * The customer page's per-currency `outstanding`, reproduced exactly.
  *
- * `SUM(total) - SUM(amountPaid)` over every invoice regardless of status, which
- * is what app/api/customers/[id]/route.ts computes and what the detail page
- * shows. Kept here so the statement can be checked against it in a test rather
- * than by eye.
+ * `SUM(total) - SUM(amountPaid)` over the *issued* invoices, which is what
+ * app/api/customers/[id]/route.ts computes and what the detail page shows.
+ * Kept here so the statement can be checked against it in a test rather than by
+ * eye — and so that the day one of them changes its mind about drafts, a test
+ * fails instead of a customer being told they owe money they do not.
+ *
+ * It used to sum every status, matching a card that did the same. Both were
+ * wrong together, which is the failure mode this pairing exists to catch and
+ * did not: nothing compared them against a set containing a draft.
  */
 export function outstandingByCurrency(
-  invoices: Array<Pick<LedgerInvoice, 'currency' | 'total' | 'amountPaid'>>,
+  invoices: Array<Pick<LedgerInvoice, 'status' | 'currency' | 'total' | 'amountPaid'>>,
   fallbackCurrency = 'USD'
 ): Record<string, string> {
   const totals = new Map<string, Decimal>();
 
   for (const invoice of invoices ?? []) {
+    if (!isIssuedInvoice(invoice.status)) continue;
     const currency = text(invoice.currency, fallbackCurrency);
     const net = dec(invoice.total).minus(dec(invoice.amountPaid));
     totals.set(currency, (totals.get(currency) ?? new Decimal(0)).plus(net));
@@ -305,13 +308,11 @@ export function outstandingByCurrency(
 }
 
 export interface ReconciliationInput {
-  /** The customer page figure: every invoice, whatever its status. */
+  /** The customer page figure, over issued invoices only. */
   outstanding: DecimalLike | null;
   /** The statement's own closing balance for the whole account. */
   statementBalance: DecimalLike | null;
-  /** Net value of DRAFT and CANCELLED invoices — on the page, off the ledger. */
-  excludedInvoices: DecimalLike | null;
-  /** EXPECTED income — on the ledger, off the page. */
+  /** EXPECTED income — on the ledger, not on the card. */
   uninvoicedReceivables: DecimalLike | null;
 }
 
@@ -320,10 +321,9 @@ export interface Reconciliation {
   statementBalance: string;
   /** statementBalance - outstanding. */
   difference: string;
-  excludedInvoices: string;
   uninvoicedReceivables: string;
   /**
-   * True when the difference is entirely accounted for by the two known causes.
+   * True when the difference is entirely accounted for by the known cause.
    *
    * When it is false something else has moved — most often a payment recorded
    * in a currency its invoice was not raised in, which by design never clears
@@ -341,23 +341,27 @@ export interface Reconciliation {
  * so the disagreement is computed, named and displayed instead of left for
  * somebody to trip over:
  *
- *     statementBalance = outstanding - excludedInvoices + uninvoicedReceivables
+ *     statementBalance = outstanding + uninvoicedReceivables
+ *
+ * This used to carry a third term. The card summed invoices of every status
+ * while the ledger omitted DRAFT and CANCELLED, so drafts were a standing
+ * source of difference — which was the polite way of saying the card was wrong.
+ * Now that both read `ISSUED_INVOICE_STATUSES`, that difference cannot arise,
+ * and a term that can only ever be zero is worse than no term: it invites the
+ * reader to look for a discrepancy that no longer exists.
  */
 export function reconcileStatement(input: ReconciliationInput): Reconciliation {
   const outstanding = dec(input.outstanding);
   const statementBalance = dec(input.statementBalance);
-  const excludedInvoices = dec(input.excludedInvoices);
   const uninvoicedReceivables = dec(input.uninvoicedReceivables);
 
   const difference = statementBalance.minus(outstanding);
-  const explained = uninvoicedReceivables.minus(excludedInvoices);
 
   return {
     outstanding: outstanding.toFixed(2),
     statementBalance: statementBalance.toFixed(2),
     difference: difference.toFixed(2),
-    excludedInvoices: excludedInvoices.toFixed(2),
     uninvoicedReceivables: uninvoicedReceivables.toFixed(2),
-    reconciles: difference.equals(explained),
+    reconciles: difference.equals(uninvoicedReceivables),
   };
 }

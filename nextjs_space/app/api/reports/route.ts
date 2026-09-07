@@ -6,6 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarRange } from '@/lib/calendar-range';
 import { buildReport, monthKeyOf } from '@/lib/reports-aggregate';
+import { ISSUED_INVOICE_STATUSES } from '@/lib/invoice-status';
 
 /**
  * Reports API — every figure summed by Postgres.
@@ -43,10 +44,22 @@ import { buildReport, monthKeyOf } from '@/lib/reports-aggregate';
  *
  * ## Which records count
  *
- * Deliberately identical to the arithmetic this replaces, so no figure moves:
  *   income     RECEIVED only
  *   expenses   PAID only, for the totals and the monthly series
- *   invoices   every status, drafts included, for invoiced and collected
+ *   invoices   issued only, for invoiced and collected
+ *
+ * The invoice line used to read "every status, drafts included", preserved
+ * verbatim from the browser-side arithmetic this endpoint replaced so that no
+ * figure would move during that refactor. It was wrong then and it moved a
+ * figure now: a draft has never been issued to anybody, so counting one as
+ * invoiced — and therefore as outstanding — reports money nobody owes. It now
+ * reads `ISSUED_INVOICE_STATUSES`, the same definition the customer cards, the
+ * account statement and the dashboard use.
+ *
+ * The invoice *status* pie below is deliberately left counting every status:
+ * its whole job is to show how many invoices are sitting in draft, and
+ * filtering them out would empty the slice that matters most.
+ *
  * The expense-category pie keeps its own pre-existing behaviour of counting
  * every expense regardless of status; see the note at that query.
  */
@@ -104,11 +117,14 @@ export async function GET(request: Request) {
         _sum: { amount: true },
       }),
 
+      // Money: issued invoices only. A draft is not a receivable.
       prisma.invoice.groupBy({
         by: ['currency'],
-        where: { companyId, ...issueFilter },
+        where: { companyId, status: { in: [...ISSUED_INVOICE_STATUSES] }, ...issueFilter },
         _sum: { total: true, amountPaid: true },
       }),
+      // Counts: every status, because "how many are still drafts?" is exactly
+      // what this chart is for.
       prisma.invoice.groupBy({
         by: ['status'],
         where: { companyId, ...issueFilter },

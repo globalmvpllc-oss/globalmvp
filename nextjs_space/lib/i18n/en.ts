@@ -748,12 +748,10 @@ export const en = {
   'statement.kind.payment': 'Payment',
   'statement.kind.settlement': 'Marked paid',
   'statement.reconcileTitle': 'Why this differs from Outstanding',
-  'statement.reconcileExcluded':
-    'Draft and cancelled invoices count towards Outstanding but never appear on a statement: {amount}',
   'statement.reconcileUninvoiced':
     'Amounts expected from this customer that were never invoiced appear here but not in Outstanding: {amount}',
   'statement.reconcileMismatch':
-    'Outstanding reads {outstanding} while this statement closes at {balance}, and drafts and uninvoiced amounts do not account for the difference. The usual cause is a payment recorded in a currency its invoice was not raised in, which never clears that invoice.',
+    'Outstanding reads {outstanding} while this statement closes at {balance}, and uninvoiced amounts do not account for the difference. The usual cause is a payment recorded in a currency its invoice was not raised in, which never clears that invoice.',
   'statement.pdfNotConfigured':
     'The PDF service is not configured, so your browser will produce the file.',
   'statement.pdfOpeningPrint': 'Opening the print view instead.',
@@ -912,6 +910,9 @@ export const en = {
   'customers.totalInvoiced': 'Total Invoiced',
   'customers.totalPaid': 'Total Paid',
   'customers.outstanding': 'Outstanding',
+  'customers.notCounted': 'Not included in the totals above',
+  'customers.notCountedNote':
+    'Drafts and cancelled invoices are shown here but are not counted in the totals above — they are not money owed.',
   'customers.invoiceHistory': 'Invoice History',
 
   // --- Invoices -------------------------------------------------------------
