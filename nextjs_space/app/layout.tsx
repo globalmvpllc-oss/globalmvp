@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { DM_Sans, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -8,6 +8,7 @@ import { Providers } from '@/components/providers';
 import { siteConfig, getBaseUrl } from '@/lib/site';
 import { getServerLocale } from '@/lib/i18n/server';
 import { I18nProvider } from '@/components/i18n-provider';
+import Script from 'next/script';
 
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const jakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-display' });
@@ -16,8 +17,8 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mon
 export const metadata: Metadata = {
   metadataBase: new URL(getBaseUrl()),
   title: {
-    default: `${siteConfig.name} — ${siteConfig.tagline}`,
-    template: `%s — ${siteConfig.name}`,
+    default: `${siteConfig.name} â€” ${siteConfig.tagline}`,
+    template: `%s â€” ${siteConfig.name}`,
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
@@ -44,14 +45,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: siteConfig.name,
-    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    title: `${siteConfig.name} â€” ${siteConfig.tagline}`,
     description: siteConfig.description,
     url: '/',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: `${siteConfig.name} dashboard` }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} — ${siteConfig.tagline}`,
+    title: `${siteConfig.name} â€” ${siteConfig.tagline}`,
     description: siteConfig.description,
     images: ['/og-image.png'],
   },
@@ -96,7 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
      * `translate="no"` + `notranslate` switch off browser page translation.
      *
      * Chrome's translator replaces the text nodes React owns. When a Radix
-     * portal then unmounts — closing a Select, for instance — React calls
+     * portal then unmounts â€” closing a Select, for instance â€” React calls
      * removeChild on a node the translator has already swapped, and the app
      * crashes with "The node to be removed is not a child of this node". That
      * is exactly what happened when picking a category.
