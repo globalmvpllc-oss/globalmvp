@@ -134,6 +134,25 @@ function text(value: unknown, fallback = ''): string {
  * Invoices debit on their issue date — the day the debt was raised, which is
  * also the date /api/reports filters invoices on. Payments credit on their
  * payment date. Uninvoiced EXPECTED income debits on the day it was recorded.
+ *
+ * ## Why there is no settlement row here, unlike the vendor side
+ *
+ * `vendorMovements` below invents a credit for an expense marked PAID that has
+ * no payments behind it, because the expense form lets a user assert that
+ * status directly and a ledger built from payments alone would leave every such
+ * debit uncleared.
+ *
+ * An invoice cannot reach that state. `PUT /api/invoices/[id]` used to grant
+ * `{ status: 'PAID' }` by writing the field and nothing else — and did, once, in
+ * production — but it now records the settling payment in the same transaction
+ * and derives the status from the payment rows afterwards. A PAID invoice
+ * therefore always has the money behind it, and a synthetic credit here would
+ * have nothing to correct.
+ *
+ * The rows that predate that fix are left showing what was actually collected —
+ * nothing — because that is the truth about the money; it is the status badge
+ * that is wrong, and `scripts/repair-invoice-status.ts` corrects it at the
+ * source rather than papering over it here.
  */
 export function customerMovements(input: {
   invoices: LedgerInvoice[];

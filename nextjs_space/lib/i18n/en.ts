@@ -947,6 +947,9 @@ export const en = {
   'invoices.viewDetails': 'View details',
   'invoices.markSent': 'Mark as sent',
   'invoices.markPaid': 'Mark as paid',
+  'invoices.markPaidConfirm':
+    'Mark this invoice as paid? A payment of {amount} will be recorded for the outstanding balance.',
+  'invoices.markPaidRecorded': 'Invoice marked as paid, and the payment was recorded.',
   'invoices.duplicate': 'Duplicate',
   'invoices.duplicated': 'Invoice duplicated as {number}.',
   'invoices.duplicatedDraft': 'Invoice duplicated as a new draft.',

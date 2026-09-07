@@ -287,6 +287,20 @@ export const invoiceUpdateSchema = z.object({
   currency: z.enum(VALID_CURRENCIES).optional(),
   notes: z.string().max(5000).optional(),
   items: z.array(invoiceItemSchema).optional(),
+
+  /**
+   * Details for the payment that `status: 'PAID'` records.
+   *
+   * Optional, because marking an invoice paid is meant to stay one click: the
+   * route falls back to today and the company's default method. There is
+   * deliberately no `amount` — the settling payment is always exactly what is
+   * outstanding, computed inside the transaction from the payment rows, so a
+   * request cannot name a figure that leaves the invoice short or overpays it.
+   * There is no `currency` either: it is the invoice's, never the caller's.
+   */
+  paymentDate: dateString.optional(),
+  paymentMethod: z.enum(VALID_PAYMENT_METHODS).optional(),
+  paymentReference: z.string().max(255).optional(),
 });
 
 export const paymentSchema = z

@@ -908,6 +908,9 @@ export const tr: Dictionary = {
   'invoices.viewDetails': 'Ayrıntıları gör',
   'invoices.markSent': 'Gönderildi olarak işaretle',
   'invoices.markPaid': 'Ödendi olarak işaretle',
+  'invoices.markPaidConfirm':
+    'Bu fatura ödendi olarak işaretlensin mi? Kalan bakiye için {amount} tutarında bir tahsilat kaydedilecek.',
+  'invoices.markPaidRecorded': 'Fatura ödendi olarak işaretlendi ve tahsilat kaydedildi.',
   'invoices.duplicate': 'Kopyala',
   'invoices.duplicated': 'Fatura {number} olarak kopyalandı.',
   'invoices.duplicatedDraft': 'Fatura yeni bir taslak olarak kopyalandı.',

@@ -63,7 +63,23 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => { fetchInvoice(); }, [params?.id]);
 
+  /**
+    * Moves the invoice to a new status.
+    *
+    * `PAID` is not a label change: the API records a payment for whatever is
+    * outstanding, in the same transaction. Money must not move from a single
+    * unconfirmed click, so the amount is named and confirmed first.
+    */
   const updateStatus = async (status: string) => {
+    if (status === 'PAID') {
+      const outstandingNow = (Number(invoice?.total) || 0) - (Number(invoice?.amountPaid) || 0);
+      const confirmed = window.confirm(
+        fill('invoices.markPaidConfirm', {
+          amount: formatCurrency(outstandingNow, invoice?.currency ?? 'USD'),
+        })
+      );
+      if (!confirmed) return;
+    }
     try {
       const res = await fetch(`/api/invoices/${params?.id}`, {
         method: 'PUT',
@@ -78,7 +94,11 @@ export default function InvoiceDetailPage() {
       }
       // The badge label for the new status, translated. Spelling out the stored
       // value would print "partially paid" inside a Turkish sentence.
-      toast.success(fill('invoices.statusChanged', { status: t(getStatusBadge(status).labelKey) }));
+      toast.success(
+        status === 'PAID'
+          ? t('invoices.markPaidRecorded')
+          : fill('invoices.statusChanged', { status: t(getStatusBadge(status).labelKey) })
+      );
       fetchInvoice();
     } catch {
       toast.error(t('error.network'));

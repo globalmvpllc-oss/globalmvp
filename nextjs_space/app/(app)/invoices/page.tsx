@@ -48,7 +48,22 @@ export default function InvoicesPage() {
 
   useEffect(() => { fetchInvoices(); }, [statusFilter]);
 
-  const handleStatusChange = async (id: string, status: string) => {
+  /**
+    * Moves one invoice to a new status from the list.
+    *
+    * Same rule as the detail page: marking an invoice paid records a payment
+    * for its outstanding balance, so the amount is confirmed before the call.
+    */
+  const handleStatusChange = async (id: string, status: string, invoice?: any) => {
+    if (status === 'PAID') {
+      const outstandingNow = (Number(invoice?.total) || 0) - (Number(invoice?.amountPaid) || 0);
+      const confirmed = window.confirm(
+        fill('invoices.markPaidConfirm', {
+          amount: formatCurrency(outstandingNow, invoice?.currency ?? 'USD'),
+        })
+      );
+      if (!confirmed) return;
+    }
     try {
       const res = await fetch(`/api/invoices/${id}`, {
         method: 'PUT',
@@ -63,7 +78,11 @@ export default function InvoicesPage() {
       }
       // The badge label for the new status, translated — never the stored
       // value spelled out, which would print "PARTIALLY_PAID" in Turkish.
-      toast.success(fill('invoices.statusChanged', { status: t(getStatusBadge(status).labelKey) }));
+      toast.success(
+        status === 'PAID'
+          ? t('invoices.markPaidRecorded')
+          : fill('invoices.statusChanged', { status: t(getStatusBadge(status).labelKey) })
+      );
       fetchInvoices();
     } catch {
       toast.error(t('error.network'));
@@ -254,7 +273,7 @@ export default function InvoicesPage() {
                             </DropdownMenuItem>
                           )}
                           {['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(inv?.status) && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(inv.id, 'PAID')}>
+                            <DropdownMenuItem onClick={() => handleStatusChange(inv.id, 'PAID', inv)}>
                               <CheckCircle className="w-4 h-4 mr-2" /> {t('invoices.markPaid')}
                             </DropdownMenuItem>
                           )}

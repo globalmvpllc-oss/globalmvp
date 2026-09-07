@@ -5,8 +5,10 @@ import { prisma } from '@/lib/db';
 import { requireUserCompany } from '@/lib/auth-helpers';
 import { invoiceUpdateSchema, validateBody } from '@/lib/validation';
 import { calculateInvoice, d2n } from '@/lib/invoice-calc';
-import { canTransition, isValidStatus } from '@/lib/invoice-status';
+import { canTransition, isValidStatus, isMoneyDerivedStatus } from '@/lib/invoice-status';
 import { recalculateInvoicePaymentState, type TxClient } from '@/lib/payment-calc';
+import { computePaymentSummary } from '@/lib/payment-math';
+import Decimal from 'decimal.js';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
 
@@ -51,6 +53,142 @@ export async function PUT(request: Request, { params }: { params: { id: string }
           { status: 409 }
         );
       }
+
+      /**
+       * Marking an invoice paid records the payment that makes it true.
+       *
+       * This used to write `{ status: 'PAID' }` and nothing else, so the
+       * invoice read as settled while `amountPaid` stayed at zero and every
+       * other surface went on counting the full amount as owed.
+       *
+       * The action is kept — people use it, and taking it away to force them
+       * through the payment dialog would read as a regression — but it now
+       * creates the settling payment in the same transaction. The status is
+       * then *derived* from the payment rows by
+       * `recalculateInvoicePaymentState`, exactly as it is when a payment is
+       * recorded by hand, rather than being written here. So the invariant
+       * holds by construction: nothing in this route can produce a PAID invoice
+       * that is not covered.
+       *
+       * Serializable, like the payment route, and for the same reason: the
+       * amount outstanding is read and then written, so two concurrent requests
+       * must not both see the same balance and both settle it. The loser aborts
+       * and surfaces as a 409 telling the caller to retry.
+       */
+      if (data.status === 'PAID') {
+        const company = await prisma.company.findUnique({
+          where: { id: companyId },
+          select: { defaultPaymentMethod: true },
+        });
+
+        const settled = await prisma.$transaction(
+          async (tx: TxClient) => {
+            // Re-read inside the transaction: the status may have moved since
+            // the check above, and the balance certainly may have.
+            const invoice = await tx.invoice.findFirst({
+              where: { id: params.id, companyId },
+              select: { id: true, total: true, status: true, currency: true },
+            });
+            if (!invoice) {
+              return { kind: 'error' as const, status: 404, message: 'Not found' };
+            }
+            if (invoice.status === 'PAID') {
+              // Already settled by a payment that landed in between. Nothing to
+              // record, and nothing to complain about.
+              return { kind: 'noop' as const };
+            }
+            if (!canTransition(invoice.status, 'PAID')) {
+              return {
+                kind: 'error' as const,
+                status: 409,
+                message: `Cannot change from ${invoice.status} to PAID`,
+              };
+            }
+
+            const totalDec = new Decimal(String(invoice.total));
+
+            /**
+             * A zero-total invoice has nothing to collect.
+             *
+             * The invariant is `amountPaid >= total`, which 0 >= 0 satisfies,
+             * so this may close with no payment. It has to be handled here
+             * because `deriveStatusFromPayments` requires `total > 0` before it
+             * will return PAID — without this the button would silently do
+             * nothing.
+             */
+            if (totalDec.lte(0)) {
+              await tx.invoice.update({ where: { id: invoice.id }, data: { status: 'PAID' } });
+              return { kind: 'ok' as const, amount: '0.00' };
+            }
+
+            // Computed from the payment rows, never from the denormalised
+            // amountPaid column, so a partial payment already recorded is
+            // subtracted and cannot be counted twice.
+            const existingPayments = await tx.payment.findMany({
+              where: { invoiceId: invoice.id },
+              select: { amount: true },
+            });
+            const { remaining } = computePaymentSummary(invoice.total, existingPayments);
+
+            if (remaining.gt(0)) {
+              await tx.payment.create({
+                data: {
+                  companyId,
+                  invoiceId: invoice.id,
+                  expenseId: null,
+                  amount: remaining.toNumber(),
+                  // The invoice's currency, never the caller's: a settling
+                  // payment cannot be denominated in anything else.
+                  currency: invoice.currency,
+                  paymentDate:
+                    parseCalendarDate(data.paymentDate) ?? parseCalendarDate(new Date())!,
+                  paymentMethod:
+                    data.paymentMethod ?? company?.defaultPaymentMethod ?? 'bank_transfer',
+                  reference: data.paymentReference ?? null,
+                  notes: null,
+                },
+              });
+            }
+
+            // Derives the status from what the payment rows now say. This is
+            // what makes "mark paid" incapable of lying.
+            await recalculateInvoicePaymentState(invoice.id, tx);
+            return { kind: 'ok' as const, amount: remaining.toFixed(2) };
+          },
+          { isolationLevel: 'Serializable' }
+        );
+
+        if (settled.kind === 'error') {
+          return NextResponse.json({ error: settled.message }, { status: settled.status });
+        }
+
+        const invoice = await prisma.invoice.findFirst({
+          where: { id: params.id, companyId },
+          include: { items: true, customer: true },
+        });
+        return NextResponse.json(invoice);
+      }
+
+      /**
+       * Every other money-derived status is refused as a bare assertion.
+       *
+       * That leaves PARTIALLY_PAID: it says money arrived without saying how
+       * much, which no other surface can act on — the amount is exactly what
+       * the customer card, the statement and the reports need. Recording the
+       * payment produces this status on its own, which is the only way it has
+       * ever been true. PAID is not caught here because it was granted above,
+       * by earning it rather than by being told.
+       */
+      if (isMoneyDerivedStatus(data.status)) {
+        return NextResponse.json(
+          {
+            error:
+              'An invoice becomes partially paid by recording a payment against it, not by setting the status. Record the payment instead.',
+          },
+          { status: 409 }
+        );
+      }
+
       const invoice = await prisma.invoice.update({
         where: { id: params.id },
         data: { status: data.status },

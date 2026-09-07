@@ -63,6 +63,74 @@ export const OPEN_INVOICE_STATUSES = [
   'OVERDUE',
 ] as const satisfies readonly InvoiceStatus[];
 
+/**
+ * Statuses that describe money, not intent — and so are never asserted by hand.
+ *
+ * `ALLOWED_TRANSITIONS` above says SENT -> PAID is reachable, and it is. What it
+ * cannot say is *how*: an invoice arrives at PAID because payments cover its
+ * total, never because somebody set a field. The route that used to grant the
+ * request wrote `{ status: 'PAID' }` and nothing else, leaving `amountPaid` at
+ * zero — so an invoice read as settled on its own page while the statement and
+ * the reports went on counting the full amount as owed. Two screens telling the
+ * user opposite things about the same document.
+ *
+ * The rule the code now keeps, everywhere:
+ *
+ *     an invoice is PAID only when amountPaid >= total
+ *
+ * Marking one paid is still a single click; it now records the payment that
+ * makes the claim true, in the same transaction that moves the status, and the
+ * status is derived from the money afterwards rather than written directly.
+ * PARTIALLY_PAID is refused outright — "partly paid" without saying how much is
+ * not a fact anybody can act on.
+ *
+ * Note the invariant is about the amount, not about a Payment row existing: an
+ * invoice with a zero total is vacuously covered and may close with no payment.
+ */
+export const MONEY_DERIVED_STATUSES = ['PARTIALLY_PAID', 'PAID'] as const;
+
+/** True when a status must follow from payments rather than from a request. */
+export function isMoneyDerivedStatus(status: unknown): boolean {
+  return (
+    typeof status === 'string' &&
+    (MONEY_DERIVED_STATUSES as readonly string[]).includes(status)
+  );
+}
+
+/**
+ * A Decimal column, a number or a numeric string as a number — or null.
+ *
+ * Null for anything missing or unreadable, deliberately: absent is not zero
+ * here. Coalescing a missing total to 0 would make it look covered by a
+ * payment of nothing, which is the exact claim this module exists to refuse.
+ */
+function amountOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (text === '') return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * True when the amount collected covers the invoice, so PAID is honest.
+ *
+ * This is the PAID half of the invariant and nothing more. It says nothing
+ * useful about PARTIALLY_PAID, where `amountPaid < total` is the whole point —
+ * asking it about one will call a perfectly correct invoice a violation.
+ *
+ * The complete question, for any status, is whether
+ * `deriveStatusFromPayments` agrees with what is stored; that is the single
+ * expression of the rule and what `scripts/repair-invoice-status.ts` uses. This
+ * exists for the one place that only ever asks about PAID.
+ */
+export function coversTotal(total: unknown, amountPaid: unknown): boolean {
+  const totalNumber = amountOrNull(total);
+  const paidNumber = amountOrNull(amountPaid);
+  if (totalNumber === null || paidNumber === null) return false;
+  return paidNumber >= totalNumber;
+}
+
 /** True when an invoice has been issued and not cancelled. */
 export function isIssuedInvoice(status: unknown): boolean {
   return (
