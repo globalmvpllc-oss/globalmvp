@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { countryLabel } from '@/lib/countries';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { AccountStatement } from '@/components/account-statement';
 
 export default function CustomerDetailPage() {
   const params = useParams();
@@ -161,6 +162,15 @@ export default function CustomerDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Running account ledger. Added below the existing cards rather than in
+          place of them: the three totals answer where the account stands, the
+          statement answers how it got there, and a business needs both. */}
+      <AccountStatement
+        endpoint={`/api/customers/${params?.id}/statement`}
+        kind="customer"
+        fileNameBase={`statement-${customer?.name ?? 'customer'}`}
+      />
     </div>
   );
 }

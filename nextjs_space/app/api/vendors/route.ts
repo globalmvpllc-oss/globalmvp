@@ -15,6 +15,10 @@ export async function GET(request: Request) {
     const take = boundedTake(new URL(request.url).searchParams);
     const vendors = await prisma.vendor.findMany({
       where: { companyId },
+      // The expense count drives the vendor list card, the same way the customer
+      // list shows an invoice count. Additive: the expense dialog reads name and
+      // id and is unaffected.
+      include: { _count: { select: { expenseTransactions: true } } },
       orderBy: { name: 'asc' },
       take: take + 1,
     });

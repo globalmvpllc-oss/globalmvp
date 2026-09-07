@@ -690,6 +690,87 @@ export const en = {
   'landing.expenses.closingTitle': 'Put your expenses somewhere sensible',
   'landing.expenses.closingBody':
     'Start on the free plan and stop keeping receipts in a spreadsheet.',
+
+  // --- Vendors --------------------------------------------------------------
+  'nav.vendors': 'Vendors',
+  'vendors.title': 'Vendors',
+  'vendors.subtitle': 'Everyone you buy from, and what you still owe them.',
+  'vendors.empty': 'No vendors yet',
+  'vendors.emptyHint':
+    'A vendor is created when you record an expense against one. Add an expense to open a vendor account.',
+  'vendors.emptyAction': 'Go to expenses',
+  'vendors.error': 'Could not load your vendors. Please refresh the page.',
+  'vendors.errorNetwork': 'Could not reach the server. Check your connection and refresh.',
+  'vendors.retry': 'Try again',
+  'vendors.expenseCount': '{count} expenses',
+  'vendors.notFound': 'Vendor not found',
+  'vendors.back': 'Back to vendors',
+  'vendors.contact': 'Contact information',
+  'vendors.taxId': 'Tax ID',
+
+  // --- Account statements ---------------------------------------------------
+  'statement.title': 'Account statement',
+  'statement.customerSubtitle':
+    'Every movement on this account, in order, and the balance after each one.',
+  'statement.vendorSubtitle':
+    'Every movement on this account, in order, and what you still owe after each one.',
+  'statement.from': 'From',
+  'statement.to': 'To',
+  'statement.apply': 'Apply',
+  'statement.clear': 'Clear',
+  'statement.allTime': 'All time',
+  'statement.rangeInvalid': 'Choose an end date after the start date.',
+  'statement.date': 'Date',
+  'statement.type': 'Type',
+  'statement.reference': 'Reference',
+  'statement.debit': 'Debit',
+  'statement.credit': 'Credit',
+  'statement.balance': 'Balance',
+  'statement.opening': 'Opening balance',
+  'statement.closing': 'Closing balance',
+  'statement.periodDebit': 'Charged in period',
+  'statement.periodCredit': 'Settled in period',
+  'statement.loading': 'Loading the statement...',
+  'statement.empty': 'No movements on this account yet',
+  'statement.emptyCustomerHint': 'Issued invoices and payments received appear here as they happen.',
+  'statement.emptyVendorHint': 'Recorded expenses and payments made appear here as they happen.',
+  'statement.emptyWindow': 'No movements in this period',
+  'statement.emptyWindowHint': 'The balance carried into the period is shown above.',
+  'statement.error': 'The account statement could not be loaded.',
+  'statement.errorNetwork': 'Could not reach the server. Check your connection and try again.',
+  'statement.retry': 'Try again',
+  'statement.downloadPdf': 'Download PDF',
+  'statement.preparing': 'Preparing...',
+  'statement.print': 'Print',
+  'statement.truncated':
+    'This account has more movements than one statement can list. The balances shown cover only the movements below.',
+  'statement.inCredit': 'A negative balance means the account is in credit.',
+  'statement.kind.invoice': 'Invoice',
+  'statement.kind.expense': 'Expense',
+  'statement.kind.income': 'Uninvoiced',
+  'statement.kind.payment': 'Payment',
+  'statement.kind.settlement': 'Marked paid',
+  'statement.method.bank_transfer': 'Bank transfer',
+  'statement.method.cash': 'Cash',
+  'statement.method.card': 'Card',
+  'statement.method.other': 'Other',
+  'statement.reconcileTitle': 'Why this differs from Outstanding',
+  'statement.reconcileExcluded':
+    'Draft and cancelled invoices count towards Outstanding but never appear on a statement: {amount}',
+  'statement.reconcileUninvoiced':
+    'Amounts expected from this customer that were never invoiced appear here but not in Outstanding: {amount}',
+  'statement.reconcileMismatch':
+    'Outstanding reads {outstanding} while this statement closes at {balance}, and drafts and uninvoiced amounts do not account for the difference. The usual cause is a payment recorded in a currency its invoice was not raised in, which never clears that invoice.',
+  'statement.pdfNotConfigured':
+    'The PDF service is not configured, so your browser will produce the file.',
+  'statement.pdfOpeningPrint': 'Opening the print view instead.',
+  'statement.pdfFailed': 'The statement could not be turned into a PDF. Use Print instead.',
+  'statement.pdfPopupBlocked':
+    'Your browser blocked the print window. Allow pop-ups for this site and try again.',
+  'statement.pdfDownloaded': 'Statement downloaded.',
+  'statement.statementFor': 'Statement for',
+  'statement.issued': 'Issued',
+  'statement.periodLabel': 'Period',
 } as const;
 
 export type TranslationKey = keyof typeof en;

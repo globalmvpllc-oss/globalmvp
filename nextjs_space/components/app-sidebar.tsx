@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
-  CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet, Menu,
+  CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet, Menu, Truck,
   Landmark,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { href: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
   { href: '/invoices', labelKey: 'nav.invoices', icon: FileText },
   { href: '/customers', labelKey: 'nav.customers', icon: Users },
+  { href: '/vendors', labelKey: 'nav.vendors', icon: Truck },
   { href: '/income', labelKey: 'nav.income', icon: TrendingUp },
   { href: '/expenses', labelKey: 'nav.expenses', icon: TrendingDown },
   { href: '/payments', labelKey: 'nav.payments', icon: CreditCard },

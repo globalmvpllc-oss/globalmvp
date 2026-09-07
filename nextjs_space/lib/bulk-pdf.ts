@@ -58,8 +58,14 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-/** Produces one PDF, or a reason it could not be produced. */
-async function generateOne(
+/**
+ * Produces one PDF, or a reason it could not be produced.
+ *
+ * Exported so anything else that needs a single PDF — the account statement —
+ * goes through this exact create/poll flow rather than growing a second one.
+ * The bulk run below is this function in a loop.
+ */
+export async function generateSinglePdf(
   html: string,
   signal?: AbortSignal
 ): Promise<{ bytes: Uint8Array } | { reason: BulkFailureReason }> {
@@ -135,7 +141,7 @@ export async function generateBulkPdfZip(
 
   for (let index = 0; index < batch.length; index++) {
     const item = batch[index];
-    const outcome = await generateOne(item.html, options.signal);
+    const outcome = await generateSinglePdf(item.html, options.signal);
 
     if ('bytes' in outcome) {
       entries.push({

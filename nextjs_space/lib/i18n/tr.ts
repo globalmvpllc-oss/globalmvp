@@ -650,4 +650,87 @@ export const tr: Dictionary = {
   'landing.expenses.closingTitle': 'Giderlerinizi düzgün bir yere koyun',
   'landing.expenses.closingBody':
     'Ücretsiz planla başlayın ve fişleri bir tabloda tutmayı bırakın.',
+
+  // --- Vendors --------------------------------------------------------------
+  'nav.vendors': 'Tedarikçiler',
+  'vendors.title': 'Tedarikçiler',
+  'vendors.subtitle': 'Alışveriş yaptığınız herkes ve onlara kalan borcunuz.',
+  'vendors.empty': 'Henüz tedarikçi yok',
+  'vendors.emptyHint':
+    'Tedarikçi, ona bir gider kaydettiğinizde oluşur. Cari hesap açmak için bir gider ekleyin.',
+  'vendors.emptyAction': 'Giderlere git',
+  'vendors.error': 'Tedarikçileriniz yüklenemedi. Lütfen sayfayı yenileyin.',
+  'vendors.errorNetwork': 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip sayfayı yenileyin.',
+  'vendors.retry': 'Tekrar dene',
+  'vendors.expenseCount': '{count} gider',
+  'vendors.notFound': 'Tedarikçi bulunamadı',
+  'vendors.back': 'Tedarikçilere dön',
+  'vendors.contact': 'İletişim bilgileri',
+  'vendors.taxId': 'Vergi no',
+
+  // --- Account statements ---------------------------------------------------
+  'statement.title': 'Cari hesap ekstresi',
+  'statement.customerSubtitle':
+    'Bu hesaptaki her hareket, sırasıyla, ve her birinden sonraki bakiye.',
+  'statement.vendorSubtitle':
+    'Bu hesaptaki her hareket, sırasıyla, ve her birinden sonra kalan borcunuz.',
+  'statement.from': 'Başlangıç',
+  'statement.to': 'Bitiş',
+  'statement.apply': 'Uygula',
+  'statement.clear': 'Temizle',
+  'statement.allTime': 'Tüm zamanlar',
+  'statement.rangeInvalid': 'Bitiş tarihini başlangıçtan sonraya seçin.',
+  'statement.date': 'Tarih',
+  'statement.type': 'Tür',
+  'statement.reference': 'Açıklama',
+  'statement.debit': 'Borç',
+  'statement.credit': 'Alacak',
+  'statement.balance': 'Bakiye',
+  'statement.opening': 'Açılış bakiyesi',
+  'statement.closing': 'Kapanış bakiyesi',
+  'statement.periodDebit': 'Dönem borcu',
+  'statement.periodCredit': 'Dönem tahsilatı',
+  'statement.loading': 'Ekstre yükleniyor...',
+  'statement.empty': 'Bu hesapta henüz hareket yok',
+  'statement.emptyCustomerHint':
+    'Kesilen faturalar ve alınan ödemeler gerçekleştikçe burada görünür.',
+  'statement.emptyVendorHint':
+    'Kaydedilen giderler ve yapılan ödemeler gerçekleştikçe burada görünür.',
+  'statement.emptyWindow': 'Bu dönemde hareket yok',
+  'statement.emptyWindowHint': 'Döneme devreden bakiye yukarıda gösteriliyor.',
+  'statement.error': 'Cari hesap ekstresi yüklenemedi.',
+  'statement.errorNetwork': 'Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.',
+  'statement.retry': 'Tekrar dene',
+  'statement.downloadPdf': 'PDF indir',
+  'statement.preparing': 'Hazırlanıyor...',
+  'statement.print': 'Yazdır',
+  'statement.truncated':
+    'Bu hesapta tek bir ekstrenin listeleyebileceğinden fazla hareket var. Gösterilen bakiyeler yalnızca aşağıdaki hareketleri kapsar.',
+  'statement.inCredit': 'Negatif bakiye, hesabın alacaklı olduğu anlamına gelir.',
+  'statement.kind.invoice': 'Fatura',
+  'statement.kind.expense': 'Gider',
+  'statement.kind.income': 'Faturasız',
+  'statement.kind.payment': 'Ödeme',
+  'statement.kind.settlement': 'Ödendi işaretlendi',
+  'statement.method.bank_transfer': 'Banka havalesi',
+  'statement.method.cash': 'Nakit',
+  'statement.method.card': 'Kart',
+  'statement.method.other': 'Diğer',
+  'statement.reconcileTitle': 'Kalan tutardan neden farklı',
+  'statement.reconcileExcluded':
+    'Taslak ve iptal edilmiş faturalar kalan tutara girer ama ekstrede hiç yer almaz: {amount}',
+  'statement.reconcileUninvoiced':
+    'Bu müşteriden beklenen ama hiç faturalanmamış tutarlar ekstrede yer alır, kalan tutarda yer almaz: {amount}',
+  'statement.reconcileMismatch':
+    'Kalan tutar {outstanding} görünürken bu ekstre {balance} ile kapanıyor ve fark taslaklarla ya da faturasız tutarlarla açıklanmıyor. Bunun olağan nedeni, faturasının kesildiğinden farklı bir para biriminde kaydedilen ve bu yüzden o faturayı hiç kapatmayan bir ödemedir.',
+  'statement.pdfNotConfigured':
+    'PDF servisi yapılandırılmamış, dosyayı tarayıcınız üretecek.',
+  'statement.pdfOpeningPrint': 'Bunun yerine yazdırma görünümü açılıyor.',
+  'statement.pdfFailed': 'Ekstre PDF\'e dönüştürülemedi. Bunun yerine Yazdır seçeneğini kullanın.',
+  'statement.pdfPopupBlocked':
+    'Tarayıcınız yazdırma penceresini engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.',
+  'statement.pdfDownloaded': 'Ekstre indirildi.',
+  'statement.statementFor': 'Ekstre sahibi',
+  'statement.issued': 'Düzenlenme',
+  'statement.periodLabel': 'Dönem',
 };
