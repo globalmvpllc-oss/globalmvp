@@ -49,6 +49,28 @@ export function translate(locale: Locale, key: TranslationKey): string {
 }
 
 /**
+ * Translates a key and substitutes `{placeholder}` values.
+ *
+ * The dictionaries carry placeholders inside the sentence — "Fatura {number}
+ * vadesi geldi" — because word order differs between languages and a sentence
+ * assembled by concatenating fragments can only ever be right in one of them.
+ * The parity test checks that both locales keep the same placeholder set.
+ *
+ * A value is inserted literally and is never itself translated: it is a number,
+ * a date or something the user typed.
+ */
+export function fillTranslation(
+  locale: Locale,
+  key: TranslationKey,
+  values: Record<string, string | number> = {}
+): string {
+  return Object.entries(values).reduce<string>(
+    (text, [name, value]) => text.split(`{${name}}`).join(String(value)),
+    translate(locale, key)
+  );
+}
+
+/**
  * Display label for a stored category value.
  *
  * The database stores the English name ("Products") and keeps storing it; this

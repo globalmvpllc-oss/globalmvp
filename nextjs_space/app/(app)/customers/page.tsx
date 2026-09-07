@@ -15,6 +15,8 @@ import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
+import { useI18n } from '@/components/i18n-provider';
+import type { TranslationKey } from '@/lib/i18n';
 
 /** Sentinel for "no selection" — Radix Select cannot hold an empty string value. */
 const NONE = '__none__';
@@ -46,10 +48,11 @@ function toForm(customer: any): CustomerForm {
 }
 
 export default function CustomersPage() {
+  const { t, fill } = useI18n();
   const company = useCompany();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<TranslationKey | null>(null);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   /** null = creating, otherwise the id being edited. */
@@ -63,18 +66,14 @@ export default function CustomersPage() {
     try {
       const res = await fetch('/api/customers');
       if (!res.ok) {
-        setLoadError(
-          res.status === 401
-            ? 'Your session has expired. Please sign in again.'
-            : 'Could not load your customers. Please refresh the page.'
-        );
+        setLoadError(res.status === 401 ? 'error.unauthorized' : 'customers.loadFailed');
         return;
       }
       const data = await res.json();
       setCustomers(Array.isArray(data) ? data : []);
       setLoadError(null);
     } catch {
-      setLoadError('Could not reach the server. Check your connection and refresh.');
+      setLoadError('error.network');
     } finally {
       setLoading(false);
     }
@@ -105,7 +104,7 @@ export default function CustomersPage() {
    */
   const handleSave = async () => {
     if (!form.name.trim()) {
-      toast.error('Customer name is required.');
+      toast.error(t('customers.nameRequired'));
       return;
     }
 
@@ -118,7 +117,7 @@ export default function CustomersPage() {
       });
 
       if (res.ok) {
-        toast.success(editingId ? 'Customer updated.' : 'Customer added.');
+        toast.success(editingId ? t('customers.updated') : t('customers.added'));
         setOpen(false);
         setEditingId(null);
         setForm(EMPTY_FORM);
@@ -131,22 +130,22 @@ export default function CustomersPage() {
       const detail = typeof body?.error === 'string' && body.error !== 'Validation failed' ? body.error : null;
 
       if (res.status === 401) {
-        toast.error('Your session has expired. Please sign in again.');
+        toast.error(t('error.unauthorized'));
       } else if (res.status === 403) {
-        toast.error("You don't have access to this business.");
+        toast.error(t('error.forbidden'));
       } else if (res.status === 404) {
-        toast.error('That customer no longer exists. Refreshing the list.');
+        toast.error(t('customers.goneRefreshing'));
         setOpen(false);
         await fetchCustomers();
       } else if (res.status === 400) {
-        toast.error(detail ?? 'Please check the details and try again.');
+        toast.error(detail ?? t('error.badRequest'));
       } else if (res.status === 409) {
-        toast.error(detail ?? 'Those details conflict with an existing customer.');
+        toast.error(detail ?? t('customers.conflict'));
       } else {
-        toast.error(detail ?? 'This customer could not be saved. Please try again.');
+        toast.error(detail ?? t('customers.saveFailed'));
       }
     } catch {
-      toast.error('Could not reach the server. Check your connection and try again.');
+      toast.error(t('error.network'));
     } finally {
       setSaving(false);
     }
@@ -158,11 +157,11 @@ export default function CustomersPage() {
           screen, where there is no room for both. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-display font-bold tracking-tight">Customers</h1>
-          <p className="text-muted-foreground">Manage your customers and track their invoices</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('customers.title')}</h1>
+          <p className="text-muted-foreground">{t('customers.subtitle')}</p>
         </div>
         <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" /> Add Customer
+          <Plus className="w-4 h-4 mr-2" /> {t('customers.add')}
         </Button>
       </div>
 
@@ -177,41 +176,41 @@ export default function CustomersPage() {
       >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
+            <DialogTitle>{editingId ? t('customers.editTitle') : t('customers.add')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Name *</Label>
-                <Input placeholder="Customer name" value={form.name} onChange={(e: any) => update('name', e.target.value)} />
+                <Label>{t('customers.name')} *</Label>
+                <Input placeholder={t('customers.namePlaceholder')} value={form.name} onChange={(e: any) => update('name', e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>Company</Label>
-                <Input placeholder="Company name" value={form.companyName} onChange={(e: any) => update('companyName', e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Email</Label>
-                <Input type="email" placeholder="email@example.com" value={form.email} onChange={(e: any) => update('email', e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label>Phone</Label>
-                <Input placeholder="Phone number" value={form.phone} onChange={(e: any) => update('phone', e.target.value)} />
+                <Label>{t('customers.company')}</Label>
+                <Input placeholder={t('customers.companyPlaceholder')} value={form.companyName} onChange={(e: any) => update('companyName', e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Country</Label>
+                <Label>{t('common.email')}</Label>
+                <Input type="email" placeholder="ornek@sirket.com" value={form.email} onChange={(e: any) => update('email', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>{t('common.phone')}</Label>
+                <Input placeholder={t('customers.phonePlaceholder')} value={form.phone} onChange={(e: any) => update('phone', e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{t('common.country')}</Label>
                 {/* A select, not free text: the API stores a country code and
                     rejects anything longer, so typing "Turkey" used to fail. */}
                 <Select
                   value={form.country || NONE}
                   onValueChange={(v: string) => update('country', v === NONE ? '' : v)}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('customers.selectCountry')} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Not set</SelectItem>
+                    <SelectItem value={NONE}>{t('common.notSet')}</SelectItem>
                     {COUNTRIES.map((c: any) => (
                       <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
                     ))}
@@ -219,34 +218,34 @@ export default function CustomersPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Tax/VAT ID</Label>
-                <Input placeholder="Tax ID" value={form.taxId} onChange={(e: any) => update('taxId', e.target.value)} />
+                <Label>{t('common.taxId')}</Label>
+                <Input placeholder={t('common.taxId')} value={form.taxId} onChange={(e: any) => update('taxId', e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>City</Label>
-                <Input placeholder="City" value={form.city} onChange={(e: any) => update('city', e.target.value)} />
+                <Label>{t('common.city')}</Label>
+                <Input placeholder={t('common.city')} value={form.city} onChange={(e: any) => update('city', e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>State/Province</Label>
-                <Input placeholder="State or province" value={form.state} onChange={(e: any) => update('state', e.target.value)} />
+                <Label>{t('customers.state')}</Label>
+                <Input placeholder={t('customers.state')} value={form.state} onChange={(e: any) => update('state', e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Postal code</Label>
-                <Input placeholder="Postal code" value={form.postalCode} onChange={(e: any) => update('postalCode', e.target.value)} />
+                <Label>{t('customers.postalCode')}</Label>
+                <Input placeholder={t('customers.postalCode')} value={form.postalCode} onChange={(e: any) => update('postalCode', e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>Default currency</Label>
+                <Label>{t('customers.defaultCurrency')}</Label>
                 <Select
                   value={form.defaultCurrency || NONE}
                   onValueChange={(v: string) => update('defaultCurrency', v === NONE ? '' : v)}
                 >
-                  <SelectTrigger><SelectValue placeholder="Use business default" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('customers.useBusinessDefault')} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>Use business default</SelectItem>
+                    <SelectItem value={NONE}>{t('customers.useBusinessDefault')}</SelectItem>
                     {CURRENCIES.map((c: any) => (
                       <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>
                     ))}
@@ -255,15 +254,15 @@ export default function CustomersPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Address</Label>
-              <Input placeholder="Street address" value={form.address} onChange={(e: any) => update('address', e.target.value)} />
+              <Label>{t('common.address')}</Label>
+              <Input placeholder={t('customers.addressPlaceholder')} value={form.address} onChange={(e: any) => update('address', e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Notes</Label>
-              <Textarea placeholder="Additional notes" value={form.notes} onChange={(e: any) => update('notes', e.target.value)} />
+              <Label>{t('common.notes')}</Label>
+              <Textarea placeholder={t('customers.notesPlaceholder')} value={form.notes} onChange={(e: any) => update('notes', e.target.value)} />
             </div>
             <Button onClick={handleSave} className="w-full" disabled={saving}>
-              {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Customer'}
+              {saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('customers.add')}
             </Button>
           </div>
         </DialogContent>
@@ -274,17 +273,17 @@ export default function CustomersPage() {
       ) : loadError ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground mb-4">{loadError}</p>
-            <Button variant="outline" onClick={() => { setLoading(true); fetchCustomers(); }}>Try again</Button>
+            <p className="text-sm text-muted-foreground mb-4">{t(loadError)}</p>
+            <Button variant="outline" onClick={() => { setLoading(true); fetchCustomers(); }}>{t('common.tryAgain')}</Button>
           </CardContent>
         </Card>
       ) : (customers?.length ?? 0) === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">{personalizeEmptyState('No customers yet', company?.name)}</h3>
-            <p className="text-sm text-muted-foreground mb-4">Add your first customer to start creating invoices.</p>
-            <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Add Customer</Button>
+            <h3 className="font-medium mb-1">{personalizeEmptyState(t('customers.empty'), company?.name, t('common.emptyStateFor'))}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('customers.emptyHint')}</p>
+            <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> {t('customers.add')}</Button>
           </CardContent>
         </Card>
       ) : (
@@ -298,13 +297,15 @@ export default function CustomersPage() {
                       <span className="text-sm font-bold text-primary">{(c?.name ?? '?')[0]?.toUpperCase()}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{c?.name ?? 'Unnamed'}</p>
+                      <p className="font-medium truncate">{c?.name ?? t('common.unnamed')}</p>
                       {c?.companyName && <p className="text-sm text-muted-foreground truncate">{c.companyName}</p>}
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         {c?.email && <span className="flex items-center gap-1 min-w-0"><Mail className="w-3 h-3 shrink-0" /><span className="truncate">{c.email}</span></span>}
                         {c?.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0" />{c.phone}</span>}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">{c?._count?.invoices ?? 0} invoices</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {fill('customers.invoiceCount', { count: c?._count?.invoices ?? 0 })}
+                      </p>
                     </div>
                   </Link>
                   {/* Outside the Link, so opening the editor never navigates. */}
@@ -312,7 +313,7 @@ export default function CustomersPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    aria-label={`Edit ${c?.name ?? 'customer'}`}
+                    aria-label={fill('customers.editAria', { name: c?.name ?? t('common.customer') })}
                     className="shrink-0"
                     onClick={() => openEdit(c)}
                   >

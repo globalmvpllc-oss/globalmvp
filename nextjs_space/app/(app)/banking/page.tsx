@@ -20,8 +20,10 @@ import {
   Landmark, Plus, Pencil, Trash2, ArrowDownLeft, ArrowUpRight, ArrowRight, AlertCircle,
 } from 'lucide-react';
 import { formatCurrency, CURRENCIES } from '@/lib/currencies';
+import { useI18n } from '@/components/i18n-provider';
+import { fillTranslation, type TranslationKey } from '@/lib/i18n';
 import { formatCalendarDate } from '@/lib/calendar-date';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage } from '@/lib/api-feedback';
 import { toast } from 'sonner';
 
 /**
@@ -75,7 +77,12 @@ interface Summary {
     direction: string;
     effectiveStatus: string;
     bankAccount: { bankName: string; accountName: string } | null;
-    match: { label: string; href: string } | null;
+    match: {
+      label: string;
+      labelKey?: string | null;
+      labelValues?: Record<string, string>;
+      href: string;
+    } | null;
   }>;
   hasAccounts: boolean;
 }
@@ -95,6 +102,7 @@ export default function BankingPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const { t, fill, locale, intl } = useI18n();
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -118,7 +126,7 @@ export default function BankingPage() {
       setSummary(summaryData);
       setLoadError(null);
     } catch {
-      setLoadError('Could not load your bank accounts. Please try again.');
+      setLoadError(t('banking.loadAccountsFailed'));
     } finally {
       setLoading(false);
     }
@@ -147,10 +155,10 @@ export default function BankingPage() {
   };
 
   const handleSave = async () => {
-    if (!form.bankName.trim()) { toast.error('Bank name is required.'); return; }
-    if (!form.accountName.trim()) { toast.error('Account name is required.'); return; }
+    if (!form.bankName.trim()) { toast.error(t('banking.bankNameRequired')); return; }
+    if (!form.accountName.trim()) { toast.error(t('banking.accountNameRequired')); return; }
     if (form.lastBalance !== '' && !Number.isFinite(Number(form.lastBalance))) {
-      toast.error('Balance must be a number.');
+      toast.error(t('banking.balanceMustBeNumber'));
       return;
     }
 
@@ -174,15 +182,15 @@ export default function BankingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
+      if (!res.ok) { toast.error(await readErrorMessage(res, locale)); return; }
 
-      toast.success(editingId ? 'Bank account updated.' : 'Bank account added.');
+      toast.success(editingId ? t('banking.accountUpdated') : t('banking.accountAdded'));
       setOpen(false);
       setEditingId(null);
       setForm(EMPTY_FORM);
       await fetchAll();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setSaving(false);
     }
@@ -193,22 +201,34 @@ export default function BankingPage() {
     setDeleting(true);
     try {
       const res = await fetch(`/api/bank-accounts/${confirmDelete.id}`, { method: 'DELETE' });
-      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
+      if (!res.ok) { toast.error(await readErrorMessage(res, locale)); return; }
       const body = await res.json().catch(() => ({}));
       const removed = Number(body?.deletedTransactions ?? 0);
       toast.success(
         removed > 0
-          ? `Bank account deleted, along with ${removed} imported transaction${removed === 1 ? '' : 's'}.`
-          : 'Bank account deleted.'
+          ? fill('banking.accountDeletedWithRows', { count: removed })
+          : t('banking.accountDeleted')
       );
       setConfirmDelete(null);
       await fetchAll();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setDeleting(false);
     }
   };
+
+  /**
+   * The label for a matched record.
+   *
+   * The API sends both the English sentence it composed and the key behind it;
+   * a row whose label is the user's own description carries no key and is shown
+   * exactly as it was typed.
+   */
+  const matchLabel = (match: { label: string; labelKey?: string | null; labelValues?: Record<string, string> }) =>
+    match.labelKey
+      ? fillTranslation(locale, match.labelKey as TranslationKey, match.labelValues ?? {})
+      : match.label;
 
   const unreconciled = summary?.counts?.unmatched ?? 0;
 
@@ -228,20 +248,20 @@ export default function BankingPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-display font-bold tracking-tight">Banking</h1>
-          <p className="text-muted-foreground">Bank accounts, balances and reconciliation</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('nav.banking')}</h1>
+          <p className="text-muted-foreground">{t('banking.subtitle')}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link href="/banking/reconcile">
-              Reconcile
+              {t('banking.reconcile')}
               {unreconciled > 0 ? (
                 <Badge variant="secondary" className="ml-2">{unreconciled}</Badge>
               ) : null}
             </Link>
           </Button>
           <Button onClick={openCreate} className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" /> Add Account
+            <Plus className="w-4 h-4 mr-2" /> {t('banking.addAccount')}
           </Button>
         </div>
       </div>
@@ -251,7 +271,7 @@ export default function BankingPage() {
           <CardContent className="py-8 text-center space-y-3">
             <AlertCircle className="w-8 h-8 mx-auto text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{loadError}</p>
-            <Button variant="outline" onClick={() => { setLoading(true); fetchAll(); }}>Try again</Button>
+            <Button variant="outline" onClick={() => { setLoading(true); fetchAll(); }}>{t('common.tryAgain')}</Button>
           </CardContent>
         </Card>
       ) : null}
@@ -263,7 +283,7 @@ export default function BankingPage() {
             <Card key={position.currency}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Cash position · {position.currency}
+                  {t('banking.cashPosition')} · {position.currency}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
@@ -271,17 +291,19 @@ export default function BankingPage() {
                   {formatCurrency(position.total, position.currency)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {position.accounts} account{position.accounts === 1 ? '' : 's'}
+                  {fill('banking.accountCount', { count: position.accounts })}
                   {/* Never presented as zero: "we do not know" and "it is empty"
                       are different answers, and only one is safe to show. */}
                   {position.accountsWithoutBalance > 0
-                    ? ` · ${position.accountsWithoutBalance} with no reported balance`
+                    ? ` · ${fill('banking.withoutBalance', { count: position.accountsWithoutBalance })}`
                     : ''}
                 </p>
                 {summary!.netMovementByCurrency?.[position.currency] ? (
                   <p className="text-xs text-muted-foreground">
-                    {formatCurrency(summary!.netMovementByCurrency[position.currency], position.currency)}
-                    {' '}net over the last {summary!.movementDays} days
+                    {fill('banking.netMovement', {
+                      amount: formatCurrency(summary!.netMovementByCurrency[position.currency], position.currency),
+                      days: summary!.movementDays,
+                    })}
                   </p>
                 ) : null}
               </CardContent>
@@ -290,15 +312,17 @@ export default function BankingPage() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Reconciliation</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t('banking.reconciliation')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
               <p className="text-2xl font-mono font-semibold tracking-tight">
                 {summary?.reconciliationRate ?? 100}%
               </p>
               <p className="text-xs text-muted-foreground">
-                {unreconciled} of {summary?.counts?.total ?? 0} transaction
-                {(summary?.counts?.total ?? 0) === 1 ? '' : 's'} still to review
+                {fill('banking.stillToReview', {
+                  count: unreconciled,
+                  total: summary?.counts?.total ?? 0,
+                })}
               </p>
             </CardContent>
           </Card>
@@ -310,12 +334,9 @@ export default function BankingPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Landmark className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">No bank accounts yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Add an account, then import a statement to start reconciling it against your invoices,
-              payments, income and expenses.
-            </p>
-            <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> Add Account</Button>
+            <h3 className="font-medium mb-1">{t('banking.noAccounts')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('banking.noAccountsHint')}</p>
+            <Button onClick={openCreate}><Plus className="w-4 h-4 mr-2" /> {t('banking.addAccount')}</Button>
           </CardContent>
         </Card>
       ) : null}
@@ -340,10 +361,10 @@ export default function BankingPage() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <Badge variant="outline">{account.currency}</Badge>
-                    <Button variant="ghost" size="icon" aria-label="Edit account" onClick={() => openEdit(account)}>
+                    <Button variant="ghost" size="icon" aria-label={t('banking.editAccount')} onClick={() => openEdit(account)}>
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Delete account" onClick={() => setConfirmDelete(account)}>
+                    <Button variant="ghost" size="icon" aria-label={t('banking.deleteAccount')} onClick={() => setConfirmDelete(account)}>
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </div>
@@ -358,8 +379,8 @@ export default function BankingPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {account.lastBalanceAt
-                        ? `Reported ${formatCalendarDate(account.lastBalanceAt)}`
-                        : 'No balance reported yet'}
+                        ? fill('banking.reportedOn', { date: formatCalendarDate(account.lastBalanceAt, 'MMM d, yyyy', intl) })
+                        : t('banking.noBalanceYet')}
                     </p>
                   </div>
                   <div className="text-right">
@@ -368,16 +389,16 @@ export default function BankingPage() {
                         href={`/banking/reconcile?account=${account.id}`}
                         className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1"
                       >
-                        {account.unreconciledCount} to reconcile
+                        {fill('dashboard.bankToReconcile', { count: account.unreconciledCount })}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     ) : (
-                      <span className="text-sm text-muted-foreground">All reconciled</span>
+                      <span className="text-sm text-muted-foreground">{t('dashboard.bankAllReconciled')}</span>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {account.lastSyncedAt
-                        ? `Last import ${formatCalendarDate(account.lastSyncedAt)}`
-                        : 'Never imported'}
+                        ? fill('banking.lastImport', { date: formatCalendarDate(account.lastSyncedAt, 'MMM d, yyyy', intl) })
+                        : t('banking.neverImported')}
                     </p>
                   </div>
                 </div>
@@ -391,7 +412,7 @@ export default function BankingPage() {
       {(summary?.recent?.length ?? 0) > 0 ? (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Recent bank activity</CardTitle>
+            <CardTitle className="text-base">{t('banking.recentActivity')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {summary!.recent.map((row) => (
@@ -405,9 +426,9 @@ export default function BankingPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{row.description}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {formatCalendarDate(row.date)}
+                      {formatCalendarDate(row.date, 'MMM d, yyyy', intl)}
                       {row.bankAccount ? ` · ${row.bankAccount.accountName}` : ''}
-                      {row.match ? ` · ${row.match.label}` : ''}
+                      {row.match ? ` · ${matchLabel(row.match)}` : ''}
                     </p>
                   </div>
                 </div>
@@ -417,18 +438,18 @@ export default function BankingPage() {
                     {formatCurrency(row.amount, row.currency)}
                   </span>
                   {row.effectiveStatus === 'MATCHED' ? (
-                    <Badge variant="outline">Matched</Badge>
+                    <Badge variant="outline">{t('banking.matched')}</Badge>
                   ) : row.effectiveStatus === 'IGNORED' ? (
-                    <Badge variant="secondary">Ignored</Badge>
+                    <Badge variant="secondary">{t('banking.ignored')}</Badge>
                   ) : (
-                    <Badge>Unmatched</Badge>
+                    <Badge>{t('banking.unmatched')}</Badge>
                   )}
                 </div>
               </div>
             ))}
             <div className="pt-2">
               <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/banking/reconcile">Open reconciliation</Link>
+                <Link href="/banking/reconcile">{t('banking.openReconciliation')}</Link>
               </Button>
             </div>
           </CardContent>
@@ -439,28 +460,28 @@ export default function BankingPage() {
       <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Bank Account' : 'Add Bank Account'}</DialogTitle>
+            <DialogTitle>{editingId ? t('banking.editAccountTitle') : t('banking.addAccountTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Bank name *</Label>
-                <Input value={form.bankName} placeholder="e.g. Chase" onChange={(e: any) => setForm({ ...form, bankName: e.target.value })} />
+                <Label>{t('banking.bankName')} *</Label>
+                <Input value={form.bankName} placeholder={t('banking.bankNamePlaceholder')} onChange={(e: any) => setForm({ ...form, bankName: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Account name *</Label>
-                <Input value={form.accountName} placeholder="e.g. Business Current" onChange={(e: any) => setForm({ ...form, accountName: e.target.value })} />
+                <Label>{t('banking.accountName')} *</Label>
+                <Input value={form.accountName} placeholder={t('banking.accountNamePlaceholder')} onChange={(e: any) => setForm({ ...form, accountName: e.target.value })} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Currency</Label>
+                <Label>{t('common.currency')}</Label>
                 {editingId ? (
                   <>
                     <Input readOnly value={form.currency} className="bg-muted" />
                     <p className="text-xs text-muted-foreground">
-                      Currency cannot be changed once the account exists.
+                      {t('banking.currencyLocked')}
                     </p>
                   </>
                 ) : (
@@ -475,14 +496,14 @@ export default function BankingPage() {
                 )}
               </div>
               <div className="space-y-1">
-                <Label>Account number</Label>
+                <Label>{t('banking.accountNumber')}</Label>
                 <Input
                   value={form.accountNumber}
-                  placeholder="Last 4 digits"
+                  placeholder={t('banking.accountNumberPlaceholder')}
                   onChange={(e: any) => setForm({ ...form, accountNumber: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  A masked form or the last four digits — the full number is not needed.
+                  {t('banking.accountNumberHint')}
                 </p>
               </div>
             </div>
@@ -493,7 +514,7 @@ export default function BankingPage() {
                 <Input value={form.iban} onChange={(e: any) => setForm({ ...form, iban: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <Label>Balance reported by the bank</Label>
+                <Label>{t('banking.reportedBalance')}</Label>
                 <Input
                   type="number" step="0.01" placeholder="0.00"
                   value={form.lastBalance}
@@ -503,12 +524,12 @@ export default function BankingPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>Notes</Label>
+              <Label>{t('common.notes')}</Label>
               <Textarea value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} />
             </div>
 
             <Button onClick={handleSave} className="w-full" disabled={saving}>
-              {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Account'}
+              {saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('banking.addAccount')}
             </Button>
           </div>
         </DialogContent>
@@ -517,21 +538,21 @@ export default function BankingPage() {
       <AlertDialog open={Boolean(confirmDelete)} onOpenChange={(o: boolean) => { if (!o && !deleting) setConfirmDelete(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this bank account?</AlertDialogTitle>
+            <AlertDialogTitle>{t('banking.deleteAccountTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Every transaction imported into {confirmDelete?.accountName ?? 'this account'} is deleted
-              with it. Your invoices, payments, income and expenses are not affected — only the bank
-              statement lines and the links to them. This cannot be undone.
+              {fill('banking.deleteAccountBody', {
+                name: confirmDelete?.accountName ?? t('banking.thisAccount'),
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={deleting}
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting…' : 'Delete'}
+              {deleting ? t('common.deleting') : t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

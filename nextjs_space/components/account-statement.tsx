@@ -18,6 +18,7 @@ import { generateSinglePdf } from '@/lib/bulk-pdf';
 import { generateStatementHtml } from '@/lib/statement-html';
 import type { CurrencyStatement, MovementKind, StatementRow } from '@/lib/statement-ledger';
 import type { Reconciliation } from '@/lib/statement-sources';
+import { paymentMethodLabelKey } from '@/lib/validation';
 import type { TranslationKey } from '@/lib/i18n';
 
 /**
@@ -61,13 +62,6 @@ const MOVEMENT_LABEL: Record<MovementKind, TranslationKey> = {
   settlement: 'statement.kind.settlement',
 };
 
-const METHOD_LABEL: Record<string, TranslationKey> = {
-  bank_transfer: 'statement.method.bank_transfer',
-  cash: 'statement.method.cash',
-  card: 'statement.method.card',
-  other: 'statement.method.other',
-};
-
 /** Credits are the money coming back; they read green, debits neutral. */
 function kindTone(kind: MovementKind): string {
   return kind === 'payment' || kind === 'settlement'
@@ -86,7 +80,7 @@ export function AccountStatement({
   /** Basis for the downloaded file name. */
   fileNameBase: string;
 }) {
-  const { t } = useI18n();
+  const { t, fill } = useI18n();
   const company = useCompany();
 
   const [data, setData] = useState<StatementPayload | null>(null);
@@ -153,10 +147,10 @@ export function AccountStatement({
     load(next);
   };
 
+  // A payment row carries the stored method code; every other row carries text
+  // the user or the document supplied, which is shown as it is.
   const referenceLabel = (row: StatementRow): string =>
-    row.kind === 'payment' && METHOD_LABEL[row.reference]
-      ? t(METHOD_LABEL[row.reference])
-      : row.reference;
+    row.kind === 'payment' ? t(paymentMethodLabelKey(row.reference)) : row.reference;
 
   const buildHtml = async (): Promise<string> => {
     if (!data) return '';
@@ -513,18 +507,12 @@ function ReconciliationNote({
   reconciliation: Reconciliation;
   currency: string;
 }) {
-  const { t } = useI18n();
+  const { t, fill } = useI18n();
 
   const excluded = Number(reconciliation.excludedInvoices);
   const uninvoiced = Number(reconciliation.uninvoicedReceivables);
   const difference = Number(reconciliation.difference);
   if (difference === 0 && excluded === 0 && uninvoiced === 0) return null;
-
-  const fill = (key: TranslationKey, values: Record<string, string>) =>
-    Object.entries(values).reduce<string>(
-      (text, [name, value]) => text.replace(`{${name}}`, value),
-      t(key)
-    );
 
   return (
     <div className="flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">

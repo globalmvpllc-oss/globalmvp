@@ -46,13 +46,13 @@ export const MAX_DATE_DISTANCE_DAYS = 60;
 const AMOUNT_POINTS = 60;
 
 /** Date proximity, in whole days of separation. Ordered, first match wins. */
-const DATE_BANDS: Array<{ within: number; points: number; reason: string }> = [
-  { within: 0, points: 30, reason: 'Same day' },
-  { within: 2, points: 24, reason: 'Within 2 days' },
-  { within: 5, points: 18, reason: 'Within 5 days' },
-  { within: 10, points: 12, reason: 'Within 10 days' },
-  { within: 30, points: 6, reason: 'Within 30 days' },
-  { within: MAX_DATE_DISTANCE_DAYS, points: 2, reason: 'Within 60 days' },
+const DATE_BANDS: Array<{ within: number; points: number; reason: string; key: string }> = [
+  { within: 0, points: 30, reason: 'Same day', key: 'banking.reasonSameDay' },
+  { within: 2, points: 24, reason: 'Within 2 days', key: 'banking.reasonWithinDays' },
+  { within: 5, points: 18, reason: 'Within 5 days', key: 'banking.reasonWithinDays' },
+  { within: 10, points: 12, reason: 'Within 10 days', key: 'banking.reasonWithinDays' },
+  { within: 30, points: 6, reason: 'Within 30 days', key: 'banking.reasonWithinDays' },
+  { within: MAX_DATE_DISTANCE_DAYS, points: 2, reason: 'Within 60 days', key: 'banking.reasonWithinDays' },
 ];
 
 /** The reference or document number appearing in the statement text. */
@@ -159,13 +159,24 @@ export function scoreCandidate(
   if (distance === null || distance > MAX_DATE_DISTANCE_DAYS) return null;
 
   const reasons: string[] = [];
+  // The same reasons as keys, so the screen can draw them in the reader's
+  // language. Kept alongside the English array rather than replacing it.
+  const reasonCodes: Array<{ key: string; values?: Record<string, string> }> = [];
   let score = AMOUNT_POINTS;
-  reasons.push(txAmount.equals(candidateAmount) ? 'Exact amount' : 'Amount within one cent');
+
+  const exact = txAmount.equals(candidateAmount);
+  reasons.push(exact ? 'Exact amount' : 'Amount within one cent');
+  reasonCodes.push({ key: exact ? 'banking.reasonExactAmount' : 'banking.reasonNearAmount' });
 
   const band = DATE_BANDS.find((b) => distance <= b.within);
   if (band) {
     score += band.points;
     reasons.push(band.reason);
+    reasonCodes.push(
+      band.within === 0
+        ? { key: band.key }
+        : { key: band.key, values: { days: String(band.within) } }
+    );
   }
 
   const description = transaction.description;
@@ -173,9 +184,13 @@ export function scoreCandidate(
   if (referenceMatches({ description, reference }, candidate.reference)) {
     score += REFERENCE_POINTS;
     reasons.push(`Reference "${candidate.reference}" appears on the statement line`);
+    reasonCodes.push({
+      key: 'banking.reasonReference',
+      values: { reference: String(candidate.reference ?? '') },
+    });
   }
 
-  return { ...candidate, score: Math.min(score, 100), reasons };
+  return { ...candidate, score: Math.min(score, 100), reasons, reasonCodes };
 }
 
 /**

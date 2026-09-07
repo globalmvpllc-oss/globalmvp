@@ -8,6 +8,7 @@ import {
   LOCALE_COOKIE_MAX_AGE,
   intlLocale,
   translate,
+  fillTranslation,
   categoryLabel,
   type Locale,
   type TranslationKey,
@@ -17,6 +18,8 @@ interface I18nValue {
   locale: Locale;
   /** Translates a key in the active locale. */
   t: (key: TranslationKey) => string;
+  /** Translates a key and substitutes `{placeholder}` values. */
+  fill: (key: TranslationKey, values: Record<string, string | number>) => string;
   /** Display label for a stored category value; the stored value is unchanged. */
   category: (storedValue: unknown) => string;
   /** BCP-47 tag for Intl formatting in the active locale. */
@@ -64,6 +67,8 @@ export function I18nProvider({
     () => ({
       locale,
       t: (key: TranslationKey) => translate(locale, key),
+      fill: (key: TranslationKey, values: Record<string, string | number>) =>
+        fillTranslation(locale, key, values),
       category: (storedValue: unknown) => categoryLabel(storedValue, locale),
       intl: intlLocale(locale),
       setLocale,
@@ -87,6 +92,8 @@ export function useI18n(): I18nValue {
   return {
     locale: DEFAULT_LOCALE,
     t: (key: TranslationKey) => translate(DEFAULT_LOCALE, key),
+    fill: (key: TranslationKey, values: Record<string, string | number>) =>
+      fillTranslation(DEFAULT_LOCALE, key, values),
     category: (storedValue: unknown) => categoryLabel(storedValue, DEFAULT_LOCALE),
     intl: intlLocale(DEFAULT_LOCALE),
     setLocale: () => {},

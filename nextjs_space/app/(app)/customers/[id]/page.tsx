@@ -11,12 +11,14 @@ import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage } from '@/lib/api-feedback';
 import { countryLabel } from '@/lib/countries';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { AccountStatement } from '@/components/account-statement';
+import { useI18n } from '@/components/i18n-provider';
 
 export default function CustomerDetailPage() {
+  const { t, locale } = useI18n();
   const params = useParams();
   const router = useRouter();
   const [customer, setCustomer] = useState<any>(null);
@@ -45,39 +47,39 @@ export default function CustomerDetailPage() {
     // with 409 to protect the invoice history. The confirmation says exactly
     // that, rather than promising to remove invoices — which is the opposite of
     // what the backend does.
-    if (!confirm('Delete this customer? A customer with existing invoices cannot be deleted.')) return;
+    if (!confirm(t('customers.deleteConfirm'))) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/customers/${params?.id}`, { method: 'DELETE' });
       if (!res.ok) {
         // Never report success on a refused delete: on 409 the customer is still
         // there, so show the real reason and stay on the page.
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-      toast.success('Customer deleted');
+      toast.success(t('customers.deleted'));
       router.push('/customers');
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setDeleting(false);
     }
   };
 
-  if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
-  if (!customer) return <div className="text-center py-12">Customer not found</div>;
+  if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>;
+  if (!customer) return <div className="text-center py-12">{t('customers.notFound')}</div>;
 
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.push('/customers')}><ArrowLeft className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('customers.backAria')} onClick={() => router.push('/customers')}><ArrowLeft className="w-4 h-4" /></Button>
         {/* min-w-0 lets a long business name truncate instead of pushing the
             delete button off the side of the screen. */}
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-display font-bold tracking-tight truncate">{customer?.name ?? ''}</h1>
           {customer?.companyName && <p className="text-muted-foreground truncate">{customer.companyName}</p>}
         </div>
-        <Button variant="ghost" size="icon" className="shrink-0" onClick={handleDelete} disabled={deleting}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+        <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('common.delete')} onClick={handleDelete} disabled={deleting}><Trash2 className="w-4 h-4 text-red-500" /></Button>
       </div>
 
       {/* Stats — grouped per currency. A customer invoiced in more than one
@@ -92,9 +94,9 @@ export default function CustomerDetailPage() {
           const cur = customer?.summaryCurrency ?? customer?.defaultCurrency ?? 'USD';
           return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Invoiced</p><p className="text-lg font-mono font-bold">{formatCurrency(0, cur)}</p></CardContent></Card>
-              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Paid</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(0, cur)}</p></CardContent></Card>
-              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Outstanding</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(0, cur)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">{t('customers.totalInvoiced')}</p><p className="text-lg font-mono font-bold">{formatCurrency(0, cur)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">{t('customers.totalPaid')}</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(0, cur)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">{t('customers.outstanding')}</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(0, cur)}</p></CardContent></Card>
             </div>
           );
         }
@@ -108,9 +110,9 @@ export default function CustomerDetailPage() {
                     <h3 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wider">{cur}</h3>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Invoiced</p><p className="text-lg font-mono font-bold">{formatCurrency(b.totalInvoiced, cur)}</p></CardContent></Card>
-                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Total Paid</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(b.totalPaid, cur)}</p></CardContent></Card>
-                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">Outstanding</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(b.outstanding, cur)}</p></CardContent></Card>
+                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">{t('customers.totalInvoiced')}</p><p className="text-lg font-mono font-bold">{formatCurrency(b.totalInvoiced, cur)}</p></CardContent></Card>
+                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">{t('customers.totalPaid')}</p><p className="text-lg font-mono font-bold text-green-600">{formatCurrency(b.totalPaid, cur)}</p></CardContent></Card>
+                    <Card><CardContent className="pt-5 pb-4"><p className="text-xs text-muted-foreground">{t('customers.outstanding')}</p><p className="text-lg font-mono font-bold text-amber-600">{formatCurrency(b.outstanding, cur)}</p></CardContent></Card>
                   </div>
                 </div>
               );
@@ -121,23 +123,23 @@ export default function CustomerDetailPage() {
 
       {/* Contact Info */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Contact Information</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t('vendors.contact')}</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {customer?.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-muted-foreground" /><span suppressHydrationWarning>{customer.email}</span></div>}
             {customer?.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" /><span suppressHydrationWarning>{customer.phone}</span></div>}
             {customer?.address && <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{customer.address}{customer?.city ? `, ${customer.city}` : ''}{customer?.country ? `, ${countryLabel(customer.country)}` : ''}</span></div>}
-            {customer?.taxId && <div><span className="text-muted-foreground">Tax ID: </span>{customer.taxId}</div>}
+            {customer?.taxId && <div><span className="text-muted-foreground">{t('vendors.taxId')}: </span>{customer.taxId}</div>}
           </div>
         </CardContent>
       </Card>
 
       {/* Invoice History */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Invoice History</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t('customers.invoiceHistory')}</CardTitle></CardHeader>
         <CardContent>
           {(customer?.invoices?.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No invoices yet</p>
+            <p className="text-sm text-muted-foreground text-center py-4">{t('reports.noInvoices')}</p>
           ) : (
             <div className="space-y-2">
               {(customer?.invoices ?? []).map((inv: any) => {
@@ -153,7 +155,7 @@ export default function CustomerDetailPage() {
                     </div>
                     <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                       <span className="font-mono text-sm">{formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}</span>
-                      <Badge className={si?.color ?? ''}>{si?.label ?? ''}</Badge>
+                      <Badge className={si?.color ?? ''}>{t(si.labelKey)}</Badge>
                     </div>
                   </Link>
                 );

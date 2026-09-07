@@ -16,15 +16,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Send, CheckCircle, Download, Printer, CreditCard, Trash2, Copy } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
+import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
+import { useI18n } from '@/components/i18n-provider';
 import { resolveStoredFileUrl } from '@/lib/company-identity';
 import { generateInvoiceHtml } from '@/lib/invoice-html';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { formatCalendarDate } from '@/lib/calendar-date';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage } from '@/lib/api-feedback';
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
+  const { t, fill, locale, intl } = useI18n();
   const params = useParams();
   const [invoice, setInvoice] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
@@ -70,19 +73,21 @@ export default function InvoiceDetailPage() {
       // A rejected transition (409/400) must not read as success: the badge and
       // the stored status would then disagree.
       if (!res.ok) {
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-      toast.success(`Invoice marked as ${status.toLowerCase().replace('_', ' ')}`);
+      // The badge label for the new status, translated. Spelling out the stored
+      // value would print "partially paid" inside a Turkish sentence.
+      toast.success(fill('invoices.statusChanged', { status: t(getStatusBadge(status).labelKey) }));
       fetchInvoice();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     }
   };
 
   const recordPayment = async () => {
     const amount = Number(paymentForm.amount);
-    if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
+    if (!amount || amount <= 0) { toast.error(t('invoices.enterValidAmount')); return; }
     try {
       const res = await fetch('/api/payments', {
         method: 'POST',
@@ -100,15 +105,15 @@ export default function InvoiceDetailPage() {
       // must never claim success: the invoice balance on screen would then
       // disagree with the database.
       if (!res.ok) {
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-      toast.success('Payment recorded!');
+      toast.success(t('invoices.paymentRecorded'));
       setPaymentOpen(false);
       setPaymentForm({ amount: '', paymentMethod: 'bank_transfer', reference: '', notes: '' });
       fetchInvoice();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     }
   };
 
@@ -160,7 +165,7 @@ export default function InvoiceDetailPage() {
     const html = generateInvoiceHtml(invoice, company, logoDataUrl);
     const win = window.open('', '_blank');
     if (!win) {
-      toast.error('Your browser blocked the print window. Allow pop-ups for this site and try again.');
+      toast.error(t('statement.pdfPopupBlocked'));
       return;
     }
     win.document.write(html);
@@ -189,8 +194,8 @@ export default function InvoiceDetailPage() {
         // the user can act on, so print instead of showing them an error.
         if (createRes.status === 503) {
           setPdfLoading(false);
-          toast.message('Opening the print view instead.', {
-            description: 'The PDF service is not configured, so your browser will produce the file.',
+          toast.message(t('statement.pdfOpeningPrint'), {
+            description: t('statement.pdfNotConfigured'),
           });
           await printInvoice();
           return;
@@ -204,7 +209,7 @@ export default function InvoiceDetailPage() {
 
       const createData = await createRes.json();
       if (!createData?.success || !createData?.token) {
-        toast.error(createData?.error ?? 'The PDF service did not accept this invoice. You can print it instead.');
+        toast.error(createData?.error ?? t('invoices.pdfRejected'));
         setPdfLoading(false);
         return;
       }
@@ -233,46 +238,46 @@ export default function InvoiceDetailPage() {
             a.click();
             URL.revokeObjectURL(url);
             setPdfLoading(false);
-            toast.success('PDF downloaded.');
+            toast.success(t('invoices.pdfDownloaded'));
           } else if (statusData?.status === 'FAILED' || attempts > MAX_PDF_POLL_ATTEMPTS) {
             stopPolling();
             setPdfLoading(false);
             toast.error(
               statusData?.error ??
-                'The PDF service could not finish this invoice. Use Print to produce it in your browser.'
+                t('invoices.pdfUnfinished')
             );
           }
         } catch {
           stopPolling();
           setPdfLoading(false);
-          toast.error('Lost contact with the PDF service. Use Print to produce the invoice in your browser.');
+          toast.error(t('invoices.pdfLostContact'));
         }
       }, 2000);
     } catch {
       setPdfLoading(false);
-      toast.error('The invoice could not be prepared for download. Use Print instead.');
+      toast.error(t('invoices.pdfNotPrepared'));
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Delete this invoice?')) return;
+    if (!confirm(t('invoices.deleteConfirm'))) return;
     try {
       const res = await fetch(`/api/invoices/${params?.id}`, { method: 'DELETE' });
       // An invoice with payments is refused (409). Reporting "deleted" and
       // navigating away would tell the user it was gone when it is still there.
       if (!res.ok) {
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-      toast.success('Invoice deleted');
+      toast.success(t('invoices.deleted'));
       router.push('/invoices');
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     }
   };
 
-  if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading...</div></div>;
-  if (!invoice) return <div className="text-center py-12">Invoice not found</div>;
+  if (loading) return <div className="h-96 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>;
+  if (!invoice) return <div className="text-center py-12">{t('invoices.notFound')}</div>;
 
   const statusInfo = getStatusBadge(invoice?.status ?? 'DRAFT');
   const outstanding = (invoice?.total ?? 0) - (invoice?.amountPaid ?? 0);
@@ -283,85 +288,90 @@ export default function InvoiceDetailPage() {
           whole row drops below the heading and the buttons share the width. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.push('/invoices')}><ArrowLeft className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('invoices.backAria')} onClick={() => router.push('/invoices')}><ArrowLeft className="w-4 h-4" /></Button>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <h1 className="text-2xl font-display font-bold tracking-tight">{invoice?.invoiceNumber}</h1>
-              <Badge className={statusInfo?.color ?? ''}>{statusInfo?.label ?? ''}</Badge>
+              <Badge className={statusInfo?.color ?? ''}>{t(statusInfo.labelKey)}</Badge>
             </div>
             <p className="text-muted-foreground truncate">{invoice?.customer?.name ?? ''}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {invoice?.status === 'DRAFT' && <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => updateStatus('SENT')}><Send className="w-4 h-4 mr-2" /> Send</Button>}
+          {invoice?.status === 'DRAFT' && <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => updateStatus('SENT')}><Send className="w-4 h-4 mr-2" /> {t('invoices.send')}</Button>}
           {['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(invoice?.status) && (
             <>
               <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="flex-1 sm:flex-none"><CreditCard className="w-4 h-4 mr-2" /> Record Payment</Button>
+                  <Button variant="outline" className="flex-1 sm:flex-none"><CreditCard className="w-4 h-4 mr-2" /> {t('invoices.recordPayment')}</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Record Payment</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{t('invoices.recordPayment')}</DialogTitle></DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Amount (Outstanding: {formatCurrency(outstanding, invoice?.currency ?? 'USD')})</Label>
+                      <Label>
+                        {fill('invoices.amountOutstanding', {
+                          amount: formatCurrency(outstanding, invoice?.currency ?? 'USD'),
+                        })}
+                      </Label>
                       <Input type="number" step="0.01" placeholder="0.00" value={paymentForm.amount} onChange={(e: any) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Payment method</Label>
+                      <Label>{t('common.paymentMethod')}</Label>
                       <Select value={paymentForm.paymentMethod} onValueChange={(v: string) => setPaymentForm({ ...paymentForm, paymentMethod: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="card">Card</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          {/* The stored code is the option value; only the
+                              label follows the language. */}
+                          {PAYMENT_METHODS.map((method) => (
+                            <SelectItem key={method} value={method}>{t(paymentMethodLabelKey(method))}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Reference</Label>
-                      <Input placeholder="Payment reference" value={paymentForm.reference} onChange={(e: any) => setPaymentForm({ ...paymentForm, reference: e.target.value })} />
+                      <Label>{t('common.reference')}</Label>
+                      <Input placeholder={t('invoices.referencePlaceholder')} value={paymentForm.reference} onChange={(e: any) => setPaymentForm({ ...paymentForm, reference: e.target.value })} />
                     </div>
-                    <Button onClick={recordPayment} className="w-full">Record Payment</Button>
+                    <Button onClick={recordPayment} className="w-full">{t('invoices.recordPayment')}</Button>
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button className="flex-1 sm:flex-none" onClick={() => updateStatus('PAID')}><CheckCircle className="w-4 h-4 mr-2" /> Mark Paid</Button>
+              <Button className="flex-1 sm:flex-none" onClick={() => updateStatus('PAID')}><CheckCircle className="w-4 h-4 mr-2" /> {t('invoices.markPaid')}</Button>
             </>
           )}
           <Button variant="outline" className="flex-1 sm:flex-none" onClick={printInvoice} disabled={pdfLoading}>
-            <Printer className="w-4 h-4 mr-2" /> Print
+            <Printer className="w-4 h-4 mr-2" /> {t('statement.print')}
           </Button>
           <Button variant="outline" className="flex-1 sm:flex-none" onClick={downloadPdf} disabled={pdfLoading}>
-            <Download className="w-4 h-4 mr-2" /> {pdfLoading ? 'Generating...' : 'PDF'}
+            <Download className="w-4 h-4 mr-2" /> {pdfLoading ? t('invoices.generating') : 'PDF'}
           </Button>
-          <Button variant="ghost" size="icon" className="shrink-0" onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+          <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('common.delete')} onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
         </div>
       </div>
 
       {/* Invoice Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Issue Date</p><p className="font-medium">{invoice?.issueDate ? formatCalendarDate(invoice.issueDate) : ''}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Due Date</p><p className="font-medium">{invoice?.dueDate ? formatCalendarDate(invoice.dueDate) : ''}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Total</p><p className="font-mono font-medium">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">Outstanding</p><p className="font-mono font-medium text-amber-600">{formatCurrency(outstanding, invoice?.currency ?? 'USD')}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">{t('invoices.issueDate')}</p><p className="font-medium">{invoice?.issueDate ? formatCalendarDate(invoice.issueDate, 'MMM d, yyyy', intl) : ''}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">{t('common.dueDate')}</p><p className="font-medium">{invoice?.dueDate ? formatCalendarDate(invoice.dueDate, 'MMM d, yyyy', intl) : ''}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">{t('common.total')}</p><p className="font-mono font-medium">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 pb-3"><p className="text-xs text-muted-foreground">{t('customers.outstanding')}</p><p className="font-mono font-medium text-amber-600">{formatCurrency(outstanding, invoice?.currency ?? 'USD')}</p></CardContent></Card>
       </div>
 
       {/* Items Table */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Items</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t('invoices.items')}</CardTitle></CardHeader>
         <CardContent>
           {/* The table scrolls inside this box; the page itself does not. */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[32rem] text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2 font-medium text-muted-foreground">Description</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">Qty</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">Price</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">Tax</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">Amount</th>
+                  <th className="text-left py-2 font-medium text-muted-foreground">{t('common.description')}</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">{t('invoices.qty')}</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">{t('invoices.unitPrice')}</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">{t('invoices.tax')}</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">{t('common.amount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -379,11 +389,11 @@ export default function InvoiceDetailPage() {
           </div>
           <div className="mt-4 flex justify-end">
             <div className="w-full space-y-2 sm:w-64">
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{formatCurrency(invoice?.subtotal ?? 0, invoice?.currency ?? 'USD')}</span></div>
-              {(invoice?.discountTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="font-mono text-red-500">-{formatCurrency(invoice?.discountTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
-              {(invoice?.taxTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tax</span><span className="font-mono">{formatCurrency(invoice?.taxTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
-              <div className="border-t pt-2 flex justify-between font-medium"><span>Total</span><span className="font-mono">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</span></div>
-              {(invoice?.amountPaid ?? 0) > 0 && <div className="flex justify-between text-sm text-green-600"><span>Paid</span><span className="font-mono">{formatCurrency(invoice?.amountPaid ?? 0, invoice?.currency ?? 'USD')}</span></div>}
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.subtotal')}</span><span className="font-mono">{formatCurrency(invoice?.subtotal ?? 0, invoice?.currency ?? 'USD')}</span></div>
+              {(invoice?.discountTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.discount')}</span><span className="font-mono text-red-500">-{formatCurrency(invoice?.discountTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
+              {(invoice?.taxTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.tax')}</span><span className="font-mono">{formatCurrency(invoice?.taxTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
+              <div className="border-t pt-2 flex justify-between font-medium"><span>{t('common.total')}</span><span className="font-mono">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</span></div>
+              {(invoice?.amountPaid ?? 0) > 0 && <div className="flex justify-between text-sm text-green-600"><span>{t('status.paid')}</span><span className="font-mono">{formatCurrency(invoice?.amountPaid ?? 0, invoice?.currency ?? 'USD')}</span></div>}
             </div>
           </div>
         </CardContent>
@@ -391,20 +401,20 @@ export default function InvoiceDetailPage() {
 
       {/* Notes */}
       {invoice?.notes && (
-        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Notes</p><p className="text-sm mt-1">{invoice.notes}</p></CardContent></Card>
+        <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">{t('common.notes')}</p><p className="text-sm mt-1">{invoice.notes}</p></CardContent></Card>
       )}
 
       {/* Payment history */}
       {(invoice?.payments?.length ?? 0) > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Payment History</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t('invoices.paymentHistory')}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {(invoice?.payments ?? []).map((p: any) => (
                 <div key={p?.id} className="flex flex-wrap justify-between items-center gap-2 py-2 px-3 rounded bg-muted/50">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">{p?.paymentMethod?.replace('_', ' ') ?? 'Payment'}</p>
-                    <p className="text-xs text-muted-foreground">{p?.paymentDate ? formatCalendarDate(p.paymentDate) : ''}{p?.reference ? ` • ${p.reference}` : ''}</p>
+                    <p className="text-sm font-medium">{t(paymentMethodLabelKey(p?.paymentMethod))}</p>
+                    <p className="text-xs text-muted-foreground">{p?.paymentDate ? formatCalendarDate(p.paymentDate, 'MMM d, yyyy', intl) : ''}{p?.reference ? ` • ${p.reference}` : ''}</p>
                   </div>
                   <span className="font-mono font-medium text-green-600">{formatCurrency(p?.amount ?? 0, invoice?.currency ?? 'USD')}</span>
                 </div>

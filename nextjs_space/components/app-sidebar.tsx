@@ -206,7 +206,9 @@ export function AppSidebar() {
    */
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
-  const companyName = getCompanyDisplayName(company?.name);
+  // The fallback is a phrase, so it comes from the dictionary rather than the
+  // helper's English default.
+  const companyName = getCompanyDisplayName(company?.name, t('common.yourBusiness'));
   const initials = getCompanyInitials(company?.name);
   /** One company is not a choice, so no switcher is offered. */
   const canSwitch = companies.length > 1;

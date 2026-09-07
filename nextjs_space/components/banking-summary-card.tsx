@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Landmark, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
+import { useI18n } from '@/components/i18n-provider';
 
 /**
  * The banking strip on the main dashboard.
@@ -28,6 +29,7 @@ interface Summary {
 }
 
 export function BankingSummaryCard() {
+  const { t, fill } = useI18n();
   const [data, setData] = useState<Summary | null>(null);
 
   useEffect(() => {
@@ -52,7 +54,7 @@ export function BankingSummaryCard() {
               <Landmark className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-muted-foreground font-medium">Bank balances</p>
+              <p className="text-xs text-muted-foreground font-medium">{t('dashboard.bankBalances')}</p>
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 {(data.cashPosition ?? []).map((position) => (
                   <span key={position.currency} className="font-mono font-bold">
@@ -61,7 +63,7 @@ export function BankingSummaryCard() {
                         with no reported balance is unknown, not empty. */}
                     {position.accountsWithoutBalance > 0 ? (
                       <span className="ml-1 text-xs font-sans font-normal text-muted-foreground">
-                        (partial)
+                        ({t('dashboard.bankPartial')})
                       </span>
                     ) : null}
                   </span>
@@ -72,13 +74,15 @@ export function BankingSummaryCard() {
 
           <div className="flex items-center gap-3">
             {unreconciled > 0 ? (
-              <Badge variant="secondary">{unreconciled} to reconcile</Badge>
+              <Badge variant="secondary">
+                {fill('dashboard.bankToReconcile', { count: unreconciled })}
+              </Badge>
             ) : (
-              <span className="text-sm text-muted-foreground">All reconciled</span>
+              <span className="text-sm text-muted-foreground">{t('dashboard.bankAllReconciled')}</span>
             )}
             <Button variant="outline" size="sm" asChild>
               <Link href={unreconciled > 0 ? '/banking/reconcile' : '/banking'}>
-                Banking <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                {t('nav.banking')} <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Link>
             </Button>
           </div>

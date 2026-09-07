@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { useI18n } from '@/components/i18n-provider';
+import { getStatusBadge } from '@/lib/invoice-helpers';
 import type { ReportsPayload } from '@/lib/reports-aggregate';
 
 const COLORS = ['#60B5FF', '#FF9149', '#FF9898', '#FF90BB', '#FF6363', '#80D8C3', '#A19AD3', '#72BF78'];
@@ -25,11 +27,23 @@ const COLORS = ['#60B5FF', '#FF9149', '#FF9898', '#FF90BB', '#FF6363', '#80D8C3'
  *   - the expense pie added every currency into one set of slices. It is now
  *     grouped per currency, like every other total on the page, and drawn once
  *     per currency exactly as the bar chart already was.
+ *
+ * ## Slice labels
+ *
+ * The two pies are labelled from values the database stores: an invoice status
+ * ('PAID') and a category name ('Software'). Both are translated for display
+ * only — `getStatusBadge` matches on the stored value and hands back a key, and
+ * `category()` leaves anything the user typed themselves untouched. Nothing
+ * here writes a label back.
  */
 export default function ReportsCharts({ report }: { report: ReportsPayload | null }) {
+  const { t, category } = useI18n();
   const currencies = report?.currencies ?? [];
   const multiCurrency = currencies.length > 1;
-  const statusPie = report?.invoiceStatusCounts ?? [];
+  const statusPie = (report?.invoiceStatusCounts ?? []).map((slice) => ({
+    ...slice,
+    name: t(getStatusBadge(slice.name).labelKey),
+  }));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -41,12 +55,12 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
           <Card key={cur} className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-base">
-                Income vs Expenses{multiCurrency ? ` (${cur})` : ''}
+                {t('reports.incomeVsExpenses')}{multiCurrency ? ` (${cur})` : ''}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {barData.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No data yet</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noData')}</p>
               ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -54,8 +68,8 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
                       <XAxis dataKey="month" tickLine={false} tick={{ fontSize: 10 }} />
                       <YAxis tickLine={false} tick={{ fontSize: 10 }} />
                       <Tooltip contentStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="income" fill="#60B5FF" radius={[4, 4, 0, 0]} name="Income" />
-                      <Bar dataKey="expenses" fill="#FF9149" radius={[4, 4, 0, 0]} name="Expenses" />
+                      <Bar dataKey="income" fill="#60B5FF" radius={[4, 4, 0, 0]} name={t('reports.income')} />
+                      <Bar dataKey="expenses" fill="#FF9149" radius={[4, 4, 0, 0]} name={t('reports.expenses')} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -67,17 +81,20 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
 
       {/* Expense categories — one pie per currency. */}
       {currencies.map((cur) => {
-        const pieData = report?.expenseCategories?.[cur] ?? [];
+        const pieData = (report?.expenseCategories?.[cur] ?? []).map((slice) => ({
+          ...slice,
+          name: category(slice.name),
+        }));
         return (
           <Card key={cur}>
             <CardHeader>
               <CardTitle className="text-base">
-                Expense Categories{multiCurrency ? ` (${cur})` : ''}
+                {t('reports.expenseCategories')}{multiCurrency ? ` (${cur})` : ''}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {pieData.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No expenses yet</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noExpenses')}</p>
               ) : (
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -97,10 +114,10 @@ export default function ReportsCharts({ report }: { report: ReportsPayload | nul
 
       {/* Invoice status — counts, so currency does not apply. */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Invoice Status</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t('reports.invoiceStatus')}</CardTitle></CardHeader>
         <CardContent>
           {statusPie.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No invoices yet</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t('reports.noInvoices')}</p>
           ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">

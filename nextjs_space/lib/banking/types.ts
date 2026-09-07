@@ -57,6 +57,14 @@ export interface MatchCandidate {
   id: string;
   /** What the user sees in the suggestion list. */
   label: string;
+  /**
+   * Translation key for that label, and the values it interpolates.
+   *
+   * Null when the label is text the user typed themselves — an income or
+   * expense description — which is shown as it is and never translated.
+   */
+  labelKey?: string | null;
+  labelValues?: Record<string, string>;
   /** Secondary line: customer, vendor, category. */
   sublabel?: string;
   /** The amount that would settle this record — for an invoice, what is still
@@ -78,4 +86,12 @@ export interface ScoredCandidate extends MatchCandidate {
   score: number;
   /** Human-readable reasons, shown next to the suggestion. */
   reasons: string[];
+  /**
+   * The same reasons as translation keys with their values.
+   *
+   * Parallel to `reasons` rather than replacing it: the English array is part
+   * of this module's existing contract, and the screen prefers these so a
+   * Turkish reader is not handed "Exact amount".
+   */
+  reasonCodes: Array<{ key: string; values?: Record<string, string> }>;
 }

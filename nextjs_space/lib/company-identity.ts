@@ -35,10 +35,23 @@ export function getCompanyDisplayName(name?: string | null, fallback = 'Your bus
  * `"No invoices yet"` becomes `"No invoices yet for Acme Furniture"`. Without a
  * company name the base text is returned unchanged, so the copy never reads as
  * though something is missing.
+ *
+ * ## Word order
+ *
+ * The join is a `pattern` rather than a hardcoded " for " because the two parts
+ * do not sit in the same order in every language: English puts the company last
+ * ("No invoices yet for Acme"), Turkish puts it first ("Acme için henüz fatura
+ * yok"). Callers pass `t('common.emptyStateFor')`; the default keeps the exact
+ * English this has always produced, so an existing caller is unaffected.
  */
-export function personalizeEmptyState(base: string, companyName?: string | null): string {
+export function personalizeEmptyState(
+  base: string,
+  companyName?: string | null,
+  pattern = '{base} for {name}'
+): string {
   const trimmed = companyName?.trim();
-  return trimmed ? `${base} for ${trimmed}` : base;
+  if (!trimmed) return base;
+  return pattern.split('{base}').join(base).split('{name}').join(trimmed);
 }
 
 /**

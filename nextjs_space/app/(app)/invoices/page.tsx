@@ -6,24 +6,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, FileText, MoreVertical, Copy, Send, CheckCircle, Download } from 'lucide-react';
+import { Plus, FileText, MoreVertical, Copy, Send, CheckCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/currencies';
-import { getStatusBadge } from '@/lib/invoice-helpers';
+import { getStatusBadge, INVOICE_STATUSES } from '@/lib/invoice-helpers';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BulkPdfButton } from '@/components/bulk-pdf-button';
 import { useI18n } from '@/components/i18n-provider';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage } from '@/lib/api-feedback';
 import { formatCalendarDate } from '@/lib/calendar-date';
 
 export default function InvoicesPage() {
   const company = useCompany();
   const [invoices, setInvoices] = useState<any[]>([]);
-  const { t } = useI18n();
+  const { t, fill, locale, intl } = useI18n();
   /** Ids ticked for bulk download. Cleared implicitly when the list reloads. */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -59,13 +58,15 @@ export default function InvoicesPage() {
       // A rejected transition returns 409/400. Reporting success anyway would
       // leave the badge the user sees disagreeing with the stored status.
       if (!res.ok) {
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-      toast.success(`Invoice marked as ${status.toLowerCase().replace('_', ' ')}`);
+      // The badge label for the new status, translated — never the stored
+      // value spelled out, which would print "PARTIALLY_PAID" in Turkish.
+      toast.success(fill('invoices.statusChanged', { status: t(getStatusBadge(status).labelKey) }));
       fetchInvoices();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     }
   };
 
@@ -86,7 +87,7 @@ export default function InvoicesPage() {
     try {
       const detailRes = await fetch(`/api/invoices/${invoice?.id}`);
       if (!detailRes.ok) {
-        toast.error('Could not load the invoice to duplicate');
+        toast.error(t('invoices.duplicateLoadFailed'));
         return;
       }
       const full = await detailRes.json();
@@ -100,7 +101,7 @@ export default function InvoicesPage() {
       }));
 
       if (items.length === 0) {
-        toast.error('This invoice has no line items to duplicate');
+        toast.error(t('invoices.duplicateNoItems'));
         return;
       }
 
@@ -119,14 +120,18 @@ export default function InvoicesPage() {
 
       if (res.ok) {
         const created = await res.json();
-        toast.success(`Invoice duplicated as ${created?.invoiceNumber ?? 'a new draft'}`);
+        toast.success(
+          created?.invoiceNumber
+            ? fill('invoices.duplicated', { number: created.invoiceNumber })
+            : t('invoices.duplicatedDraft')
+        );
         fetchInvoices();
       } else {
         const err = await res.json().catch(() => null);
-        toast.error(err?.error ?? 'Failed to duplicate invoice');
+        toast.error(err?.error ?? t('invoices.duplicateFailed'));
       }
     } catch {
-      toast.error('Failed to duplicate invoice');
+      toast.error(t('invoices.duplicateFailed'));
     } finally {
       setDuplicatingId(null);
     }
@@ -138,15 +143,15 @@ export default function InvoicesPage() {
           being pushed off the side of it. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-display font-bold tracking-tight">Invoices</h1>
-          <p className="text-muted-foreground">Create, manage, and track your invoices</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('invoices.title')}</h1>
+          <p className="text-muted-foreground">{t('invoices.subtitle')}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {/* Sits beside the primary action; the per-invoice "Download PDF"
               lives on the detail page and is untouched. */}
           <BulkPdfButton invoices={invoices} selectedIds={selectedIds} company={company} className="w-full sm:w-auto" />
           <Button asChild className="w-full sm:w-auto">
-            <Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> Create Invoice</Link>
+            <Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> {t('invoices.create')}</Link>
           </Button>
         </div>
       </div>
@@ -164,7 +169,7 @@ export default function InvoicesPage() {
           </label>
           {selectedIds.length > 0 ? (
             <span className="text-muted-foreground">
-              &middot; {t('bulk.selectedCount').replace('{count}', String(selectedIds.length))}
+              &middot; {fill('bulk.selectedCount', { count: selectedIds.length })}
             </span>
           ) : null}
         </div>
@@ -174,16 +179,15 @@ export default function InvoicesPage() {
       <div className="flex gap-3">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder={t('invoices.filterByStatus')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Statuses</SelectItem>
-            <SelectItem value="DRAFT">Draft</SelectItem>
-            <SelectItem value="SENT">Sent</SelectItem>
-            <SelectItem value="PAID">Paid</SelectItem>
-            <SelectItem value="OVERDUE">Overdue</SelectItem>
-            <SelectItem value="PARTIALLY_PAID">Partially Paid</SelectItem>
-            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+            {/* The option value is the stored status the API filters on; only
+                the label changes with the language. */}
+            <SelectItem value="ALL">{t('invoices.allStatuses')}</SelectItem>
+            {INVOICE_STATUSES.filter((option) => option.value !== 'VIEWED').map((option) => (
+              <SelectItem key={option.value} value={option.value}>{t(option.labelKey)}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -197,9 +201,9 @@ export default function InvoicesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">{personalizeEmptyState('No invoices yet', company?.name)}</h3>
-            <p className="text-sm text-muted-foreground mb-4">Create your first invoice to start tracking payments.</p>
-            <Button asChild><Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> Create Invoice</Link></Button>
+            <h3 className="font-medium mb-1">{personalizeEmptyState(t('reports.noInvoices'), company?.name, t('common.emptyStateFor'))}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('invoices.emptyHint')}</p>
+            <Button asChild><Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> {t('invoices.create')}</Link></Button>
           </CardContent>
         </Card>
       ) : (
@@ -225,33 +229,37 @@ export default function InvoicesPage() {
                         <Link href={`/invoices/${inv?.id}`} className="font-medium hover:text-primary transition-colors">
                           {inv?.invoiceNumber ?? ''}
                         </Link>
-                        <p className="text-sm text-muted-foreground">{inv?.customer?.name ?? inv?.customer?.companyName ?? 'No customer'}</p>
+                        <p className="text-sm text-muted-foreground">{inv?.customer?.name ?? inv?.customer?.companyName ?? t('invoices.noCustomer')}</p>
                       </div>
                     </div>
                     <div className="flex w-full items-center justify-end gap-3 sm:w-auto sm:gap-4">
                       <div className="text-right">
                         <p className="font-mono font-medium">{formatCurrency(inv?.total ?? 0, inv?.currency ?? 'USD')}</p>
-                        <p className="text-xs text-muted-foreground">Due {inv?.dueDate ? formatCalendarDate(inv.dueDate) : 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {inv?.dueDate
+                            ? fill('invoices.dueOn', { date: formatCalendarDate(inv.dueDate, 'MMM d, yyyy', intl) })
+                            : t('invoices.noDueDate')}
+                        </p>
                       </div>
-                      <Badge className={statusInfo?.color ?? ''}>{statusInfo?.label ?? inv?.status}</Badge>
+                      <Badge className={statusInfo?.color ?? ''}>{t(statusInfo.labelKey)}</Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild><Link href={`/invoices/${inv?.id}`}>View details</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href={`/invoices/${inv?.id}`}>{t('invoices.viewDetails')}</Link></DropdownMenuItem>
                           {inv?.status === 'DRAFT' && (
                             <DropdownMenuItem onClick={() => handleStatusChange(inv.id, 'SENT')}>
-                              <Send className="w-4 h-4 mr-2" /> Mark as sent
+                              <Send className="w-4 h-4 mr-2" /> {t('invoices.markSent')}
                             </DropdownMenuItem>
                           )}
                           {['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(inv?.status) && (
                             <DropdownMenuItem onClick={() => handleStatusChange(inv.id, 'PAID')}>
-                              <CheckCircle className="w-4 h-4 mr-2" /> Mark as paid
+                              <CheckCircle className="w-4 h-4 mr-2" /> {t('invoices.markPaid')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem disabled={duplicatingId === inv?.id} onClick={() => handleDuplicate(inv)}>
-                            <Copy className="w-4 h-4 mr-2" /> Duplicate
+                            <Copy className="w-4 h-4 mr-2" /> {t('invoices.duplicate')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

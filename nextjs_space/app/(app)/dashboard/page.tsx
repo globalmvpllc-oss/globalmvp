@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, TrendingDown, Clock, AlertCircle, FileText, CreditCard, UserPlus } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
-import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getCompanyInitials, resolveStoredFileUrl } from '@/lib/company-identity';
 import { BankingSummaryCard } from '@/components/banking-summary-card';
+import { useI18n } from '@/components/i18n-provider';
+import { fillTranslation, type TranslationKey } from '@/lib/i18n';
 
 interface CurrencyMetrics {
   revenue: string;
@@ -32,8 +33,13 @@ interface DashboardData {
   activities: Array<{
     id: string;
     type: string;
+    /** English sentence built by the API; the fallback when no key is given. */
     title: string;
+    /** Key and values, when the sentence is one the product wrote itself. */
+    titleKey: string | null;
+    titleValues: Record<string, string>;
     subtitle: string;
+    subtitleKey: string | null;
     amount: string | number;
     currency: string;
     date: string;
@@ -48,13 +54,14 @@ interface DashboardData {
  * record. Nothing here creates a new entry point.
  */
 const QUICK_ACTIONS = [
-  { href: '/income', label: 'Add Income', icon: TrendingUp },
-  { href: '/expenses', label: 'Add Expense', icon: TrendingDown },
-  { href: '/invoices/new', label: 'New Invoice', icon: FileText },
-  { href: '/customers', label: 'Add Customer', icon: UserPlus },
-] as const;
+  { href: '/income', labelKey: 'income.add', icon: TrendingUp },
+  { href: '/expenses', labelKey: 'expenses.add', icon: TrendingDown },
+  { href: '/invoices/new', labelKey: 'invoices.new', icon: FileText },
+  { href: '/customers', labelKey: 'customers.add', icon: UserPlus },
+] as const satisfies ReadonlyArray<{ href: string; labelKey: TranslationKey; icon: unknown }>;
 
 export default function DashboardPage() {
+  const { t, locale, intl } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
@@ -65,7 +72,7 @@ export default function DashboardPage() {
    * business are different situations, and showing the onboarding empty state
    * after a 500 would tell the user their data is gone.
    */
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
   /**
    * Displayable logo URL.
    *
@@ -89,11 +96,11 @@ export default function DashboardPage() {
       .then(([d, c]: any) => {
         setData(d);
         setCompany(c);
-        setLoadError(null);
+        setLoadError(false);
       })
       .catch(() => {
         setData(null);
-        setLoadError('Could not load your dashboard. Please try again.');
+        setLoadError(true);
       })
       .finally(() => setLoading(false));
   };
@@ -133,12 +140,31 @@ export default function DashboardPage() {
   const displayCurrencies = currencies.length > 0 ? currencies : [defaultCurrency];
 
   const metricDefs = [
-    { key: 'revenue', label: 'Revenue', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
-    { key: 'expenses', label: 'Expenses', icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50' },
-    { key: 'profit', label: 'Profit', icon: DollarSign, color: 'text-primary', bg: 'bg-primary/5' },
-    { key: 'receivables', label: 'Receivables', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { key: 'upcomingPayments', label: 'Upcoming', icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50' },
-  ] as const;
+    { key: 'revenue', labelKey: 'dashboard.revenue', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
+    { key: 'expenses', labelKey: 'dashboard.expenses', icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50' },
+    { key: 'profit', labelKey: 'dashboard.profit', icon: DollarSign, color: 'text-primary', bg: 'bg-primary/5' },
+    { key: 'receivables', labelKey: 'dashboard.receivables', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { key: 'upcomingPayments', labelKey: 'dashboard.upcoming', icon: CreditCard, color: 'text-blue-600', bg: 'bg-blue-50' },
+  ] as const satisfies ReadonlyArray<{
+    key: string;
+    labelKey: TranslationKey;
+    icon: unknown;
+    color: string;
+    bg: string;
+  }>;
+
+  /**
+   * An activity sentence in the reader's language.
+   *
+   * Falls back to the English text the API composed when a row carries no key,
+   * which is how an expense description reaches the screen untouched: it is the
+   * user's own words, and those are never translated.
+   */
+  const activityText = (
+    key: string | null | undefined,
+    fallback: string,
+    values: Record<string, string> = {}
+  ) => (key ? fillTranslation(locale, key as TranslationKey, values) : fallback);
 
   const getActivityIcon = (type: string) => {
     if (type === 'overdue_invoice') return <AlertCircle className="w-4 h-4 text-red-500" />;
@@ -147,9 +173,9 @@ export default function DashboardPage() {
   };
 
   const getActivityBadge = (type: string) => {
-    if (type === 'overdue_invoice') return <Badge variant="destructive" className="text-xs">Overdue</Badge>;
-    if (type === 'invoice_due') return <Badge className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">Due soon</Badge>;
-    return <Badge className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">Payment due</Badge>;
+    if (type === 'overdue_invoice') return <Badge variant="destructive" className="text-xs">{t('status.overdue')}</Badge>;
+    if (type === 'invoice_due') return <Badge className="text-xs bg-amber-100 text-amber-700 hover:bg-amber-100">{t('dashboard.dueSoon')}</Badge>;
+    return <Badge className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-100">{t('dashboard.paymentDue')}</Badge>;
   };
 
   return (
@@ -172,9 +198,11 @@ export default function DashboardPage() {
         ) : null}
         <div className="min-w-0">
           <h1 className="text-2xl font-display font-bold tracking-tight truncate">
-            {company?.name ? `Welcome back, ${company.name}` : 'Welcome back'}
+            {company?.name
+              ? fillTranslation(locale, 'dashboard.welcomeNamed', { name: company.name })
+              : t('dashboard.welcome')}
           </h1>
-          <p className="text-muted-foreground">Your business at a glance this month</p>
+          <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
         </div>
       </div>
 
@@ -184,10 +212,10 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <AlertCircle className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">Could not load your dashboard</h3>
-            <p className="text-sm text-muted-foreground mb-4">{loadError}</p>
+            <h3 className="font-medium mb-1">{t('dashboard.loadFailed')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('dashboard.loadFailedHint')}</p>
             <Button variant="outline" onClick={() => { setLoading(true); fetchDashboard(); }}>
-              Try again
+              {t('common.tryAgain')}
             </Button>
           </CardContent>
         </Card>
@@ -198,20 +226,17 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <h3 className="font-medium mb-1">No financial records yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Your revenue, expenses and upcoming activity will appear here once you record your first
-              invoice, income or expense.
-            </p>
+            <h3 className="font-medium mb-1">{t('dashboard.noRecords')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('dashboard.noRecordsDesc')}</p>
             <div className="flex flex-wrap justify-center gap-2">
               <Button asChild>
-                <Link href="/invoices/new">Create Invoice</Link>
+                <Link href="/invoices/new">{t('invoices.create')}</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/income">Add Income</Link>
+                <Link href="/income">{t('income.add')}</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/expenses">Add Expense</Link>
+                <Link href="/expenses">{t('expenses.add')}</Link>
               </Button>
             </div>
           </CardContent>
@@ -239,7 +264,7 @@ export default function DashboardPage() {
                           <Icon className={`w-5 h-5 ${def.color}`} />
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground font-medium">{def.label}</p>
+                          <p className="text-xs text-muted-foreground font-medium">{t(def.labelKey)}</p>
                           <p className="text-lg font-bold font-mono">{formatCurrency(val, cur)}</p>
                         </div>
                       </div>
@@ -271,7 +296,7 @@ export default function DashboardPage() {
       {!loadError && !isEmpty ? (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
+            <CardTitle className="text-lg">{t('dashboard.quickActions')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -286,7 +311,7 @@ export default function DashboardPage() {
                   >
                     <Link href={action.href}>
                       <Icon className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="truncate">{action.label}</span>
+                      <span className="truncate">{t(action.labelKey)}</span>
                     </Link>
                   </Button>
                 );
@@ -300,13 +325,13 @@ export default function DashboardPage() {
       {!loadError && !isEmpty ? (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Upcoming Activity</CardTitle>
+          <CardTitle className="text-lg">{t('dashboard.upcomingActivity')}</CardTitle>
         </CardHeader>
         <CardContent>
           {(data?.activities?.length ?? 0) === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Clock className="w-10 h-10 mx-auto mb-2 opacity-40" />
-              <p>No upcoming activity. Create your first invoice to get started!</p>
+              <p>{t('dashboard.noActivity')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -315,8 +340,12 @@ export default function DashboardPage() {
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     {getActivityIcon(activity?.type ?? '')}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">{activity?.title ?? ''}</p>
-                      <p className="text-xs text-muted-foreground">{activity?.subtitle ?? ''}</p>
+                      <p className="text-sm font-medium">
+                        {activityText(activity?.titleKey, activity?.title ?? '', activity?.titleValues)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activityText(activity?.subtitleKey, activity?.subtitle ?? '')}
+                      </p>
                     </div>
                   </div>
                   <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
@@ -324,7 +353,14 @@ export default function DashboardPage() {
                     <div className="text-right">
                       <p className="text-sm font-mono font-medium">{formatCurrency(Number(activity?.amount) || 0, activity?.currency ?? defaultCurrency)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {activity?.date ? format(new Date(activity.date), 'MMM d, yyyy') : ''}
+                        {activity?.date
+                          ? new Intl.DateTimeFormat(intl, {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              timeZone: 'UTC',
+                            }).format(new Date(activity.date))
+                          : ''}
                       </p>
                     </div>
                   </div>

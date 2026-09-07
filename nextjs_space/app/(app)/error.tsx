@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import { useI18n } from '@/components/i18n-provider';
 
 /**
  * Error boundary for the authenticated application.
@@ -27,6 +28,8 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
+
   useEffect(() => {
     // The full error is already in the server logs; this records that the
     // boundary caught it, without echoing the message into the console.
@@ -38,14 +41,12 @@ export default function AppError({
       <Card className="w-full max-w-md">
         <CardContent className="py-10 text-center">
           <AlertCircle className="mx-auto mb-3 h-10 w-10 text-muted-foreground opacity-40" />
-          <h2 className="mb-1 font-medium">Something went wrong on our server</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            This page could not be loaded. Your data has not been changed.
-          </p>
-          <Button onClick={reset}>Try again</Button>
+          <h2 className="mb-1 font-medium">{t('app.errorTitle')}</h2>
+          <p className="mb-4 text-sm text-muted-foreground">{t('app.errorBody')}</p>
+          <Button onClick={reset}>{t('common.tryAgain')}</Button>
           {error.digest ? (
             <p className="mt-4 font-mono text-xs text-muted-foreground">
-              Reference: {error.digest}
+              {t('app.errorReference')}: {error.digest}
             </p>
           ) : null}
         </CardContent>

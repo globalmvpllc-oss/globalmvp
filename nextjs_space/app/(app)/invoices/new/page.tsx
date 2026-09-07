@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { todayCalendarInput, addCalendarDays } from '@/lib/calendar-date';
+import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies';
+import { useI18n } from '@/components/i18n-provider';
 
 interface InvoiceItem {
   description: string;
@@ -22,6 +24,7 @@ interface InvoiceItem {
 }
 
 export default function NewInvoicePage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,8 +121,8 @@ export default function NewInvoicePage() {
   const total = subtotal - discountTotal + taxTotal;
 
   const handleSubmit = async () => {
-    if (!form.customerId) { toast.error('Please select a customer'); return; }
-    if (items.length === 0) { toast.error('Add at least one item'); return; }
+    if (!form.customerId) { toast.error(t('invoices.selectCustomerFirst')); return; }
+    if (items.length === 0) { toast.error(t('invoices.addAtLeastOneItem')); return; }
     setLoading(true);
     const res = await fetch('/api/invoices', {
       method: 'POST',
@@ -128,10 +131,10 @@ export default function NewInvoicePage() {
     });
     if (res.ok) {
       const data = await res.json();
-      toast.success('Invoice created!');
+      toast.success(t('invoices.created'));
       router.push(`/invoices/${data?.id}`);
     } else {
-      toast.error('Failed to create invoice');
+      toast.error(t('invoices.createFailed'));
     }
     setLoading(false);
   };
@@ -139,41 +142,41 @@ export default function NewInvoicePage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">Create Invoice</h1>
-        <p className="text-muted-foreground">Fill in the details to create a new invoice</p>
+        <h1 className="text-2xl font-display font-bold tracking-tight">{t('invoices.create')}</h1>
+        <p className="text-muted-foreground">{t('invoices.createSubtitle')}</p>
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Invoice Details</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t('invoices.details')}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Customer *</Label>
+              <Label>{t('common.customer')} *</Label>
               <Select value={form.customerId} onValueChange={(v: string) => setForm({ ...form, customerId: v })}>
-                <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('invoices.selectCustomer')} /></SelectTrigger>
                 <SelectContent>
-                  {customers.map((c: any) => <SelectItem key={c?.id} value={c?.id ?? ''}>{c?.name ?? 'Unnamed'}</SelectItem>)}
+                  {customers.map((c: any) => <SelectItem key={c?.id} value={c?.id ?? ''}>{c?.name ?? t('common.unnamed')}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Currency</Label>
+              <Label>{t('common.currency')}</Label>
               <Select value={form.currency} onValueChange={(v: string) => setForm({ ...form, currency: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD ($)</SelectItem>
-                  <SelectItem value="EUR">EUR (€)</SelectItem>
-                  <SelectItem value="GBP">GBP (£)</SelectItem>
-                  <SelectItem value="TRY">TRY (₺)</SelectItem>
+                  {/* Currency codes and symbols are never translated. */}
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.code} ({getCurrencySymbol(c.code)})</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Issue date</Label>
+              <Label>{t('invoices.issueDate')}</Label>
               <Input type="date" value={form.issueDate} onChange={(e: any) => setForm({ ...form, issueDate: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Due date *</Label>
+              <Label>{t('common.dueDate')} *</Label>
               <Input type="date" value={form.dueDate} onChange={(e: any) => setForm({ ...form, dueDate: e.target.value })} />
             </div>
           </div>
@@ -183,31 +186,31 @@ export default function NewInvoicePage() {
       {/* Items */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Items</CardTitle>
-          <Button variant="outline" size="sm" onClick={addItem}><Plus className="w-4 h-4 mr-1" /> Add item</Button>
+          <CardTitle className="text-base">{t('invoices.items')}</CardTitle>
+          <Button variant="outline" size="sm" onClick={addItem}><Plus className="w-4 h-4 mr-1" /> {t('invoices.addItem')}</Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {items.map((item: InvoiceItem, idx: number) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-end p-3 rounded-lg bg-muted/50">
                 <div className="col-span-12 md:col-span-4 space-y-1">
-                  <Label className="text-xs">Description</Label>
-                  <Input placeholder="Item description" value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} />
+                  <Label className="text-xs">{t('common.description')}</Label>
+                  <Input placeholder={t('invoices.itemDescription')} value={item.description} onChange={(e: any) => updateItem(idx, 'description', e.target.value)} />
                 </div>
                 <div className="col-span-6 md:col-span-1 space-y-1">
-                  <Label className="text-xs">Qty</Label>
+                  <Label className="text-xs">{t('invoices.qty')}</Label>
                   <Input type="number" min={1} value={item.quantity} onChange={(e: any) => updateItem(idx, 'quantity', Number(e.target.value))} />
                 </div>
                 <div className="col-span-6 md:col-span-2 space-y-1">
-                  <Label className="text-xs">Unit price</Label>
+                  <Label className="text-xs">{t('invoices.unitPrice')}</Label>
                   <Input type="number" min={0} step={0.01} value={item.unitPrice} onChange={(e: any) => updateItem(idx, 'unitPrice', Number(e.target.value))} />
                 </div>
                 <div className="col-span-6 md:col-span-1 space-y-1">
-                  <Label className="text-xs">Discount</Label>
+                  <Label className="text-xs">{t('invoices.discount')}</Label>
                   <Input type="number" min={0} step={0.01} value={item.discount} onChange={(e: any) => updateItem(idx, 'discount', Number(e.target.value))} />
                 </div>
                 <div className="col-span-6 md:col-span-1 space-y-1">
-                  <Label className="text-xs">Tax %</Label>
+                  <Label className="text-xs">{t('invoices.taxPercent')}</Label>
                   <Input type="number" min={0} step={0.01} value={item.taxRate} onChange={(e: any) => updateItem(idx, 'taxRate', Number(e.target.value))} />
                 </div>
                 <div className="col-span-8 md:col-span-2 flex items-center justify-end">
@@ -215,7 +218,7 @@ export default function NewInvoicePage() {
                 </div>
                 <div className="col-span-4 md:col-span-1 flex justify-end">
                   {items.length > 1 && (
-                    <Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={t('invoices.removeItem')} onClick={() => removeItem(idx)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                   )}
                 </div>
               </div>
@@ -225,10 +228,10 @@ export default function NewInvoicePage() {
           {/* Totals */}
           <div className="mt-6 flex justify-end">
             <div className="w-full space-y-2 sm:w-64">
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="font-mono">{subtotal.toFixed(2)}</span></div>
-              {discountTotal > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="font-mono text-red-500">-{discountTotal.toFixed(2)}</span></div>}
-              {taxTotal > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Tax</span><span className="font-mono">{taxTotal.toFixed(2)}</span></div>}
-              <div className="border-t pt-2 flex justify-between font-medium"><span>Total</span><span className="font-mono">{total.toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.subtotal')}</span><span className="font-mono">{subtotal.toFixed(2)}</span></div>
+              {discountTotal > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.discount')}</span><span className="font-mono text-red-500">-{discountTotal.toFixed(2)}</span></div>}
+              {taxTotal > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.tax')}</span><span className="font-mono">{taxTotal.toFixed(2)}</span></div>}
+              <div className="border-t pt-2 flex justify-between font-medium"><span>{t('common.total')}</span><span className="font-mono">{total.toFixed(2)}</span></div>
             </div>
           </div>
         </CardContent>
@@ -237,17 +240,17 @@ export default function NewInvoicePage() {
       {/* Notes */}
       <Card>
         <CardContent className="pt-6">
-          <Label>Notes</Label>
-          <Textarea placeholder="Additional notes (optional)" value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} className="mt-2" />
+          <Label>{t('common.notes')}</Label>
+          <Textarea placeholder={t('invoices.notesPlaceholder')} value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} className="mt-2" />
         </CardContent>
       </Card>
 
       {/* Full-width, primary action last, rather than two buttons crushed
           against the right edge. */}
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.back()}>Cancel</Button>
+        <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.back()}>{t('common.cancel')}</Button>
         <Button className="w-full sm:w-auto" onClick={handleSubmit} disabled={loading}>
-          <Save className="w-4 h-4 mr-2" /> {loading ? 'Creating...' : 'Create Invoice'}
+          <Save className="w-4 h-4 mr-2" /> {loading ? t('invoices.creating') : t('invoices.create')}
         </Button>
       </div>
     </div>

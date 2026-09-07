@@ -25,6 +25,8 @@ import {
   addMonths, subMonths, getDay,
 } from 'date-fns';
 import { toCalendarDay } from '@/lib/calendar-date';
+import { useI18n } from '@/components/i18n-provider';
+import type { TranslationKey } from '@/lib/i18n';
 import Link from 'next/link';
 
 /**
@@ -69,8 +71,38 @@ const INVOICE_DUE_STATUSES: readonly string[] = [
   'SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE', 'PAID',
 ];
 
+/**
+ * Event types and statuses.
+ *
+ * The array values are what the database stores and what the API validates;
+ * they are never translated. The maps below give each one a label key, so a
+ * Turkish reader picks "Toplantı" and the row still stores 'MEETING'.
+ */
 const EVENT_TYPES = ['MEETING', 'REMINDER', 'PAYMENT', 'INVOICE', 'EXPENSE', 'OTHER'] as const;
 const EVENT_STATUSES = ['PLANNED', 'DONE', 'CANCELLED'] as const;
+
+const EVENT_TYPE_KEYS: Record<string, TranslationKey> = {
+  MEETING: 'calendar.typeMeeting',
+  REMINDER: 'calendar.typeReminder',
+  PAYMENT: 'calendar.typePayment',
+  INVOICE: 'calendar.typeInvoice',
+  EXPENSE: 'calendar.typeExpense',
+  OTHER: 'calendar.typeOther',
+};
+
+const EVENT_STATUS_KEYS: Record<string, TranslationKey> = {
+  PLANNED: 'calendar.statusPlanned',
+  DONE: 'calendar.statusDone',
+  CANCELLED: 'status.cancelled',
+};
+
+/** Label key for a derived entry's kind, or for a manual event's type. */
+const ENTRY_KIND_KEYS: Record<string, TranslationKey> = {
+  invoice_due: 'calendar.invoiceDue',
+  expense_due: 'calendar.expenseDue',
+  payment: 'calendar.payment',
+  income: 'reports.income',
+};
 
 const EMPTY_FORM = {
   title: '', description: '', date: '', startTime: '', endTime: '', allDay: false,
@@ -97,9 +129,12 @@ function entryIcon(entry: CalendarEntry) {
   return <CreditCard className="w-4 h-4 text-green-500" />;
 }
 
-function entryLabel(entry: CalendarEntry): string {
-  if (entry.origin === 'manual') return String(entry.raw?.type ?? 'OTHER').toLowerCase();
-  return entry.kind.replace('_', ' ');
+/** Label key for the small caption under an entry's title. */
+function entryLabelKey(entry: CalendarEntry): TranslationKey {
+  if (entry.origin === 'manual') {
+    return EVENT_TYPE_KEYS[String(entry.raw?.type ?? 'OTHER')] ?? 'calendar.typeOther';
+  }
+  return ENTRY_KIND_KEYS[entry.kind] ?? 'calendar.payment';
 }
 
 /** Splits an ISO timestamp into the date and time values the form inputs expect. */
@@ -118,6 +153,7 @@ function joinIso(date: string, time: string, allDay: boolean): string {
 }
 
 export default function CalendarPage() {
+  const { t, fill, intl } = useI18n();
   const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
   const [todayDate, setTodayDate] = useState<Date | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -215,7 +251,7 @@ export default function CalendarPage() {
           entries.push({
             key: `inv-${i.id}`, origin: 'derived', kind: 'invoice_due',
             title: `${i?.invoiceNumber ?? ''} — ${i?.customer?.name ?? ''}`.trim(),
-            subtitle: i?.status === 'PAID' ? 'Paid' : undefined,
+            subtitle: i?.status === 'PAID' ? t('status.paid') : undefined,
             amount: i?.total, currency: i?.currency ?? 'USD', date: toCalendarDay(i.dueDate)!,
             href: `/invoices/${i.id}`,
           });
@@ -230,8 +266,8 @@ export default function CalendarPage() {
         if (when) {
           entries.push({
             key: `exp-${e.id}`, origin: 'derived', kind: 'expense_due',
-            title: e?.description ?? 'Expense',
-            subtitle: e?.status === 'PAID' ? 'Paid' : 'Unpaid',
+            title: e?.description ?? t('reports.expenses'),
+            subtitle: e?.status === 'PAID' ? t('status.paid') : t('status.unpaid'),
             amount: e?.amount, currency: e?.currency ?? 'USD', date: when,
           });
         }
@@ -246,9 +282,9 @@ export default function CalendarPage() {
         const invoiceNumber = p?.invoice?.invoiceNumber;
         const expenseDescription = p?.expense?.description;
 
-        let title = 'Payment';
-        if (invoiceNumber) title = `Invoice Payment — ${invoiceNumber}`;
-        else if (expenseDescription) title = `Expense Payment — ${expenseDescription}`;
+        let title = t('payments.one');
+        if (invoiceNumber) title = fill('calendar.invoicePayment', { number: invoiceNumber });
+        else if (expenseDescription) title = fill('calendar.expensePayment', { description: expenseDescription });
 
         entries.push({
           key: `pay-${p.id}`, origin: 'derived', kind: 'payment',
@@ -263,25 +299,29 @@ export default function CalendarPage() {
       // Income sits on the day the money is expected, falling back to the
       // transaction date — the same rule the API filters by, so a record is
       // never selected for one month and drawn in another.
-      for (const t of inc ?? []) {
-        const when = toCalendarDay(t?.expectedPaymentDate ?? t?.date);
+      // Named `row`, not `t`: `t` is the translator on this page.
+      for (const row of inc ?? []) {
+        const when = toCalendarDay(row?.expectedPaymentDate ?? row?.date);
         if (when) {
           entries.push({
-            key: `inc-${t.id}`, origin: 'derived', kind: 'income',
-            title: t?.description ?? 'Income',
-            subtitle: t?.customer?.name ?? (t?.status === 'RECEIVED' ? 'Received' : 'Expected'),
-            amount: t?.amount, currency: t?.currency ?? 'USD', date: when,
+            key: `inc-${row.id}`, origin: 'derived', kind: 'income',
+            title: row?.description ?? t('reports.income'),
+            subtitle: row?.customer?.name ?? (row?.status === 'RECEIVED' ? t('status.received') : t('status.expected')),
+            amount: row?.amount, currency: row?.currency ?? 'USD', date: when,
           });
         }
       }
 
       setDerived(entries);
     } catch {
-      if (token === derivedRef.current) setLoadError('Could not load financial records');
+      if (token === derivedRef.current) setLoadError(t('calendar.loadRecordsFailed'));
     } finally {
       if (token === derivedRef.current) setLoading(false);
     }
-  }, []);
+    // `t` and `fill` are dependencies because the titles built above are
+    // translated here: without them a language switch would leave the previous
+    // language's entries on the grid until the month changed.
+  }, [t, fill]);
 
   useEffect(() => {
     if (currentMonth) loadDerived(currentMonth);
@@ -296,13 +336,13 @@ export default function CalendarPage() {
     try {
       const res = await fetch(`/api/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
       if (token !== requestRef.current) return; // a newer month is already in flight
-      if (!res.ok) { setLoadError('Could not load events'); return; }
+      if (!res.ok) { setLoadError(t('calendar.loadEventsFailed')); return; }
       setManual(await res.json());
       setLoadError(null);
     } catch {
-      if (token === requestRef.current) setLoadError('Could not load events');
+      if (token === requestRef.current) setLoadError(t('calendar.loadEventsFailed'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (currentMonth) loadEvents(currentMonth);
@@ -330,11 +370,23 @@ export default function CalendarPage() {
       currency: e.currency,
       date: start,
       timeLabel: e.allDay
-        ? 'All day'
+        ? t('calendar.allDay')
         : end ? `${format(start, 'HH:mm')} - ${format(end, 'HH:mm')}` : format(start, 'HH:mm'),
       raw: e,
     };
   });
+
+  /**
+   * Sunday-first weekday abbreviations in the reader's language.
+   *
+   * Built from a known Sunday (4 January 1970) so the order matches `getDay`
+   * and the leading-padding calculation below, which both count from Sunday.
+   */
+  const weekdayNames = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(intl, { weekday: 'short', timeZone: 'UTC' }).format(
+      new Date(Date.UTC(1970, 0, 4 + index))
+    )
+  );
 
   const allEntries = [...derived, ...manualEntries];
   const monthStart = startOfMonth(currentMonth);
@@ -374,13 +426,13 @@ export default function CalendarPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { toast.error('Title is required'); return; }
-    if (!form.date) { toast.error('Date is required'); return; }
+    if (!form.title.trim()) { toast.error(t('calendar.titleRequired')); return; }
+    if (!form.date) { toast.error(t('calendar.dateRequired')); return; }
 
     const startAt = joinIso(form.date, form.startTime, form.allDay);
     const endAt = form.allDay || !form.endTime ? '' : joinIso(form.date, form.endTime, false);
     if (endAt && new Date(endAt) < new Date(startAt)) {
-      toast.error('End time cannot be before the start time');
+      toast.error(t('calendar.endBeforeStart'));
       return;
     }
 
@@ -398,7 +450,7 @@ export default function CalendarPage() {
     };
     if (form.amount !== '') {
       const n = Number(form.amount);
-      if (!Number.isFinite(n) || n < 0) { toast.error('Amount must be a positive number'); return; }
+      if (!Number.isFinite(n) || n < 0) { toast.error(t('calendar.amountPositive')); return; }
       payload.amount = n;
       if (form.currency) payload.currency = form.currency;
     }
@@ -411,15 +463,15 @@ export default function CalendarPage() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        toast.success(editingId ? 'Event updated' : 'Event created');
+        toast.success(editingId ? t('calendar.eventUpdated') : t('calendar.eventCreated'));
         setDialogOpen(false);
         loadEvents(currentMonth);
       } else {
         const err = await res.json().catch(() => null);
-        toast.error(err?.error ?? 'Could not save the event');
+        toast.error(err?.error ?? t('calendar.saveFailed'));
       }
     } catch {
-      toast.error('Could not save the event');
+      toast.error(t('calendar.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -431,16 +483,16 @@ export default function CalendarPage() {
     try {
       const res = await fetch(`/api/events/${confirmDeleteId}`, { method: 'DELETE' });
       if (res.ok) {
-        toast.success('Event deleted');
+        toast.success(t('calendar.eventDeleted'));
         setConfirmDeleteId(null);
         setDialogOpen(false);
         loadEvents(currentMonth);
       } else {
         const err = await res.json().catch(() => null);
-        toast.error(err?.error ?? 'Could not delete the event');
+        toast.error(err?.error ?? t('calendar.deleteFailed'));
       }
     } catch {
-      toast.error('Could not delete the event');
+      toast.error(t('calendar.deleteFailed'));
     } finally {
       setSaving(false);
     }
@@ -450,11 +502,11 @@ export default function CalendarPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-display font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground">See your financial events at a glance</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('nav.calendar')}</h1>
+          <p className="text-muted-foreground">{t('calendar.subtitle')}</p>
         </div>
         <Button onClick={() => openCreate()}>
-          <Plus className="w-4 h-4 mr-2" /> Add event
+          <Plus className="w-4 h-4 mr-2" /> {t('calendar.addEvent')}
         </Button>
       </div>
 
@@ -469,26 +521,31 @@ export default function CalendarPage() {
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" aria-label="Previous month"
+                <Button variant="ghost" size="icon" aria-label={t('calendar.previousMonth')}
                   onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="icon" aria-label="Next month"
+                <Button variant="ghost" size="icon" aria-label={t('calendar.nextMonth')}
                   onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
-              <CardTitle className="text-base">{format(currentMonth, 'MMMM yyyy')}</CardTitle>
+              <CardTitle className="text-base">
+                {new Intl.DateTimeFormat(intl, { month: 'long', year: 'numeric' }).format(currentMonth)}
+              </CardTitle>
               <Button variant="outline" size="sm"
                 onClick={() => { const n = todayDate ?? new Date(); setCurrentMonth(n); setSelectedDate(n); }}>
-                Today
+                {t('calendar.today')}
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d: string) => (
-                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+              {/* Weekday names come from Intl rather than a hardcoded list, so
+                  they follow the reader's language. The week still starts on
+                  Sunday, matching `getDay` and the padding calculation. */}
+              {weekdayNames.map((label: string, index: number) => (
+                <div key={index} className="text-center text-xs font-medium text-muted-foreground py-2">{label}</div>
               ))}
               {Array.from({ length: startPadding }, (_: any, i: number) => (
                 <div key={`pad-${i}`} className="p-1 min-h-[64px] sm:min-h-[84px]" />
@@ -503,7 +560,10 @@ export default function CalendarPage() {
                     key={day.toISOString()}
                     onClick={() => setSelectedDate(day)}
                     onDoubleClick={() => openCreate(day)}
-                    aria-label={`${format(day, 'MMMM d')}, ${dayEntries.length} entries`}
+                    aria-label={fill('calendar.dayAria', {
+                      date: new Intl.DateTimeFormat(intl, { day: 'numeric', month: 'long' }).format(day),
+                      count: dayEntries.length,
+                    })}
                     className={`p-1 sm:p-1.5 min-h-[64px] sm:min-h-[84px] border rounded-lg text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isSelected ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'
                     } ${isToday && !isSelected ? 'bg-primary/5' : ''}`}
@@ -517,7 +577,7 @@ export default function CalendarPage() {
                         </div>
                       ))}
                       {dayEntries.length > 2 && (
-                        <p className="text-[10px] text-muted-foreground">+{dayEntries.length - 2} more</p>
+                        <p className="text-[10px] text-muted-foreground">{fill('calendar.moreEntries', { count: dayEntries.length - 2 })}</p>
                       )}
                     </div>
                   </button>
@@ -531,10 +591,12 @@ export default function CalendarPage() {
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">
-                {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a day'}
+                {selectedDate
+                  ? new Intl.DateTimeFormat(intl, { day: 'numeric', month: 'long', year: 'numeric' }).format(selectedDate)
+                  : t('calendar.selectDay')}
               </CardTitle>
               {selectedDate ? (
-                <Button variant="ghost" size="sm" aria-label="Add event on this day"
+                <Button variant="ghost" size="sm" aria-label={t('calendar.addEventOnDay')}
                   onClick={() => openCreate(selectedDate)}>
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -548,12 +610,12 @@ export default function CalendarPage() {
                 <div className="h-12 bg-muted rounded animate-pulse" />
               </div>
             ) : !selectedDate ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Click a day to see what is on it</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t('calendar.clickDay')}</p>
             ) : selectedEntries.length === 0 ? (
               <div className="text-center py-6">
-                <p className="text-sm text-muted-foreground">Nothing scheduled for this day</p>
+                <p className="text-sm text-muted-foreground">{t('calendar.nothingScheduled')}</p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={() => openCreate(selectedDate)}>
-                  <Plus className="w-4 h-4 mr-2" /> Add event
+                  <Plus className="w-4 h-4 mr-2" /> {t('calendar.addEvent')}
                 </Button>
               </div>
             ) : (
@@ -573,8 +635,8 @@ export default function CalendarPage() {
                       ) : (
                         <p className="text-sm font-medium truncate">{e.title}</p>
                       )}
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {entryLabel(e)}{e.timeLabel ? ` - ${e.timeLabel}` : ''}
+                      <p className="text-xs text-muted-foreground">
+                        {t(entryLabelKey(e))}{e.timeLabel ? ` - ${e.timeLabel}` : ''}
                       </p>
                       {e.subtitle ? (
                         <p className="text-xs text-muted-foreground truncate">{e.subtitle}</p>
@@ -585,7 +647,7 @@ export default function CalendarPage() {
                         <p className="font-mono text-sm font-medium">{formatCurrency(e.amount as any, e.currency)}</p>
                       ) : null}
                       {e.origin === 'manual' ? (
-                        <Button variant="ghost" size="icon-sm" aria-label="Edit event" onClick={() => openEdit(e.raw)}>
+                        <Button variant="ghost" size="icon-sm" aria-label={t('calendar.editEvent')} onClick={() => openEdit(e.raw)}>
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
                       ) : null}
@@ -599,41 +661,41 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex flex-wrap gap-x-6 gap-y-2">
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-sm text-muted-foreground">Invoice due</span></div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-sm text-muted-foreground">Expense due</span></div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-muted-foreground">Payment</span></div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary" /><span className="text-sm text-muted-foreground">Your event</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-sm text-muted-foreground">{t('calendar.invoiceDue')}</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-sm text-muted-foreground">{t('calendar.expenseDue')}</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-muted-foreground">{t('calendar.payment')}</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary" /><span className="text-sm text-muted-foreground">{t('calendar.yourEvent')}</span></div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit event' : 'Add event'}</DialogTitle>
+            <DialogTitle>{editingId ? t('calendar.editEvent') : t('calendar.addEvent')}</DialogTitle>
             <DialogDescription>
-              {editingId ? 'Update this calendar entry.' : 'Add something to your calendar.'}
+              {editingId ? t('calendar.editEventHint') : t('calendar.addEventHint')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-1">
-              <Label>Title *</Label>
-              <Input value={form.title} onChange={(e: any) => setForm({ ...form, title: e.target.value })} placeholder="Client meeting" />
+              <Label>{t('calendar.eventTitle')} *</Label>
+              <Input value={form.title} onChange={(e: any) => setForm({ ...form, title: e.target.value })} placeholder={t('calendar.eventTitlePlaceholder')} />
             </div>
 
             <div className="space-y-1">
-              <Label>Description</Label>
+              <Label>{t('common.description')}</Label>
               <Textarea rows={2} value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} />
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Date *</Label>
+                <Label>{t('common.date')} *</Label>
                 <Input type="date" value={form.date} onChange={(e: any) => setForm({ ...form, date: e.target.value })} />
               </div>
               <div className="flex items-end pb-2">
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={form.allDay} onCheckedChange={(v: any) => setForm({ ...form, allDay: Boolean(v) })} />
-                  All day
+                  {t('calendar.allDay')}
                 </label>
               </div>
             </div>
@@ -641,11 +703,11 @@ export default function CalendarPage() {
             {!form.allDay && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label>Start time</Label>
+                  <Label>{t('calendar.startTime')}</Label>
                   <Input type="time" value={form.startTime} onChange={(e: any) => setForm({ ...form, startTime: e.target.value })} />
                 </div>
                 <div className="space-y-1">
-                  <Label>End time</Label>
+                  <Label>{t('calendar.endTime')}</Label>
                   <Input type="time" value={form.endTime} onChange={(e: any) => setForm({ ...form, endTime: e.target.value })} />
                 </div>
               </div>
@@ -653,20 +715,20 @@ export default function CalendarPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Type</Label>
+                <Label>{t('calendar.type')}</Label>
                 <Select value={form.type} onValueChange={(v: string) => setForm({ ...form, type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {EVENT_TYPES.map((t: string) => <SelectItem key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</SelectItem>)}
+                    {EVENT_TYPES.map((value) => <SelectItem key={value} value={value}>{t(EVENT_TYPE_KEYS[value])}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Status</Label>
+                <Label>{t('common.status')}</Label>
                 <Select value={form.status} onValueChange={(v: string) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {EVENT_STATUSES.map((t: string) => <SelectItem key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()}</SelectItem>)}
+                    {EVENT_STATUSES.map((value) => <SelectItem key={value} value={value}>{t(EVENT_STATUS_KEYS[value])}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -674,17 +736,17 @@ export default function CalendarPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Amount</Label>
+                <Label>{t('common.amount')}</Label>
                 <Input type="number" min="0" step="0.01" value={form.amount}
-                  onChange={(e: any) => setForm({ ...form, amount: e.target.value })} placeholder="Optional" />
+                  onChange={(e: any) => setForm({ ...form, amount: e.target.value })} placeholder={t('common.optional')} />
               </div>
               <div className="space-y-1">
-                <Label>Currency</Label>
+                <Label>{t('common.currency')}</Label>
                 <Select value={form.currency || NONE}
                   onValueChange={(v: string) => setForm({ ...form, currency: v === NONE ? '' : v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('common.none')} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
+                    <SelectItem value={NONE}>{t('common.none')}</SelectItem>
                     {CURRENCIES.map((c: any) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -693,23 +755,23 @@ export default function CalendarPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Customer</Label>
+                <Label>{t('common.customer')}</Label>
                 <Select value={form.customerId || NONE}
                   onValueChange={(v: string) => setForm({ ...form, customerId: v === NONE ? '' : v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('common.none')} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
+                    <SelectItem value={NONE}>{t('common.none')}</SelectItem>
                     {customers.map((c: any) => <SelectItem key={c?.id} value={c?.id ?? ''}>{c?.name ?? ''}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Invoice</Label>
+                <Label>{t('common.invoice')}</Label>
                 <Select value={form.invoiceId || NONE}
                   onValueChange={(v: string) => setForm({ ...form, invoiceId: v === NONE ? '' : v })}>
-                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('common.none')} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
+                    <SelectItem value={NONE}>{t('common.none')}</SelectItem>
                     {invoices.map((i: any) => <SelectItem key={i?.id} value={i?.id ?? ''}>{i?.invoiceNumber ?? ''}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -717,9 +779,9 @@ export default function CalendarPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>Reminder</Label>
+              <Label>{t('calendar.reminder')}</Label>
               <Input type="date" value={form.reminderAt} onChange={(e: any) => setForm({ ...form, reminderAt: e.target.value })} />
-              <p className="text-xs text-muted-foreground">Stored with the event. No notifications are sent yet.</p>
+              <p className="text-xs text-muted-foreground">{t('calendar.reminderHint')}</p>
             </div>
           </div>
 
@@ -727,13 +789,13 @@ export default function CalendarPage() {
             {editingId ? (
               <Button variant="ghost" className="text-destructive hover:text-destructive"
                 disabled={saving} onClick={() => setConfirmDeleteId(editingId)}>
-                Delete
+                {t('common.delete')}
               </Button>
             ) : <span />}
             <div className="flex gap-2">
-              <Button variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button variant="outline" disabled={saving} onClick={() => setDialogOpen(false)}>{t('common.cancel')}</Button>
               <Button disabled={saving} onClick={handleSave}>
-                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Create event'}
+                {saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('calendar.createEvent')}
               </Button>
             </div>
           </DialogFooter>
@@ -743,16 +805,14 @@ export default function CalendarPage() {
       <AlertDialog open={Boolean(confirmDeleteId)} onOpenChange={(o: boolean) => !o && setConfirmDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this event?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the calendar entry permanently. Invoices, expenses and payments are not affected.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t('calendar.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('calendar.deleteBody')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={saving}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction disabled={saving} onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

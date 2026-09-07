@@ -14,13 +14,15 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage } from '@/lib/api-feedback';
 import { formatCurrency } from '@/lib/currencies';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { toCalendarInput } from '@/lib/calendar-date';
+import { toCalendarInput, formatCalendarDate } from '@/lib/calendar-date';
+import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
+import { useI18n } from '@/components/i18n-provider';
 
 export default function PaymentsPage() {
+  const { t, fill, locale, intl } = useI18n();
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,11 +71,11 @@ export default function PaymentsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.amount) { toast.error('Amount is required.'); return; }
-    if (Number(form.amount) <= 0) { toast.error('Payment amount must be greater than zero.'); return; }
+    if (!form.amount) { toast.error(t('payments.amountRequired')); return; }
+    if (Number(form.amount) <= 0) { toast.error(t('payments.amountPositive')); return; }
     // The link is fixed once a payment exists: the API does not allow moving a
     // payment between invoices, because both sides would need recalculating.
-    if (!editingId && !form.invoiceId) { toast.error('Select an invoice to link this payment to.'); return; }
+    if (!editingId && !form.invoiceId) { toast.error(t('payments.selectInvoice')); return; }
 
     setSaving(true);
     try {
@@ -101,17 +103,17 @@ export default function PaymentsPage() {
       if (!res.ok) {
         // Never claim success on a rejected payment: the invoice balance the
         // user is looking at would then disagree with the database.
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
 
-      toast.success(editingId ? 'Payment updated.' : 'Payment recorded.');
+      toast.success(editingId ? t('payments.updated') : t('payments.recorded'));
       setOpen(false);
       setEditingId(null);
       resetForm();
       await fetchData();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setSaving(false);
     }
@@ -123,22 +125,17 @@ export default function PaymentsPage() {
     try {
       const res = await fetch(`/api/payments/${confirmDelete.id}`, { method: 'DELETE' });
       if (!res.ok) {
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-      toast.success('Payment deleted.');
+      toast.success(t('payments.deleted'));
       setConfirmDelete(null);
       await fetchData();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setDeleting(false);
     }
-  };
-
-  const getMethodLabel = (m: string) => {
-    const map: Record<string, string> = { bank_transfer: 'Bank Transfer', cash: 'Cash', card: 'Card', other: 'Other' };
-    return map[m] ?? m;
   };
 
   return (
@@ -147,58 +144,58 @@ export default function PaymentsPage() {
           screen, where there is no room for both. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-display font-bold tracking-tight">Payments</h1>
-          <p className="text-muted-foreground">View and record payments</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('nav.payments')}</h1>
+          <p className="text-muted-foreground">{t('payments.subtitle')}</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Record Payment</Button>
+        <Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('invoices.recordPayment')}</Button>
       </div>
 
       <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingId ? 'Edit Payment' : 'Record Payment'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingId ? t('payments.editTitle') : t('invoices.recordPayment')}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Amount *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Currency</Label>
+                <div className="space-y-1"><Label>{t('common.amount')} *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{t('common.currency')}</Label>
                   <Input
                     readOnly
                     value={invoices.find((inv: any) => inv?.id === form.invoiceId)?.currency ?? form.currency ?? '—'}
-                    placeholder="Select an invoice"
+                    placeholder={t('payments.selectInvoiceShort')}
                     className="bg-muted"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Date</Label><Input type="date" value={form.paymentDate} onChange={(e: any) => setForm({ ...form, paymentDate: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Method</Label>
+                <div className="space-y-1"><Label>{t('common.date')}</Label><Input type="date" value={form.paymentDate} onChange={(e: any) => setForm({ ...form, paymentDate: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{t('common.paymentMethod')}</Label>
                   <Select value={form.paymentMethod} onValueChange={(v: string) => setForm({ ...form, paymentMethod: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="bank_transfer">Bank Transfer</SelectItem><SelectItem value="cash">Cash</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="other">Other</SelectItem></SelectContent>
+                    {/* The stored code is the option value; only the label
+                        follows the language. */}
+                    <SelectContent>{PAYMENT_METHODS.map((method) => <SelectItem key={method} value={method}>{t(paymentMethodLabelKey(method))}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
-              <div className="space-y-1"><Label>Link to Invoice</Label>
+              <div className="space-y-1"><Label>{t('payments.linkToInvoice')}</Label>
                 <Select value={form.invoiceId} onValueChange={(v: string) => setForm({ ...form, invoiceId: v })} disabled={Boolean(editingId)}>
-                  <SelectTrigger><SelectValue placeholder="Select invoice" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('payments.selectInvoiceShort')} /></SelectTrigger>
                   <SelectContent>{invoices.map((inv: any) => <SelectItem key={inv?.id} value={inv?.id ?? ''}>{inv?.invoiceNumber ?? ''} - {inv?.customer?.name ?? ''}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label>Reference</Label><Input placeholder="Payment reference" value={form.reference} onChange={(e: any) => setForm({ ...form, reference: e.target.value })} /></div>
-              <div className="space-y-1"><Label>Notes</Label><Textarea placeholder="Notes" value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} /></div>
+              <div className="space-y-1"><Label>{t('common.reference')}</Label><Input placeholder={t('invoices.referencePlaceholder')} value={form.reference} onChange={(e: any) => setForm({ ...form, reference: e.target.value })} /></div>
+              <div className="space-y-1"><Label>{t('common.notes')}</Label><Textarea placeholder={t('common.notes')} value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} /></div>
               {editingId ? (
-                <p className="text-xs text-muted-foreground">
-                  A payment cannot be moved to a different invoice. Delete it and record it again instead.
-                </p>
+                <p className="text-xs text-muted-foreground">{t('payments.cannotMove')}</p>
               ) : null}
               <Button onClick={handleSave} className="w-full" disabled={saving}>
-                {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Record Payment'}
+                {saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('invoices.recordPayment')}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
       {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : (payments?.length ?? 0) === 0 ? (
-        <Card><CardContent className="py-12 text-center"><CreditCard className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">No payments recorded</h3><p className="text-sm text-muted-foreground">Record your first payment</p></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><CreditCard className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{t('payments.empty')}</h3><p className="text-sm text-muted-foreground">{t('payments.emptyHint')}</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {payments.map((p: any) => (
@@ -211,30 +208,35 @@ export default function PaymentsPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium">
-                        {p?.invoice ? `Payment for ${p.invoice?.invoiceNumber ?? ''}` : p?.expense ? `Payment: ${p.expense?.description ?? ''}` : 'Payment'}
+                        {p?.invoice
+                          ? fill('payments.forInvoice', { number: p.invoice?.invoiceNumber ?? '' })
+                          : p?.expense
+                            ? fill('payments.forExpense', { description: p.expense?.description ?? '' })
+                            : t('payments.one')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {p?.invoice?.customer?.name ?? ''}{p?.reference ? ` • Ref: ${p.reference}` : ''}
+                        {p?.invoice?.customer?.name ?? ''}
+                        {p?.reference ? ` • ${t('common.reference')}: ${p.reference}` : ''}
                       </p>
                     </div>
                   </div>
                   <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                     <div className="text-right">
                       <p className="font-mono font-medium text-green-600">{formatCurrency(p?.amount ?? 0, p?.currency ?? 'USD')}</p>
-                      <p className="text-xs text-muted-foreground">{p?.paymentDate ? format(new Date(p.paymentDate), 'MMM d, yyyy') : ''}</p>
+                      <p className="text-xs text-muted-foreground">{p?.paymentDate ? formatCalendarDate(p.paymentDate, 'MMM d, yyyy', intl) : ''}</p>
                     </div>
-                    <Badge variant="outline">{getMethodLabel(p?.paymentMethod ?? '')}</Badge>
+                    <Badge variant="outline">{t(paymentMethodLabelKey(p?.paymentMethod))}</Badge>
                     <div className="flex items-center gap-1">
                       <Button
                         type="button" variant="ghost" size="icon"
-                        aria-label="Edit payment"
+                        aria-label={t('payments.editAria')}
                         onClick={() => openEdit(p)}
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>
                       <Button
                         type="button" variant="ghost" size="icon"
-                        aria-label="Delete payment"
+                        aria-label={t('payments.deleteAria')}
                         onClick={() => setConfirmDelete(p)}
                       >
                         <Trash2 className="w-4 h-4 text-red-500" />
@@ -250,21 +252,21 @@ export default function PaymentsPage() {
       <AlertDialog open={Boolean(confirmDelete)} onOpenChange={(o: boolean) => { if (!o && !deleting) setConfirmDelete(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+            <AlertDialogTitle>{t('payments.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Removing this payment reduces the amount paid on
-              {confirmDelete?.invoice?.invoiceNumber ? ` invoice ${confirmDelete.invoice.invoiceNumber}` : ' its record'}
-              , so it may move back to partially paid or unpaid. This cannot be undone.
+              {confirmDelete?.invoice?.invoiceNumber
+                ? fill('payments.deleteBodyInvoice', { number: confirmDelete.invoice.invoiceNumber })
+                : t('payments.deleteBody')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={deleting}
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting…' : 'Delete'}
+              {deleting ? t('common.deleting') : t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

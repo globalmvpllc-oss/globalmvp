@@ -139,6 +139,12 @@ export async function loadCandidates(query: CandidateQuery): Promise<MatchCandid
         type: 'PAYMENT',
         id: payment.id,
         label,
+        // Additive: the English `label` above is unchanged, and the screen
+        // prefers the key so the sentence reads in the user's language.
+        labelKey: payment.invoice ? 'payments.forInvoice' : 'payments.forExpense',
+        labelValues: payment.invoice
+          ? { number: payment.invoice.invoiceNumber }
+          : { description: payment.expense?.description ?? '' },
         sublabel: payment.invoice?.customer?.name ?? undefined,
         amount: new Decimal(String(payment.amount)).toNumber(),
         currency: payment.currency,
@@ -187,6 +193,8 @@ export async function loadCandidates(query: CandidateQuery): Promise<MatchCandid
         type: 'INVOICE',
         id: invoice.id,
         label: `Invoice ${invoice.invoiceNumber}`,
+        labelKey: 'banking.matchInvoice',
+        labelValues: { number: invoice.invoiceNumber },
         sublabel: invoice.customer?.name ?? undefined,
         amount: outstanding.toNumber(),
         currency: invoice.currency,
@@ -352,12 +360,22 @@ export function describeMatch(row: {
   matchedPayment?: { id: string; reference: string | null; invoiceId: string | null } | null;
   matchedIncome?: { id: string; description: string } | null;
   matchedExpense?: { id: string; description: string } | null;
-}): { type: MatchTargetType; id: string; label: string; href: string } | null {
+}): {
+  type: MatchTargetType;
+  id: string;
+  label: string;
+  /** Translation key, or null when the label is the user's own text. */
+  labelKey: string | null;
+  labelValues: Record<string, string>;
+  href: string;
+} | null {
   if (row.matchedInvoice) {
     return {
       type: 'INVOICE',
       id: row.matchedInvoice.id,
       label: `Invoice ${row.matchedInvoice.invoiceNumber}`,
+      labelKey: 'banking.matchInvoice',
+      labelValues: { number: row.matchedInvoice.invoiceNumber },
       href: `/invoices/${row.matchedInvoice.id}`,
     };
   }
@@ -368,6 +386,10 @@ export function describeMatch(row: {
       label: row.matchedPayment.reference
         ? `Payment ${row.matchedPayment.reference}`
         : 'Recorded payment',
+      labelKey: row.matchedPayment.reference
+        ? 'banking.matchPaymentRef'
+        : 'banking.matchRecordedPayment',
+      labelValues: { reference: row.matchedPayment.reference ?? '' },
       // Payments have no detail page; the list is where they can be edited.
       href: '/payments',
     };
@@ -376,7 +398,10 @@ export function describeMatch(row: {
     return {
       type: 'INCOME',
       id: row.matchedIncome.id,
+      // User-entered text: shown as it is, never translated.
       label: row.matchedIncome.description,
+      labelKey: null,
+      labelValues: {},
       href: '/income',
     };
   }
@@ -385,6 +410,8 @@ export function describeMatch(row: {
       type: 'EXPENSE',
       id: row.matchedExpense.id,
       label: row.matchedExpense.description,
+      labelKey: null,
+      labelValues: {},
       href: '/expenses',
     };
   }

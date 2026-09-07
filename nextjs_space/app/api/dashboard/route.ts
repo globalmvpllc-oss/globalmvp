@@ -162,11 +162,26 @@ export async function GET() {
       byCurrency[cur].profit = new Decimal(byCurrency[cur].revenue).minus(new Decimal(byCurrency[cur].expenses)).toFixed(2);
     }
 
+    /**
+     * Upcoming activity.
+     *
+     * `title` and `subtitle` are the finished English sentences this endpoint
+     * has always returned and are kept exactly as they were, so nothing that
+     * reads them breaks. Alongside them each row now carries the parts the
+     * sentence was built from — a translation key and the values to fill in —
+     * so the dashboard can render it in the reader's language instead of
+     * showing English inside a Turkish page. A row whose text is user-entered
+     * (an expense description) carries no key, because user content is never
+     * translated.
+     */
     const activities: Array<{
       id: string;
       type: string;
       title: string;
+      titleKey: string | null;
+      titleValues: Record<string, string>;
       subtitle: string;
+      subtitleKey: string | null;
       amount: string;
       currency: string;
       date: Date | null;
@@ -181,7 +196,12 @@ export async function GET() {
         title: isOverdue
           ? `Invoice ${inv.invoiceNumber} is overdue`
           : `Invoice ${inv.invoiceNumber} due`,
+        titleKey: isOverdue ? 'dashboard.activityInvoiceOverdue' : 'dashboard.activityInvoiceDue',
+        titleValues: { number: inv.invoiceNumber },
         subtitle: inv.customer?.name ?? 'Unknown',
+        // Only the "no customer" fallback is a phrase; a real customer name is
+        // the user's own text and is passed through untranslated.
+        subtitleKey: inv.customer?.name ? null : 'dashboard.activityUnknownCustomer',
         amount: remaining.toFixed(2),
         currency: inv.currency,
         date: inv.dueDate,
@@ -192,7 +212,10 @@ export async function GET() {
         id: exp.id,
         type: 'expense_due',
         title: exp.description,
+        titleKey: null,
+        titleValues: {},
         subtitle: 'Expense due',
+        subtitleKey: 'dashboard.activityExpenseDue',
         amount: new Decimal(String(exp.amount)).toFixed(2),
         currency: exp.currency,
         date: exp.dueDate,

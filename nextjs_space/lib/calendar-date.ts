@@ -108,6 +108,8 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+const SHORT_MONTHS = MONTHS.map((m) => m.slice(0, 3));
+
 /**
  * Formats a calendar date for display, in UTC terms.
  *
@@ -115,14 +117,48 @@ const MONTHS = [
  * at negative offsets, which is the display half of the same bug. This is used
  * by the invoice document, where the date must read identically no matter where
  * the PDF is generated.
+ *
+ * ## Language
+ *
+ * A month name is language, not data: 15 Mart 2026 and March 15, 2026 are the
+ * same day written for two readers. Passing a BCP-47 tag — `intl` from
+ * `useI18n()` — writes it in that language, still pinned to UTC so the day
+ * number cannot shift. Omitting it keeps the English form this has always
+ * produced, which is what the invoice templates and the existing tests expect.
  */
-export function formatCalendarDateLong(value: unknown): string {
+export function formatCalendarDateLong(value: unknown, intlLocale?: string): string {
   const utc = parseCalendarDate(value);
   if (!utc) return '';
+  if (intlLocale) return intlFormat(utc, intlLocale, 'long');
   return `${MONTHS[utc.getUTCMonth()]} ${utc.getUTCDate()}, ${utc.getUTCFullYear()}`;
 }
 
-const SHORT_MONTHS = MONTHS.map((m) => m.slice(0, 3));
+/**
+ * Formats an already-parsed UTC day through Intl.
+ *
+ * `timeZone: 'UTC'` is the whole point: the value is UTC midnight of the day it
+ * names, so formatting it in the reader's zone would move it a day west of
+ * Greenwich — the bug this module exists to prevent.
+ */
+function intlFormat(utc: Date, intlLocale: string, style: 'long' | 'short' | 'dayMonth'): string {
+  try {
+    return new Intl.DateTimeFormat(intlLocale, {
+      day: 'numeric',
+      month: style === 'long' ? 'long' : 'short',
+      ...(style === 'dayMonth' ? {} : { year: 'numeric' }),
+      timeZone: 'UTC',
+    }).format(utc);
+  } catch {
+    // An unusable tag must never take a page down. The fallback mirrors the
+    // style that was asked for, so a bad locale changes the language of the
+    // month name and nothing else about the shape of the date.
+    const day = utc.getUTCDate();
+    const year = utc.getUTCFullYear();
+    if (style === 'dayMonth') return `${SHORT_MONTHS[utc.getUTCMonth()]} ${day}`;
+    if (style === 'short') return `${SHORT_MONTHS[utc.getUTCMonth()]} ${day}, ${year}`;
+    return `${MONTHS[utc.getUTCMonth()]} ${day}, ${year}`;
+  }
+}
 
 /**
  * Formats a calendar date for the application UI, in UTC terms.
@@ -131,9 +167,14 @@ const SHORT_MONTHS = MONTHS.map((m) => m.slice(0, 3));
  * 'MMM d, yyyy' and 'MMM d' — without going through the local calendar, which
  * is what shifted the day at negative offsets.
  */
-export function formatCalendarDate(value: unknown, style: 'MMM d, yyyy' | 'MMM d' = 'MMM d, yyyy'): string {
+export function formatCalendarDate(
+  value: unknown,
+  style: 'MMM d, yyyy' | 'MMM d' = 'MMM d, yyyy',
+  intlLocale?: string
+): string {
   const utc = parseCalendarDate(value);
   if (!utc) return '';
+  if (intlLocale) return intlFormat(utc, intlLocale, style === 'MMM d' ? 'dayMonth' : 'short');
   const label = `${SHORT_MONTHS[utc.getUTCMonth()]} ${utc.getUTCDate()}`;
   return style === 'MMM d' ? label : `${label}, ${utc.getUTCFullYear()}`;
 }

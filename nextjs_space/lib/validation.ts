@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_LOGO_DATA_URL_CHARS } from '@/lib/logo';
+import type { TranslationKey } from '@/lib/i18n';
 
 const VALID_CURRENCIES = ['USD', 'EUR', 'GBP', 'TRY'] as const;
 const VALID_PAYMENT_METHODS = ['bank_transfer', 'cash', 'card', 'other'] as const;
@@ -59,6 +60,24 @@ export const INVOICE_TEMPLATES = ['classic', 'modern', 'minimal'] as const;
 
 /** Methods offered as a payment default. */
 export const PAYMENT_METHODS = ['bank_transfer', 'cash', 'card', 'other'] as const;
+
+/**
+ * The label shown for a stored payment method.
+ *
+ * The stored value ('bank_transfer') is what the schema validates and what the
+ * database holds; this only decides what a reader sees. An unrecognised value
+ * falls back to "Other" rather than printing the raw code.
+ */
+const PAYMENT_METHOD_KEYS: Record<string, TranslationKey> = {
+  bank_transfer: 'method.bank_transfer',
+  cash: 'method.cash',
+  card: 'method.card',
+  other: 'method.other',
+};
+
+export function paymentMethodLabelKey(value: unknown): TranslationKey {
+  return (typeof value === 'string' && PAYMENT_METHOD_KEYS[value]) || 'method.other';
+}
 
 /**
  * Maps a Zod failure to something worth showing a person.

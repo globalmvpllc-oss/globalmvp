@@ -11,20 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, TrendingUp, CheckCircle, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { formatCurrency } from '@/lib/currencies';
-import { sumAmounts, sumAmountsByCurrency } from '@/lib/payment-math';
-import { format } from 'date-fns';
+import { formatCurrency, CURRENCIES } from '@/lib/currencies';
+import { sumAmountsByCurrency } from '@/lib/payment-math';
 import { toast } from 'sonner';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage } from '@/lib/api-feedback';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
-import { toCalendarInput } from '@/lib/calendar-date';
+import { toCalendarInput, formatCalendarDate } from '@/lib/calendar-date';
+import { useI18n } from '@/components/i18n-provider';
 
 export default function IncomePage() {
+  const { t, locale, intl, category: categoryLabel } = useI18n();
   const company = useCompany();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -54,7 +55,7 @@ export default function IncomePage() {
       // fall through to an empty array and render as "no income recorded" — that
       // reads as lost data rather than a failed request.
       if (!incRes.ok) {
-        setLoadError(await readErrorMessage(incRes));
+        setLoadError(await readErrorMessage(incRes, locale));
         setTransactions([]);
         return;
       }
@@ -64,7 +65,7 @@ export default function IncomePage() {
       setCustomers(await custRes.json().then((d: any) => Array.isArray(d) ? d : []).catch(() => []));
       setCategories(await catRes.json().then((d: any) => Array.isArray(d) ? d : []).catch(() => []));
     } catch {
-      setLoadError(NETWORK_ERROR_MESSAGE);
+      setLoadError(t('error.network'));
       setTransactions([]);
     } finally {
       setLoading(false);
@@ -78,28 +79,28 @@ export default function IncomePage() {
   const openCreate = () => { setEditingId(null); setForm(emptyForm()); setOpen(true); };
 
   /** Seeds the dialog from an existing record so it can be corrected. */
-  const openEdit = (t: any) => {
-    setEditingId(t?.id ?? null);
+  const openEdit = (record: any) => {
+    setEditingId(record?.id ?? null);
     setForm({
       ...emptyForm(),
-      ...t,
-      amount: String(t?.amount ?? ''),
-      date: t?.date ? toCalendarInput(t.date) : '',
-      expectedPaymentDate: t?.expectedPaymentDate ? toCalendarInput(t.expectedPaymentDate) : '',
-      customerId: t?.customerId ?? '',
-      notes: t?.notes ?? '',
-      category: t?.category ?? '',
+      ...record,
+      amount: String(record?.amount ?? ''),
+      date: record?.date ? toCalendarInput(record.date) : '',
+      expectedPaymentDate: record?.expectedPaymentDate ? toCalendarInput(record.expectedPaymentDate) : '',
+      customerId: record?.customerId ?? '',
+      notes: record?.notes ?? '',
+      category: record?.category ?? '',
     });
     setOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.description.trim() || !form.amount) {
-      toast.error('Description and amount are required.');
+      toast.error(t('income.descriptionAmountRequired'));
       return;
     }
     if (Number(form.amount) <= 0) {
-      toast.error('Amount must be greater than zero.');
+      toast.error(t('income.amountPositive'));
       return;
     }
 
@@ -117,17 +118,17 @@ export default function IncomePage() {
       if (!res.ok) {
         // The response was previously ignored on create, so a rejected entry
         // left the dialog open with no explanation at all.
-        toast.error(await readErrorMessage(res));
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
 
-      toast.success(editingId ? 'Income updated.' : 'Income recorded.');
+      toast.success(editingId ? t('income.updated') : t('income.recorded'));
       setOpen(false);
       setEditingId(null);
       setForm(emptyForm());
       await fetchData();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setSaving(false);
     }
@@ -143,11 +144,11 @@ export default function IncomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'RECEIVED' }),
       });
-      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
-      toast.success('Marked as received');
+      if (!res.ok) { toast.error(await readErrorMessage(res, locale)); return; }
+      toast.success(t('income.markedReceived'));
       await fetchData();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setBusyId(null);
     }
@@ -158,12 +159,12 @@ export default function IncomePage() {
     setBusyId(confirmDeleteId);
     try {
       const res = await fetch(`/api/income?id=${confirmDeleteId}`, { method: 'DELETE' });
-      if (!res.ok) { toast.error(await readErrorMessage(res)); return; }
-      toast.success('Deleted');
+      if (!res.ok) { toast.error(await readErrorMessage(res, locale)); return; }
+      toast.success(t('income.deleted'));
       setConfirmDeleteId(null);
       await fetchData();
     } catch {
-      toast.error(NETWORK_ERROR_MESSAGE);
+      toast.error(t('error.network'));
     } finally {
       setBusyId(null);
     }
@@ -175,14 +176,14 @@ export default function IncomePage() {
   // with the first row's code produced a figure that was not money in any
   // currency — the dashboard and reports already group the same way.
   const expectedByCurrency = sumAmountsByCurrency(
-    transactions.filter((t: any) => t?.status === 'EXPECTED'),
-    (t: any) => t?.amount,
-    (t: any) => t?.currency
+    transactions.filter((row: any) => row?.status === 'EXPECTED'),
+    (row: any) => row?.amount,
+    (row: any) => row?.currency
   );
   const receivedByCurrency = sumAmountsByCurrency(
-    transactions.filter((t: any) => t?.status === 'RECEIVED'),
-    (t: any) => t?.amount,
-    (t: any) => t?.currency
+    transactions.filter((row: any) => row?.status === 'RECEIVED'),
+    (row: any) => row?.amount,
+    (row: any) => row?.currency
   );
 
   return (
@@ -191,50 +192,54 @@ export default function IncomePage() {
           screen, where there is no room for both. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-display font-bold tracking-tight">Income</h1>
-          <p className="text-muted-foreground">Track your income and expected payments</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('reports.income')}</h1>
+          <p className="text-muted-foreground">{t('income.subtitle')}</p>
         </div>
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
-          <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> Add Income</Button></DialogTrigger>
+          <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('income.add')}</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingId ? 'Edit Income' : 'Add Income'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingId ? t('income.editTitle') : t('income.add')}</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <div className="space-y-1"><Label>Description *</Label><Input placeholder="What is this income for?" value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} /></div>
+              <div className="space-y-1"><Label>{t('common.description')} *</Label><Input placeholder={t('income.descriptionPlaceholder')} value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} /></div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Amount *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Currency</Label>
+                <div className="space-y-1"><Label>{t('common.amount')} *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{t('common.currency')}</Label>
                   <Select value={form.currency} onValueChange={(v: string) => setForm({ ...form, currency: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="EUR">EUR</SelectItem><SelectItem value="GBP">GBP</SelectItem><SelectItem value="TRY">TRY</SelectItem></SelectContent>
+                    {/* Currency codes are never translated. */}
+                    <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Date</Label><Input type="date" value={form.date} onChange={(e: any) => setForm({ ...form, date: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Expected payment date</Label><Input type="date" value={form.expectedPaymentDate} onChange={(e: any) => setForm({ ...form, expectedPaymentDate: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{t('common.date')}</Label><Input type="date" value={form.date} onChange={(e: any) => setForm({ ...form, date: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{t('income.expectedPaymentDate')}</Label><Input type="date" value={form.expectedPaymentDate} onChange={(e: any) => setForm({ ...form, expectedPaymentDate: e.target.value })} /></div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>Category</Label>
+                <div className="space-y-1"><Label>{t('common.category')}</Label>
                   <Select value={form.category} onValueChange={(v: string) => setForm({ ...form, category: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>{categories.map((c: any) => <SelectItem key={c?.id} value={c?.name ?? ''}>{c?.name ?? ''}</SelectItem>)}</SelectContent>
+                    <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
+                    {/* The option value stays the stored English category name;
+                        only its label is translated. */}
+                    <SelectContent>{categories.map((c: any) => <SelectItem key={c?.id} value={c?.name ?? ''}>{categoryLabel(c?.name)}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1"><Label>Customer</Label>
+                <div className="space-y-1"><Label>{t('common.customer')}</Label>
                   <Select value={form.customerId} onValueChange={(v: string) => setForm({ ...form, customerId: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t('common.select')} /></SelectTrigger>
                     <SelectContent>{customers.map((c: any) => <SelectItem key={c?.id} value={c?.id ?? ''}>{c?.name ?? ''}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
-              <div className="space-y-1"><Label>Status</Label>
+              <div className="space-y-1"><Label>{t('common.status')}</Label>
                 <Select value={form.status} onValueChange={(v: string) => setForm({ ...form, status: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="EXPECTED">Expected</SelectItem><SelectItem value="RECEIVED">Received</SelectItem></SelectContent>
+                  {/* EXPECTED / RECEIVED are stored values; the labels are not. */}
+                  <SelectContent><SelectItem value="EXPECTED">{t('status.expected')}</SelectItem><SelectItem value="RECEIVED">{t('status.received')}</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label>Notes</Label><Textarea placeholder="Notes" value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} /></div>
-              <Button onClick={handleSave} className="w-full" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save Changes' : 'Add Income'}</Button>
+              <div className="space-y-1"><Label>{t('common.notes')}</Label><Textarea placeholder={t('common.notes')} value={form.notes} onChange={(e: any) => setForm({ ...form, notes: e.target.value })} /></div>
+              <Button onClick={handleSave} className="w-full" disabled={saving}>{saving ? t('common.saving') : editingId ? t('common.saveChanges') : t('income.add')}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -244,46 +249,47 @@ export default function IncomePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-amber-600" /></div>
-          <div><p className="text-xs text-muted-foreground">Expected</p>{expectedByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : expectedByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold">{formatCurrency(row.total, row.currency)}</p>))}</div>
+          <div><p className="text-xs text-muted-foreground">{t('status.expected')}</p>{expectedByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : expectedByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold">{formatCurrency(row.total, row.currency)}</p>))}</div>
         </CardContent></Card>
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center"><CheckCircle className="w-5 h-5 text-green-600" /></div>
-          <div><p className="text-xs text-muted-foreground">Received</p>{receivedByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold text-green-600">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : receivedByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold text-green-600">{formatCurrency(row.total, row.currency)}</p>))}</div>
+          <div><p className="text-xs text-muted-foreground">{t('status.received')}</p>{receivedByCurrency.length === 0 ? (<p className="text-lg font-mono font-bold text-green-600">{formatCurrency(0, company?.defaultCurrency ?? 'USD')}</p>) : receivedByCurrency.map((row: any) => (<p key={row.currency} className="text-lg font-mono font-bold text-green-600">{formatCurrency(row.total, row.currency)}</p>))}</div>
         </CardContent></Card>
       </div>
 
       {/* List */}
       {loading ? <div className="h-32 bg-muted rounded-lg animate-pulse" /> : loadError ? (
-        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">Could not load income</h3><p className="text-sm text-muted-foreground mb-4">{loadError}</p><Button variant="outline" onClick={() => { setLoading(true); fetchData(); }}>Try again</Button></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{t('income.loadFailed')}</h3><p className="text-sm text-muted-foreground mb-4">{loadError}</p><Button variant="outline" onClick={() => { setLoading(true); fetchData(); }}>{t('common.tryAgain')}</Button></CardContent></Card>
       ) : (transactions?.length ?? 0) === 0 ? (
-        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{personalizeEmptyState('No income recorded', company?.name)}</h3><p className="text-sm text-muted-foreground">Start tracking your income</p></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><TrendingUp className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" /><h3 className="font-medium mb-1">{personalizeEmptyState(t('income.empty'), company?.name, t('common.emptyStateFor'))}</h3><p className="text-sm text-muted-foreground">{t('income.emptyHint')}</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {transactions.map((t: any) => (
-            <Card key={t?.id} className="hover:shadow-sm transition-shadow">
+          {/* Named `row`, not `t`: `t` is the translator on this page. */}
+          {transactions.map((row: any) => (
+            <Card key={row?.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="py-4">
                 {/* Amount, status and actions wrap onto their own line below
                     `sm` rather than crushing the description. */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className={`w-2 h-2 shrink-0 rounded-full ${t?.status === 'RECEIVED' ? 'bg-green-500' : 'bg-amber-500'}`} />
+                    <div className={`w-2 h-2 shrink-0 rounded-full ${row?.status === 'RECEIVED' ? 'bg-green-500' : 'bg-amber-500'}`} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium">{t?.description ?? ''}</p>
-                      <p className="text-xs text-muted-foreground">{t?.category ?? ''}{t?.customer?.name ? ` • ${t.customer.name}` : ''}</p>
+                      <p className="text-sm font-medium">{row?.description ?? ''}</p>
+                      <p className="text-xs text-muted-foreground">{categoryLabel(row?.category)}{row?.customer?.name ? ` • ${row.customer.name}` : ''}</p>
                     </div>
                   </div>
                   <div className="flex w-full items-center justify-end gap-3 sm:w-auto">
                     <div className="text-right">
-                      <p className="font-mono font-medium">{formatCurrency(t?.amount ?? 0, t?.currency ?? 'USD')}</p>
-                      <p className="text-xs text-muted-foreground">{t?.date ? format(new Date(t.date), 'MMM d, yyyy') : ''}</p>
+                      <p className="font-mono font-medium">{formatCurrency(row?.amount ?? 0, row?.currency ?? 'USD')}</p>
+                      <p className="text-xs text-muted-foreground">{row?.date ? formatCalendarDate(row.date, 'MMM d, yyyy', intl) : ''}</p>
                     </div>
-                    <Badge className={t?.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>{t?.status === 'RECEIVED' ? 'Received' : 'Expected'}</Badge>
+                    <Badge className={row?.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>{row?.status === 'RECEIVED' ? t('status.received') : t('status.expected')}</Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {t?.status === 'EXPECTED' && <DropdownMenuItem onClick={() => markReceived(t.id)} disabled={busyId === t.id}><CheckCircle className="w-4 h-4 mr-2" /> Mark received</DropdownMenuItem>}
-                        <DropdownMenuItem onClick={() => openEdit(t)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setConfirmDeleteId(t.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                        {row?.status === 'EXPECTED' && <DropdownMenuItem onClick={() => markReceived(row.id)} disabled={busyId === row.id}><CheckCircle className="w-4 h-4 mr-2" /> {t('income.markReceived')}</DropdownMenuItem>}
+                        <DropdownMenuItem onClick={() => openEdit(row)}><Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirmDeleteId(row.id)} className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -296,19 +302,17 @@ export default function IncomePage() {
       <AlertDialog open={Boolean(confirmDeleteId)} onOpenChange={(o: boolean) => { if (!o && !busyId) setConfirmDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this income?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes the income record and updates your totals. This cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t('income.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('income.deleteBody')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(busyId)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={Boolean(busyId)}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={Boolean(busyId)}
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {busyId ? 'Deleting…' : 'Delete'}
+              {busyId ? t('common.deleting') : t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
