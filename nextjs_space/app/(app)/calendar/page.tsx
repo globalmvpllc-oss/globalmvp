@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ChevronLeft, ChevronRight, FileText, CreditCard, TrendingDown, TrendingUp, CalendarDays, Plus, Pencil,
+  ChevronLeft, ChevronRight, FileText, CreditCard, TrendingDown, TrendingUp, CalendarDays, Plus, Pencil, Receipt,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, CURRENCIES } from '@/lib/currencies';
@@ -26,6 +26,7 @@ import {
 } from 'date-fns';
 import { toCalendarDay } from '@/lib/calendar-date';
 import { useI18n } from '@/components/i18n-provider';
+import { getChequeStatusBadge } from '@/lib/cheque-status';
 import type { TranslationKey } from '@/lib/i18n';
 import Link from 'next/link';
 
@@ -38,7 +39,15 @@ import Link from 'next/link';
  *
  * `manual` entries are real Event rows and are the only ones editable here.
  */
-type DerivedKind = 'invoice_due' | 'expense_due' | 'payment' | 'income';
+type DerivedKind =
+  | 'invoice_due'
+  | 'expense_due'
+  | 'payment'
+  | 'income'
+  /** A cheque or note falling due — received from a customer. */
+  | 'cheque_in'
+  /** A cheque or note falling due — issued to a supplier. */
+  | 'cheque_out';
 
 interface CalendarEntry {
   key: string;
@@ -102,6 +111,8 @@ const ENTRY_KIND_KEYS: Record<string, TranslationKey> = {
   expense_due: 'calendar.expenseDue',
   payment: 'calendar.payment',
   income: 'reports.income',
+  cheque_in: 'cheques.directionReceived',
+  cheque_out: 'cheques.directionIssued',
 };
 
 const EMPTY_FORM = {
@@ -118,11 +129,17 @@ function dotClass(entry: CalendarEntry): string {
   if (entry.kind === 'invoice_due') return 'bg-blue-500';
   if (entry.kind === 'expense_due') return 'bg-red-500';
   if (entry.kind === 'income') return 'bg-emerald-500';
+  // Both cheque directions share a colour: the icon and the caption say which,
+  // and a sixth dot colour on a month grid stops being a distinction anyone can
+  // read at that size.
+  if (entry.kind === 'cheque_in' || entry.kind === 'cheque_out') return 'bg-violet-500';
   return 'bg-green-500';
 }
 
 function entryIcon(entry: CalendarEntry) {
   if (entry.origin === 'manual') return <CalendarDays className="w-4 h-4 text-primary" />;
+  if (entry.kind === 'cheque_in') return <Receipt className="w-4 h-4 text-violet-500" />;
+  if (entry.kind === 'cheque_out') return <Receipt className="w-4 h-4 text-violet-600" />;
   if (entry.kind === 'invoice_due') return <FileText className="w-4 h-4 text-blue-500" />;
   if (entry.kind === 'expense_due') return <TrendingDown className="w-4 h-4 text-red-500" />;
   if (entry.kind === 'income') return <TrendingUp className="w-4 h-4 text-emerald-500" />;
@@ -232,11 +249,12 @@ export default function CalendarPage() {
       // resolves to an empty list rather than rejecting, so one failing request
       // cannot blank the whole calendar; a total failure is still caught below
       // and surfaced as a real error state.
-      const [inv, exp, pay, inc] = await Promise.all([
+      const [inv, exp, pay, inc, cheques] = await Promise.all([
         fetch(`/api/invoices?${range}`).then((r: any) => (r.ok ? r.json() : [])),
         fetch(`/api/expenses?${range}`).then((r: any) => (r.ok ? r.json() : [])),
         fetch(`/api/payments?${range}`).then((r: any) => (r.ok ? r.json() : [])),
         fetch(`/api/income?${range}`).then((r: any) => (r.ok ? r.json() : [])),
+        fetch(`/api/cheques?${range}`).then((r: any) => (r.ok ? r.json() : [])),
       ]);
       if (token !== derivedRef.current) return;
 
@@ -310,6 +328,46 @@ export default function CalendarPage() {
             amount: row?.amount, currency: row?.currency ?? 'USD', date: when,
           });
         }
+      }
+
+      /**
+       * Cheque and note due dates.
+       *
+       * Derived at read time from ChequeInstrument like every other entry here,
+       * never written into Event: a vade with two sources of truth drifts the
+       * moment one of them is edited.
+       *
+       * Settled and cancelled instruments are left off. A cheque that cleared
+       * has no date anyone is waiting on, and a month full of cleared cheques
+       * would bury the ones that still matter. Bounced ones stay: the date it
+       * came back is exactly the day a business needs to see.
+       */
+      for (const cheque of cheques ?? []) {
+        const when = toCalendarDay(cheque?.dueDate);
+        if (!when) continue;
+        if (cheque?.status === 'CLEARED' || cheque?.status === 'PAID' || cheque?.status === 'CANCELLED') {
+          continue;
+        }
+
+        const received = cheque?.direction === 'RECEIVED';
+        const party =
+          (received ? cheque?.customer?.name : cheque?.vendor?.name) ??
+          cheque?.drawerName ??
+          t('cheques.calendarUnnamed');
+
+        entries.push({
+          key: `chq-${cheque.id}`,
+          origin: 'derived',
+          kind: received ? 'cheque_in' : 'cheque_out',
+          title: fill(received ? 'cheques.calendarReceived' : 'cheques.calendarIssued', {
+            name: party,
+          }),
+          subtitle: t(getChequeStatusBadge(cheque?.status).labelKey),
+          amount: cheque?.amount,
+          currency: cheque?.currency ?? 'USD',
+          date: when,
+          href: '/cheques',
+        });
       }
 
       setDerived(entries);
@@ -664,6 +722,7 @@ export default function CalendarPage() {
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-sm text-muted-foreground">{t('calendar.invoiceDue')}</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500" /><span className="text-sm text-muted-foreground">{t('calendar.expenseDue')}</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500" /><span className="text-sm text-muted-foreground">{t('calendar.payment')}</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-violet-500" /><span className="text-sm text-muted-foreground">{t('nav.cheques')}</span></div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary" /><span className="text-sm text-muted-foreground">{t('calendar.yourEvent')}</span></div>
       </div>
 

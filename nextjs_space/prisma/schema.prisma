@@ -152,6 +152,7 @@ model Company {
   subscription        Subscription?
   bankAccounts        BankAccount[]
   bankTransactions    BankTransaction[]
+  chequeInstruments   ChequeInstrument[]
 }
 
 model CompanyMember {
@@ -197,6 +198,7 @@ model Customer {
   invoices        Invoice[]
   incomeTransactions IncomeTransaction[]
   events          Event[]
+  chequeInstruments ChequeInstrument[]
 
   @@index([companyId])
 }
@@ -216,6 +218,7 @@ model Vendor {
   updatedAt       DateTime            @updatedAt
   company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   expenseTransactions ExpenseTransaction[]
+  chequeInstruments ChequeInstrument[]
 
   @@index([companyId])
 }
@@ -245,6 +248,8 @@ model Invoice {
   /// Bank lines reconciled against this invoice. Prisma-side only — the column
   /// lives on BankTransaction, so no existing table gains anything.
   bankTransactions BankTransaction[]
+  /// Cheques and notes offered in settlement of this invoice. Prisma-side only.
+  chequeInstruments ChequeInstrument[]
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
@@ -289,6 +294,8 @@ model Payment {
   invoice       Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   expense       ExpenseTransaction? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
   bankTransactions BankTransaction[]
+  /// The instrument that produced this payment, when one did. Prisma-side only.
+  chequeInstruments ChequeInstrument[]
 
   @@index([companyId])
   @@index([invoiceId])
@@ -344,6 +351,8 @@ model ExpenseTransaction {
   vendor           Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   payments         Payment[]
   bankTransactions BankTransaction[]
+  /// Cheques and notes issued to settle this expense. Prisma-side only.
+  chequeInstruments ChequeInstrument[]
 
   @@index([companyId])
   @@index([status])
@@ -724,4 +733,130 @@ model BankTransaction {
   @@index([bankAccountId, date])
   /// The dashboard's unreconciled count.
   @@index([companyId, status])
+}
+
+
+/// A cheque or promissory note — çek or senet.
+///
+/// A post-dated cheque is a primary settlement instrument for a Turkish small
+/// business: a customer settles a six-week-old invoice with a cheque dated six
+/// weeks out, and the supplier is paid the same way. Until it clears, that
+/// cheque is neither cash nor a plain receivable. It is a dated promise with a
+/// lifecycle of its own, and the business needs to know what is in the drawer,
+/// what falls due next week, and what bounced.
+///
+/// ## Why this is not a Payment
+///
+/// `Payment` records money that has moved. A cheque received is a promise, and
+/// writing one as a Payment would mark the invoice paid and tell the user they
+/// have been paid when they have not — the exact defect closed in
+/// `fix(invoices): stop an invoice being marked paid without a payment`.
+///
+/// So an instrument holds no money on its own. When it CLEARS, the API creates
+/// a real Payment through the ordinary route and lets
+/// `recalculateInvoicePaymentState` derive the invoice's status from it. Every
+/// figure in the product therefore continues to come from Payment rows alone,
+/// and nothing here writes a status onto an invoice.
+///
+/// ## Deletion
+///
+/// `companyId` cascades, like every other model: a deleted company takes its
+/// records with it.
+///
+/// Every other relation is SetNull, following `Event`. An instrument is
+/// financial evidence — a cheque somebody handed over, with a bank, a number
+/// and a due date — and deleting the customer record it was linked to must not
+/// erase the fact that it exists. The instrument survives with a null link and
+/// its own `drawerName` still readable, which is what a business chasing a
+/// bounced cheque actually needs. (The customer route already refuses to delete
+/// a customer holding invoices, so this is the second line, not the first.)
+///
+/// ## Endorsement
+///
+/// Deliberately not modelled in this version. Passing a received cheque on to a
+/// supplier — ciro — is real and common, but it turns an instrument into
+/// something that moves between accounts and roughly doubles the state machine.
+/// When it is built it attaches here: an `endorsedToVendorId` alongside
+/// `vendorId`, an `endorsedFromId` self-relation for the chain, and an
+/// ENDORSED status between PORTFOLIO and the terminal states. Nothing in this
+/// model forecloses that.
+model ChequeInstrument {
+  id            String   @id @default(cuid())
+  companyId     String
+
+  /// 'RECEIVED' (from a customer) or 'ISSUED' (to a supplier). See
+  /// lib/cheque-status.ts — the two have different lifecycles.
+  direction     String
+  /// 'CHEQUE' or 'PROMISSORY_NOTE'. A senet is a different instrument in law
+  /// but the same shape here: an amount, a due date and a lifecycle.
+  instrument    String   @default("CHEQUE")
+
+  amount        Decimal  @db.Decimal(15, 2)
+  /// One of lib/currencies.ts, alongside the amount as everywhere else. Totals
+  /// are grouped per currency and never summed across them.
+  currency      String   @default("USD")
+
+  /// The day the instrument was written or handed over.
+  issueDate     DateTime @default(now())
+  /// Vade — the day it can be presented. This is the column every query orders
+  /// by, because the question is always "what is coming up".
+  dueDate       DateTime
+
+  /// Free text, as printed on the instrument. Not a foreign key to BankAccount:
+  /// a received cheque is drawn on somebody else's bank, which this business
+  /// has no account at.
+  bankName      String?
+  /// The cheque or note number, as printed.
+  chequeNumber  String?
+  /// Keşideci — whoever wrote it. Kept as text even when `customerId` is set,
+  /// because the drawer is often not the customer.
+  drawerName    String?
+
+  /// See lib/cheque-status.ts for the transition table and terminal states.
+  status        String   @default("PORTFOLIO")
+
+  /// When it was presented to the bank, and when it cleared or bounced. Kept
+  /// because "it bounced" is worth a date of its own.
+  presentedAt   DateTime?
+  settledAt     DateTime?
+
+  notes         String?
+
+  /// Who gave it, or who it was given to. At most one is set: a received
+  /// instrument has a customer, an issued one has a vendor.
+  customerId    String?
+  vendorId      String?
+
+  /// What it settles, if anything. An instrument may be recorded with no
+  /// document behind it — a cheque taken on account, before the invoice exists.
+  invoiceId     String?
+  expenseId     String?
+
+  /// The Payment this instrument produced when it cleared. Null until then,
+  /// which is the whole point: no money exists before that moment. Set rather
+  /// than derived so clearing twice is visible rather than silently doubling.
+  paymentId     String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  vendor        Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  invoice       Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  expense       ExpenseTransaction? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  payment       Payment?            @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  /// The list, and the "what falls due" totals: one company's instruments in
+  /// due-date order. Every screen sorts by vade.
+  @@index([companyId, dueDate])
+  /// The portfolio and bounced filters, and the dashboard counts.
+  @@index([companyId, status])
+  /// The calendar's month window, which filters received and issued separately.
+  @@index([companyId, direction, dueDate])
+  @@index([customerId])
+  @@index([vendorId])
+  @@index([invoiceId])
+  @@index([expenseId])
 }

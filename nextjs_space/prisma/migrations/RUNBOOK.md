@@ -258,3 +258,92 @@ The banking screens and the eight `/api/bank-*` routes will fail against a
 database without these tables. Everything else is unchanged: no existing route,
 page or query reads the new models, and the banking card on the dashboard
 renders nothing when its own request does not succeed.
+
+---
+
+# CHEQUES & PROMISSORY NOTES — `20260907120000_cheque_instruments`
+
+**Not executed here.** `npx prisma migrate status` reaches the database from
+this environment and reports this migration as the only one pending; it has
+deliberately not been applied. The production database has not been touched.
+
+## What it does
+
+Creates one table, `ChequeInstrument`, and nothing else.
+
+Purely additive. No existing table, column, index or constraint is altered or
+dropped, and no existing row is written to. The six foreign keys live on the new
+table and point at `Company`, `Customer`, `Vendor`, `Invoice`,
+`ExpenseTransaction` and `Payment`; those six models gain a `chequeInstruments`
+field in `schema.prisma`, but that is a Prisma-side back-relation with no column
+behind it.
+
+Verified two ways, both without a database:
+
+```powershell
+# 1. The DDL matches the model exactly — the migration was copied from this.
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma\schema.prisma --script
+
+# 2. Nothing else moved. Diffing the full generated DDL for the schema before
+#    and after this change yields only the ChequeInstrument statements, with no
+#    lines removed anywhere.
+```
+
+The second check is the one that matters: it proves additivity mechanically
+rather than by reading.
+
+## Apply
+
+```powershell
+cd C:\Projelerim\global-mvp\nextjs_space
+npx prisma validate        # must pass first
+npx prisma migrate status  # expect exactly one pending: 20260907120000_cheque_instruments
+npx prisma migrate deploy  # applies only pending migrations; never resets
+npx prisma generate
+```
+
+## Rehearse first
+
+This has **not** been rehearsed on a disposable database, because none is
+reachable from here: there is no local PostgreSQL, no Docker, and creating a
+Supabase branch would spend money on the account. Step 5 of the original runbook
+still applies and should still be done — point `DIRECT_URL` at a throwaway
+database and run `migrate deploy` there before production.
+
+## Verify
+
+```sql
+SELECT COUNT(*) FROM "ChequeInstrument";   -- 0 on first deploy
+```
+
+Then in the application: open **Cheques**, add a received cheque with a due date
+inside the next month, and check three things.
+
+1. It appears in the list, and in **In portfolio** — not in any income or
+   receivables figure. Open Reports and the customer's page: neither total moves.
+2. Its due date appears on the **Calendar** for that day.
+3. Link it to an invoice, then mark it **Cleared**. A payment for its amount is
+   recorded, the invoice's outstanding balance drops by that amount, and the
+   customer statement shows the payment as a credit. This is the only point in
+   the lifecycle at which any figure changes.
+
+Then mark another one **Bounced** and confirm no money is recorded anywhere.
+
+## Rollback
+
+```sql
+DROP TABLE "ChequeInstrument";
+```
+
+Nothing else has to be undone, because nothing pre-existing was modified.
+Dropping this table restores the database exactly as it was. Any `Payment` a
+cleared cheque produced is a real payment and survives — which is correct: the
+money moved, and the invoice it settled stays settled.
+
+## Behaviour before the migration runs
+
+The `/cheques` screen and the four `/api/cheques*` routes will fail against a
+database without this table. Everything else is unchanged. The calendar is the
+one place to watch: it fetches `/api/cheques` alongside its other sources, and
+that fetch resolves to an empty list on any non-OK response, so the calendar
+keeps drawing invoices, expenses, payments and income exactly as before.

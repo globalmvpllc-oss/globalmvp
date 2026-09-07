@@ -135,6 +135,19 @@ function text(value: unknown, fallback = ''): string {
  * also the date /api/reports filters invoices on. Payments credit on their
  * payment date. Uninvoiced EXPECTED income debits on the day it was recorded.
  *
+ * ## Cheques and promissory notes
+ *
+ * A ChequeInstrument never appears on a statement in its own right, and that is
+ * deliberate rather than an omission. In the portfolio it is a promise: the
+ * invoice it relates to is exactly as outstanding as it was, and drawing it as
+ * a credit would say the customer had paid when they had not.
+ *
+ * When it clears, the cheque route creates an ordinary `Payment` and the
+ * statement picks it up through the payment query like any other — same credit,
+ * same date, same effect on the balance. So no term here changes, the
+ * reconciliation needs nothing new, and a cheque moves exactly the figures a
+ * manually recorded payment of the same amount would move.
+ *
  * ## Why there is no settlement row here, unlike the vendor side
  *
  * `vendorMovements` below invents a credit for an expense marked PAID that has

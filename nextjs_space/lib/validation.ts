@@ -303,6 +303,53 @@ export const invoiceUpdateSchema = z.object({
   paymentReference: z.string().max(255).optional(),
 });
 
+/**
+ * A cheque or promissory note.
+ *
+ * `direction` and `instrument` are enums here but Strings in the database, the
+ * same arrangement `Invoice.status` uses: the column stays flexible, the API
+ * refuses anything it does not recognise.
+ *
+ * `status` is deliberately absent. An instrument's status is only ever changed
+ * through the transition endpoint, which checks `canTransition` and records the
+ * payment when one is due — accepting it here would let a caller write CLEARED
+ * straight onto the row and skip the money entirely, which is the invoice bug
+ * one model over.
+ */
+export const chequeSchema = z.object({
+  direction: z.enum(['RECEIVED', 'ISSUED']),
+  instrument: z.enum(['CHEQUE', 'PROMISSORY_NOTE']).default('CHEQUE'),
+  amount: z.number().positive('Amount must be greater than zero').finite(),
+  currency: z.enum(VALID_CURRENCIES).default('USD'),
+  issueDate: dateString.optional(),
+  dueDate: dateString,
+  bankName: z.string().max(120).optional(),
+  chequeNumber: z.string().max(60).optional(),
+  drawerName: z.string().max(160).optional(),
+  notes: z.string().max(2000).optional(),
+  customerId: z.string().min(1).max(64).optional(),
+  vendorId: z.string().min(1).max(64).optional(),
+  invoiceId: z.string().min(1).max(64).optional(),
+  expenseId: z.string().min(1).max(64).optional(),
+});
+
+/** Editing an instrument. Every field optional; status still excluded. */
+export const chequeUpdateSchema = chequeSchema.partial();
+
+/**
+ * Moving an instrument to a new status.
+ *
+ * `paymentDate` and `paymentMethod` are only read when the target status is a
+ * settling one, and they follow the invoice route's defaults — today, and the
+ * company's default method. There is no amount: a settling instrument produces
+ * a payment for its own face value, so no request can name a different figure.
+ */
+export const chequeTransitionSchema = z.object({
+  status: z.enum(['PORTFOLIO', 'PRESENTED', 'CLEARED', 'OUTSTANDING', 'PAID', 'BOUNCED', 'CANCELLED']),
+  paymentDate: dateString.optional(),
+  paymentMethod: z.enum(VALID_PAYMENT_METHODS).optional(),
+});
+
 export const paymentSchema = z
   .object({
     invoiceId: z.string().min(1).max(64).optional(),
