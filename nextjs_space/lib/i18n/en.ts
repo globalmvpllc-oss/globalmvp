@@ -1388,6 +1388,34 @@ export const en = {
   'cheques.calendarReceived': 'Cheque due — {name}',
   'cheques.calendarIssued': 'Cheque payable — {name}',
   'cheques.calendarUnnamed': 'instrument',
+
+  // --- Cookie consent -------------------------------------------------------
+  // The banner, the preference panel, and the footer link that reopens it.
+  // Wording is deliberately concrete about who the third party is: "we use
+  // cookies to improve your experience" describes nothing a visitor can weigh.
+  'consent.title': 'Cookies on CorpControl',
+  'consent.body':
+    'Cookies needed to sign you in and remember your language are always set. With your permission we also set Google advertising and measurement cookies, so we can tell which advert brought you here. You can change your choice at any time.',
+  'consent.policyLink': 'Read the Cookie Policy',
+  'consent.accept': 'Accept all',
+  'consent.reject': 'Reject optional',
+  'consent.preferences': 'Preferences',
+  'consent.save': 'Save preferences',
+  'consent.settings': 'Cookie settings',
+  // Only ever reached once a decision exists, so it closes the panel without
+  // changing anything rather than standing for a refusal.
+  'consent.close': 'Close without changing',
+  'consent.saved': 'Your cookie preferences have been saved.',
+  'consent.alwaysOn': 'Always on',
+  'consent.necessary': 'Strictly necessary',
+  'consent.necessaryDesc':
+    'Signing in, keeping that session secure, remembering your language, and remembering this choice. They cannot be switched off, because the service cannot work without them.',
+  'consent.ads': 'Advertising',
+  'consent.adsDesc':
+    'Google Ads cookies that record which advert or search you arrived from, and allow relevant adverts to be shown to you elsewhere. Off unless you turn them on.',
+  'consent.analytics': 'Measurement',
+  'consent.analyticsDesc':
+    'Google measurement cookies that count how many people who arrived from an advert went on to sign up. Off unless you turn them on.',
 } as const;
 
 export type TranslationKey = keyof typeof en;

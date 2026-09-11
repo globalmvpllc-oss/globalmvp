@@ -8,6 +8,8 @@ import { Providers } from '@/components/providers';
 import { siteConfig, getBaseUrl } from '@/lib/site';
 import { getServerLocale } from '@/lib/i18n/server';
 import { I18nProvider } from '@/components/i18n-provider';
+import { CookieConsent } from '@/components/cookie-consent';
+import { consentBootstrapScript } from '@/lib/consent';
 import Script from 'next/script';
 
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
@@ -108,6 +110,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
      */
     <html lang={locale} translate="no" className="notranslate" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${jakartaSans.variable} ${jetbrainsMono.variable} font-sans`}>
+        {/*
+          Google Consent Mode v2 defaults, established before anything else on
+          the page can run. Every signal starts denied, so a visitor who has
+          made no choice is in the same position as one who declined.
+
+          A plain <script> rather than next/script with `beforeInteractive`,
+          which was tried first and rejected on the evidence: that strategy
+          emits `(self.__next_s=...).push(...)` and leaves execution to Next's
+          own loader after the framework bundle arrives. Ordering against the
+          Google tag would still have held — the tag mounts after hydration —
+          but the defaults are the one thing that must not depend on any of
+          that machinery working. Inline here, they run while the parser is
+          still on this line.
+
+          The tag itself is not here. It is mounted by `CookieConsent` below,
+          and only once someone has allowed it.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: consentBootstrapScript() }} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -117,6 +137,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             {children}
             <Toaster />
+            <CookieConsent />
             <ChunkLoadErrorHandler />
           </Providers>
           </I18nProvider>

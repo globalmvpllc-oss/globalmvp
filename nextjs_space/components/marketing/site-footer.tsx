@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Logo } from '@/components/marketing/logo';
 import { Container } from '@/components/marketing/section';
+import { CookieSettingsLink } from '@/components/cookie-settings-link';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
 
@@ -64,6 +65,16 @@ export function SiteFooter() {
                     </Link>
                   </li>
                 ))}
+                {/*
+                  Consent must be as easy to withdraw as to give, so the way
+                  back to the panel sits beside the policy it belongs to rather
+                  than only inside the banner that shows once.
+                */}
+                {column.heading === 'landing.footer.legal' ? (
+                  <li>
+                    <CookieSettingsLink className="rounded text-left text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" />
+                  </li>
+                ) : null}
               </ul>
             </div>
           ))}

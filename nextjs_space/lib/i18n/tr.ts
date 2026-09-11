@@ -1349,4 +1349,27 @@ export const tr: Dictionary = {
   'cheques.calendarReceived': 'Çek vadesi — {name}',
   'cheques.calendarIssued': 'Çek ödemesi — {name}',
   'cheques.calendarUnnamed': 'kıymet',
+
+  // --- Çerez onayı ----------------------------------------------------------
+  'consent.title': 'CorpControl’da çerezler',
+  'consent.body':
+    'Oturum açmanız ve dil tercihinizin hatırlanması için gereken çerezler her hâlükârda kullanılır. İzin vermeniz hâlinde, hangi reklamın sizi buraya getirdiğini ölçebilmek için Google reklam ve ölçüm çerezlerini de kullanırız. Tercihinizi istediğiniz zaman değiştirebilirsiniz.',
+  'consent.policyLink': 'Çerez Politikasını okuyun',
+  'consent.accept': 'Tümünü kabul et',
+  'consent.reject': 'İsteğe bağlı olanları reddet',
+  'consent.preferences': 'Tercihler',
+  'consent.save': 'Tercihleri kaydet',
+  'consent.settings': 'Çerez ayarları',
+  'consent.close': 'Değiştirmeden kapat',
+  'consent.saved': 'Çerez tercihleriniz kaydedildi.',
+  'consent.alwaysOn': 'Her zaman açık',
+  'consent.necessary': 'Zorunlu çerezler',
+  'consent.necessaryDesc':
+    'Oturum açma, oturum güvenliği, dil tercihiniz ve bu tercihin hatırlanması. Hizmet bunlar olmadan çalışamadığı için kapatılamaz.',
+  'consent.ads': 'Reklam',
+  'consent.adsDesc':
+    'Hangi reklamdan veya aramadan geldiğinizi kaydeden ve başka sitelerde size ilgili reklamların gösterilmesini sağlayan Google Ads çerezleri. Siz açmadıkça kapalıdır.',
+  'consent.analytics': 'Ölçümleme',
+  'consent.analyticsDesc':
+    'Reklamdan gelen ziyaretçilerden kaçının kayıt olduğunu sayan Google ölçüm çerezleri. Siz açmadıkça kapalıdır.',
 };

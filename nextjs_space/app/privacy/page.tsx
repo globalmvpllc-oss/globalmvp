@@ -73,6 +73,16 @@ export default function PrivacyPage() {
           We do not sell your information, and we do not use the records in your workspace for
           advertising.
         </p>
+        <p>
+          We do advertise the product itself on Google. If you allow it, cookies on our public pages
+          measure which advert brought you here and whether that visit led to a sign-up. Nothing from
+          inside your workspace is involved, and nothing is loaded from Google unless you have
+          consented. What is set, for how long, and how to change your answer is in the{' '}
+          <Link href="/cookies" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            Cookie Policy
+          </Link>
+          .
+        </p>
       </LegalSection>
 
       <LegalSection heading="Information about your own customers">

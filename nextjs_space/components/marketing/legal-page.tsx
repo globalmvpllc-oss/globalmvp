@@ -15,8 +15,14 @@ import { translate } from '@/lib/i18n';
  * Only the shell's own chrome ("Last updated:") follows the selected language.
  * The `title`, `intro` and `children` a page passes in are its authored legal
  * text and are deliberately left in the language they were written in —
- * /privacy, /terms and /cookies in English, /kvkk in Turkish. Machine
- * translating terms someone is agreeing to would change what they agreed to.
+ * /privacy and /terms in English, /kvkk in Turkish. Machine translating terms
+ * someone is agreeing to would change what they agreed to.
+ *
+ * /cookies is the one page that switches: it holds two authored texts, English
+ * and Turkish, and picks between them on the selected locale. It is a
+ * disclosure rather than an agreement, and the consent it describes is
+ * collected from Turkish visitors through a Turkish banner — so the account of
+ * what they are consenting to has to be readable in the same language.
  */
 export function LegalPage({
   title,

@@ -128,7 +128,34 @@ export default function KvkkPage() {
             <strong>KVKK m.5/2(f):</strong> İlgili kişinin temel hak ve özgürlüklerine zarar vermemek
             kaydıyla meşru menfaat — güvenlik ve hata kayıtları bakımından.
           </li>
+          <li>
+            <strong>KVKK m.5/1 (açık rıza):</strong> Zorunlu olmayan reklam ve ölçümleme çerezleri
+            bakımından. Bu çerezler yalnızca açık rızanız üzerine çalıştırılır ve rızanızı dilediğiniz
+            zaman geri alabilirsiniz.
+          </li>
         </ul>
+      </LegalSection>
+
+      <LegalSection heading="Çerezler ve reklam ölçümü">
+        <p>
+          Sitede, oturum açmanız ve dil tercihinizin hatırlanması gibi hizmetin çalışması için zorunlu
+          olan çerezler kullanılır. Bunların yanında, <strong>yalnızca açık rızanız üzerine</strong>,
+          Google Ads reklam ve ölçümleme çerezleri kullanılır; amaç, hangi reklamın siteye ziyaretçi
+          getirdiğini ve bu ziyaretlerin kaçının kayıtla sonuçlandığını ölçmektir.
+        </p>
+        <p>
+          Rıza vermediğiniz sürece Google&rsquo;a ait hiçbir betik yüklenmez ve bu çerezler oluşmaz.
+          Çerezlerin tek tek listesi, amaçları ve saklama süreleri{' '}
+          <Link href="/cookies" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            Çerez Politikası
+          </Link>{' '}
+          sayfasında yayımlanmıştır; tercihinizi de aynı sayfadan veya sayfa altbilgisindeki
+          &ldquo;Çerez ayarları&rdquo; bağlantısından değiştirebilirsiniz.
+        </p>
+        <p>
+          Çalışma alanınıza girdiğiniz kayıtlar — müşteri, fatura, tahsilat, gelir ve gider verileri —
+          reklam amacıyla kullanılmaz ve Google&rsquo;a aktarılmaz.
+        </p>
       </LegalSection>
 
       <LegalSection heading="Kendi müşterilerinize ait veriler">
@@ -149,6 +176,11 @@ export default function KvkkPage() {
           kendi işlevlerini yerine getirebilecekleri ölçüde aktarılır: uygulama barındırma sağlayıcısı,
           yönetilen PostgreSQL veritabanı sağlayıcısı, dosya depolama için Amazon S3 ve fatura PDF'i
           talep ettiğinizde belge dönüştürme hizmeti için Abacus AI.
+        </p>
+        <p>
+          Reklam ve ölçümleme çerezlerine açık rıza vermeniz hâlinde, bu çerezler aracılığıyla toplanan
+          veriler ayrıca Google Ireland Limited ve Google LLC&rsquo;ye aktarılır. Rıza vermediğiniz
+          takdirde böyle bir aktarım gerçekleşmez.
         </p>
         <p>
           Bu sağlayıcıların sunucuları Türkiye dışında bulunabilir. Bu durumda aktarım, KVKK'nın 9.
