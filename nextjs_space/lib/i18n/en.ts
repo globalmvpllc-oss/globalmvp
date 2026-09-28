@@ -29,6 +29,13 @@ export const en = {
   // Labels the hamburger button and the drawer it opens on small screens.
   'nav.openMenu': 'Open menu',
   'nav.menu': 'Menu',
+  // Account-level links in the sidebar footer, apart from the feature
+  // navigation. The legal labels are short because they share one row.
+  'nav.support': 'Help & support',
+  'nav.legal': 'Legal',
+  'nav.privacy': 'Privacy',
+  'nav.terms': 'Terms',
+  'nav.refund': 'Refunds',
 
   // --- Company switcher -----------------------------------------------------
   // Shown only to a user who belongs to more than one company.

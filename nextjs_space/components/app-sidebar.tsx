@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
   CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet, Menu, Truck,
-  Landmark, Receipt, FileSignature, Repeat,
+  Landmark, Receipt, FileSignature, Repeat, LifeBuoy,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { getCompanyInitials, getCompanyDisplayName, resolveStoredFileUrl } from 
 import { useI18n } from '@/components/i18n-provider';
 import { LanguageSelector } from '@/components/language-selector';
 import { CompanySwitcher, type SwitchableCompany } from '@/components/company-switcher';
+import { SUPPORT_LINK, LEGAL_LINKS } from '@/lib/app-support-links';
 
 const NAV_ITEMS = [
   // The label is a translation key, resolved at render time so switching
@@ -127,16 +128,35 @@ function SidebarNav({
   );
 }
 
-/** Language selector and Sign out — the same footer in the sidebar and drawer. */
+/**
+ * Support, language selector, Sign out and the legal row — the same footer in
+ * the sidebar and drawer. `onNavigate` closes the drawer when a link is taken.
+ */
 function SidebarFooterActions({
   collapsed,
+  onNavigate,
   t,
 }: {
   collapsed: boolean;
+  onNavigate?: () => void;
   t: (key: any) => string;
 }) {
+  const supportLabel = t(SUPPORT_LINK.labelKey);
   return (
     <>
+      {/* Kept when collapsed, as an icon: the lifebuoy is unambiguous, and
+          the label survives as the accessible name and tooltip. */}
+      <Link
+        href={SUPPORT_LINK.href}
+        onClick={onNavigate}
+        aria-label={collapsed ? supportLabel : undefined}
+        title={collapsed ? supportLabel : undefined}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground w-full transition-colors"
+      >
+        <LifeBuoy className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+        {!collapsed && <span>{supportLabel}</span>}
+      </Link>
+
       {/* Hidden when collapsed: the trigger has no room for a readable
           language name, and an icon alone would be ambiguous. */}
       {!collapsed ? <LanguageSelector /> : null}
@@ -148,6 +168,27 @@ function SidebarFooterActions({
         <LogOut className="w-5 h-5 flex-shrink-0" />
         {!collapsed && <span>{t('nav.signOut')}</span>}
       </button>
+
+      {/* One quiet row rather than three more menu entries. Hidden when
+          collapsed, where three words cannot fit; the support page renders
+          the full legal footer, so they stay one click away. */}
+      {!collapsed ? (
+        <nav
+          aria-label={t('nav.legal')}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pt-2 pb-1 text-xs text-muted-foreground"
+        >
+          {LEGAL_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={onNavigate}
+              className="hover:text-foreground hover:underline transition-colors"
+            >
+              {t(link.labelKey)}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
     </>
   );
 }
@@ -262,7 +303,7 @@ export function AppSidebar() {
             </nav>
 
             <div className="border-t border-border p-2">
-              <SidebarFooterActions collapsed={false} t={t} />
+              <SidebarFooterActions collapsed={false} onNavigate={() => setDrawerOpen(false)} t={t} />
             </div>
           </SheetContent>
         </Sheet>
