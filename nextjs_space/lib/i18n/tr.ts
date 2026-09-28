@@ -21,6 +21,11 @@ export const tr: Dictionary = {
   'nav.signOut': 'Çıkış yap',
   'nav.openMenu': 'Menüyü aç',
   'nav.menu': 'Menü',
+  'nav.support': 'Yardım ve destek',
+  'nav.legal': 'Yasal',
+  'nav.privacy': 'Gizlilik',
+  'nav.terms': 'Koşullar',
+  'nav.refund': 'İade',
 
   // --- Şirket seçici --------------------------------------------------------
   'company.switchCompany': 'Şirket değiştir',

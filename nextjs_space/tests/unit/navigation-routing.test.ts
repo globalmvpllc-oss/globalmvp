@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { en, tr, translate } from '@/lib/i18n';
+import { readFileSync, existsSync } from 'fs';
+import path from 'path';
+import { SUPPORT_LINK, LEGAL_LINKS } from '@/lib/app-support-links';
 
 /**
  * Navigation and public routing.
@@ -122,4 +125,79 @@ describe('public and protected routing', () => {
     // Exact-match membership, not a prefix: '/' must not open the app.
     expect(isPublic('/settings/billing')).toBe(false);
   });
+});
+
+describe('support and legal pages are reachable from the application', () => {
+  const root = path.resolve(__dirname, '../..');
+  const sidebar = readFileSync(path.join(root, 'components/app-sidebar.tsx'), 'utf8');
+  const middleware = readFileSync(path.join(root, 'middleware.ts'), 'utf8');
+
+  /** One top-level function in the sidebar, up to its closing brace at column 0. */
+  const functionBody = (name: string) => {
+    const source = sidebar.replace(/\r\n/g, '\n');
+    const start = source.indexOf(`function ${name}(`);
+    expect(start, `${name} exists`).toBeGreaterThan(-1);
+    return source.slice(start, source.indexOf('\n}\n', start));
+  };
+
+  /** The NAV_ITEMS array literal: the feature navigation group. */
+  const navItems = sidebar.slice(
+    sidebar.indexOf('const NAV_ITEMS = ['),
+    sidebar.indexOf('];', sidebar.indexOf('const NAV_ITEMS = ['))
+  );
+
+  it('points the support link at /contact', () => {
+    expect(SUPPORT_LINK.href).toBe('/contact');
+  });
+
+  it('is not inside the feature navigation group', () => {
+    expect(navItems).not.toContain("'/contact'");
+    expect(navItems).not.toContain('SUPPORT_LINK');
+    expect(NAV_HREFS).not.toContain('/contact');
+    for (const link of LEGAL_LINKS) expect(NAV_HREFS).not.toContain(link.href);
+  });
+
+  it('renders the support link in the account-level footer', () => {
+    const footer = functionBody('SidebarFooterActions');
+    expect(footer).toContain('href={SUPPORT_LINK.href}');
+    // Support sits above the language selector and Sign out.
+    expect(footer.indexOf('SUPPORT_LINK.href')).toBeLessThan(footer.indexOf('<LanguageSelector'));
+    expect(footer.indexOf('SUPPORT_LINK.href')).toBeLessThan(footer.indexOf('signOut('));
+    expect(functionBody('SidebarNav')).not.toContain('SUPPORT_LINK');
+  });
+
+  it('keeps the support link in both the expanded and collapsed sidebar', () => {
+    const footer = functionBody('SidebarFooterActions');
+    const link = footer.slice(footer.indexOf('<Link'), footer.indexOf('</Link>'));
+    // The link itself is never gated on `collapsed`; only its text label is.
+    const before = footer.slice(footer.indexOf('return ('), footer.indexOf('<Link'));
+    expect(before).not.toMatch(/collapsed\s*(&&|\?)/);
+    expect(link).toContain('{!collapsed && <span>{supportLabel}</span>}');
+    // Collapsed, the icon still needs a name.
+    expect(link).toContain('aria-label={collapsed ? supportLabel : undefined}');
+    // The persistent sidebar passes its collapsed state; the drawer is expanded.
+    expect(sidebar).toContain('<SidebarFooterActions collapsed={collapsed} t={t} />');
+    expect(sidebar).toMatch(/<SidebarFooterActions collapsed=\{false\} onNavigate=/);
+  });
+
+  it('has a support label in both languages', () => {
+    expect(en['nav.support']).toBeTruthy();
+    expect(tr['nav.support']).toBeTruthy();
+    expect(tr['nav.support']).not.toBe(en['nav.support']);
+  });
+
+  it('offers the refund policy alongside privacy and terms', () => {
+    expect(LEGAL_LINKS.map((l) => l.href)).toEqual(['/privacy', '/terms', '/refund']);
+  });
+
+  it.each([SUPPORT_LINK, ...LEGAL_LINKS].map((l) => [l.href, l.labelKey]))(
+    '%s resolves to a real public page with a label',
+    (href, labelKey) => {
+      expect(existsSync(path.join(root, 'app', href.slice(1), 'page.tsx'))).toBe(true);
+      // Public, so the link works even if the session has just expired.
+      expect(middleware).toContain(`'${href}',`);
+      expect(en[labelKey as keyof typeof en]).toBeTruthy();
+      expect(tr[labelKey as keyof typeof tr]).toBeTruthy();
+    }
+  );
 });
