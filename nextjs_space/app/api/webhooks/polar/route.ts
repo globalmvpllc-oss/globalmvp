@@ -6,7 +6,8 @@ import { NextResponse } from 'next/server';
 import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/webhooks';
 import { prisma } from '@/lib/db';
 import { getWebhookSecret, BillingNotConfiguredError } from '@/lib/billing/polar';
-import { mapSubscriptionEvent, shouldApplyEvent, isHandledEventType } from '@/lib/billing/webhook-mapping';
+import { mapSubscriptionEvent, isHandledEventType } from '@/lib/billing/webhook-mapping';
+import { applySubscriptionRecord, type SubscriptionWriter } from '@/lib/billing/apply-subscription';
 import { type TxClient } from '@/lib/payment-calc';
 
 /**
@@ -73,51 +74,15 @@ export async function POST(request: Request) {
 
   try {
     await prisma.$transaction(async (tx: TxClient) => {
-      const company = await tx.company.findUnique({
-        where: { id: record.companyId },
-        select: { id: true },
-      });
-      if (!company) {
+      // Same write the plan-change route uses: keyed on Polar's id (a
+      // redelivery updates the same row), stale events ignored, company never
+      // rewritten. See lib/billing/apply-subscription.ts.
+      const outcome = await applySubscriptionRecord(tx as unknown as SubscriptionWriter, record);
+      if (outcome === 'unknown_company') {
         console.error('[webhooks:polar] unknown company', { type: event.type });
-        return;
-      }
-
-      const existing = await tx.subscription.findUnique({
-        where: { polarSubscriptionId: record.polarSubscriptionId },
-        select: { id: true, lastEventAt: true },
-      });
-
-      // Out-of-order delivery: an older event must not overwrite newer state.
-      if (existing && !shouldApplyEvent(existing.lastEventAt, record.lastEventAt)) {
+      } else if (outcome === 'stale') {
         console.warn('[webhooks:polar] stale event ignored', { type: event.type });
-        return;
       }
-
-      // Upsert on the unique provider id: a redelivered event updates the same
-      // row instead of inserting a second one.
-      await tx.subscription.upsert({
-        where: { polarSubscriptionId: record.polarSubscriptionId },
-        create: record,
-        update: {
-          // companyId is intentionally not updated: a subscription does not
-          // move between companies, and rewriting it would silently transfer a
-          // paid plan.
-          polarCustomerId: record.polarCustomerId,
-          polarProductId: record.polarProductId,
-          polarPriceId: record.polarPriceId,
-          plan: record.plan,
-          status: record.status,
-          interval: record.interval,
-          currency: record.currency,
-          amount: record.amount,
-          currentPeriodStart: record.currentPeriodStart,
-          currentPeriodEnd: record.currentPeriodEnd,
-          cancelAtPeriodEnd: record.cancelAtPeriodEnd,
-          canceledAt: record.canceledAt,
-          trialEndsAt: record.trialEndsAt,
-          lastEventAt: record.lastEventAt,
-        },
-      });
     });
 
     return NextResponse.json({ received: true, handled: true });

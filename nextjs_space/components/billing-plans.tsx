@@ -8,7 +8,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Check, Minus, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/i18n-provider';
-import { BillingActions } from '@/components/billing-actions';
+import { BillingActions, PlanChangeButton } from '@/components/billing-actions';
 import { withCallbackUrl } from '@/lib/safe-redirect';
 import { formatCurrency } from '@/lib/currencies';
 import {
@@ -74,6 +74,7 @@ export function PlanSelector({
   signupCta = false,
   highlightPlan,
   initialInterval = 'month',
+  subscribedPlan = null,
 }: {
   currentPlan: Plan;
   prices: PlanPrices;
@@ -139,6 +140,15 @@ export function PlanSelector({
    * is what the toggle has always started on.
    */
   initialInterval?: BillingInterval;
+  /**
+   * The paid plan of a live Polar subscription, when the company has one.
+   *
+   * When set, the other paid card moves that subscription (upgrade now, or
+   * downgrade at period end) through a confirmation dialog, instead of
+   * starting a second checkout that Polar would refuse with "You already have
+   * an active subscription". Null - the default - keeps checkout.
+   */
+  subscribedPlan?: PaidPlan | null;
 }) {
   const { t, intl } = useI18n();
   const [interval, setInterval] = useState<BillingInterval>(initialInterval);
@@ -320,13 +330,17 @@ export function PlanSelector({
                       {t(plan === 'pro' ? 'billing.upgradePro' : 'billing.upgradeBusiness')}
                     </Link>
                   ) : (
-                    <BillingActions
-                      enabled={actionsAvailable}
-                      showUpgrade
-                      onlyPlan={plan}
-                      interval={interval}
-                      price={price ?? null}
-                    />
+                    subscribedPlan ? (
+                      <PlanChangeButton plan={plan} enabled={actionsAvailable} />
+                    ) : (
+                      <BillingActions
+                        enabled={actionsAvailable}
+                        showUpgrade
+                        onlyPlan={plan}
+                        interval={interval}
+                        price={price ?? null}
+                      />
+                    )
                   )
                 ) : null}
 

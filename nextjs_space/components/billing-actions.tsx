@@ -3,9 +3,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { formatCurrency } from '@/lib/currencies';
 import { track, flushTracking } from '@/lib/tracking/events';
 import type { TranslationKey } from '@/lib/i18n';
 
@@ -212,5 +221,171 @@ export function CheckoutReturnNotice({ checkoutId }: { checkoutId?: string }) {
         {t('common.tryAgain')}
       </Button>
     </div>
+  );
+}
+
+interface PlanChangePreview {
+  direction: 'upgrade' | 'downgrade';
+  currency: string;
+  estimate: number | null;
+  effectiveAt: string;
+}
+
+/**
+ * Moves an existing subscription to another paid plan.
+ *
+ * Used instead of checkout whenever the company already pays: a second
+ * checkout would be refused by Polar ("You already have an active
+ * subscription"). Opens a confirmation first - the new plan and, for an
+ * upgrade, an estimate of today's prorated charge - and only the button in
+ * that dialog changes anything.
+ */
+export function PlanChangeButton({ plan, enabled }: { plan: 'pro' | 'business'; enabled: boolean }) {
+  const { t, intl } = useI18n();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState<PlanChangePreview | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const isUpgrade = plan === 'business';
+  const planName = t(plan === 'pro' ? 'billing.planPro' : 'billing.planBusiness');
+  const fill = (key: TranslationKey, values: Record<string, string>) =>
+    Object.entries(values).reduce<string>((text, [k, v]) => text.replace(`{${k}}`, v), t(key));
+  const dateLabel = (iso: string) => new Date(iso).toLocaleDateString(intl, { dateStyle: 'long' });
+
+  const post = (confirm: boolean) =>
+    fetch('/api/billing/change-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, confirm }),
+    });
+
+  const openDialog = async () => {
+    setLoading(true);
+    try {
+      const res = await post(false);
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      setPreview((await res.json()) as PlanChangePreview);
+      setOpen(true);
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmChange = async () => {
+    setSubmitting(true);
+    try {
+      const res = await post(true);
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res));
+        return;
+      }
+      const data = await res.json();
+      if (data?.status === 'upgraded') {
+        if (data.charged) {
+          track({
+            name: 'plan_upgrade',
+            transactionId: String(data.charged.orderId),
+            plan,
+            value: Number(data.charged.amount),
+            currency: String(data.charged.currency),
+          });
+          toast.success(
+            fill('billing.change.doneUpgradeCharged', {
+              plan: planName,
+              amount: formatCurrency(data.charged.amount, data.charged.currency),
+            })
+          );
+        } else {
+          toast.success(fill('billing.change.doneUpgrade', { plan: planName }));
+        }
+      } else if (data?.status === 'scheduled') {
+        toast.success(fill('billing.change.doneScheduled', { plan: planName, date: dateLabel(data.effectiveAt) }));
+      }
+      setOpen(false);
+      router.refresh();
+    } catch {
+      toast.error(NETWORK_ERROR_MESSAGE);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        variant={isUpgrade ? 'default' : 'outline'}
+        className="w-full"
+        disabled={!enabled || loading}
+        onClick={openDialog}
+      >
+        {loading ? t('common.loading') : t(isUpgrade ? 'billing.upgradeBusiness' : 'billing.change.switchToPro')}
+      </Button>
+
+      <Dialog open={open} onOpenChange={(next) => !submitting && setOpen(next)}>
+        <DialogContent>
+          {preview ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {fill(
+                    preview.direction === 'upgrade' ? 'billing.change.titleUpgrade' : 'billing.change.titleDowngrade',
+                    { plan: planName }
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {preview.direction === 'upgrade'
+                    ? t('billing.change.upgradeNote')
+                    : fill('billing.change.downgradeNote', { plan: planName, date: dateLabel(preview.effectiveAt) })}
+                </DialogDescription>
+              </DialogHeader>
+
+              <dl className="space-y-3 text-base">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">{t('billing.change.newPlan')}</dt>
+                  <dd className="font-semibold">{planName}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">
+                    {t(preview.direction === 'upgrade' ? 'billing.change.dueToday' : 'billing.change.dueTodayNone')}
+                  </dt>
+                  <dd className="font-mono font-semibold">
+                    {preview.direction === 'downgrade'
+                      ? formatCurrency(0, preview.currency || 'USD')
+                      : preview.estimate !== null
+                        ? formatCurrency(preview.estimate, preview.currency)
+                        : t('billing.change.estimateUnavailable')}
+                  </dd>
+                </div>
+              </dl>
+              {preview.direction === 'upgrade' ? (
+                <p className="text-sm text-muted-foreground">{t('billing.change.estimateNote')}</p>
+              ) : null}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" disabled={submitting} onClick={() => setOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button size="lg" disabled={submitting} onClick={confirmChange}>
+                  {submitting
+                    ? t('common.loading')
+                    : t(
+                        preview.direction === 'upgrade'
+                          ? 'billing.change.confirmUpgrade'
+                          : 'billing.change.confirmDowngrade'
+                      )}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

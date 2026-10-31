@@ -289,6 +289,7 @@ export default async function BillingPage({
           actionsAvailable={actionsAvailable}
           highlightPlan={requestedPlan}
           initialInterval={requestedInterval}
+          subscribedPlan={subscription && plan !== 'free' ? plan : null}
         />
       ) : null}
 
