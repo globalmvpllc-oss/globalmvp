@@ -205,5 +205,7 @@ export default async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon\\.svg|og-image\\.png).*)'],
+  // videos/ holds the public landing-page clip; without this exclusion a
+  // signed-out visitor's request for it would be redirected to /auth/login.
+  matcher: ['/((?!_next/static|_next/image|favicon\\.svg|og-image\\.png|videos/).*)'],
 };

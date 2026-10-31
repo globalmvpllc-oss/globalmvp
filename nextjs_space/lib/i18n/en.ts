@@ -329,6 +329,16 @@ export const en = {
   'landing.hero.trustSetup': 'Set up in minutes',
   'landing.hero.trustCurrencies': 'Works in multiple currencies',
 
+  // Intro video section, directly under the hero.
+  'landing.video.title': 'See CorpControl in 20 seconds',
+  'landing.video.description':
+    'From expenses on sticky notes to invoices, payments and reports in one clear place. This is what your first week with CorpControl looks like.',
+  'landing.video.ariaLabel': 'CorpControl product tour video',
+  'landing.video.play': 'Play video',
+  'landing.video.pause': 'Pause video',
+  'landing.video.unmute': 'Turn sound on',
+  'landing.video.mute': 'Turn sound off',
+
   // Dashboard mock in the hero. The figures themselves stay as they are —
   // they are fictional sample data, not text the product owns.
   'landing.preview.ariaLabel':

@@ -2,6 +2,7 @@ import { SkipLink } from '@/components/marketing/skip-link';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Hero } from '@/components/marketing/hero';
+import { IntroVideo } from '@/components/marketing/intro-video';
 import { TrustBar } from '@/components/marketing/trust-bar';
 import { ProblemSolution } from '@/components/marketing/problem-solution';
 import { ProductPreview } from '@/components/marketing/product-preview';
@@ -66,6 +67,7 @@ export default async function Home() {
       <SiteHeader />
       <main id="main" className="flex-1">
         <Hero />
+        <IntroVideo />
         <TrustBar />
         <ProblemSolution />
         <ProductPreview />

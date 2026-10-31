@@ -298,6 +298,15 @@ export const tr: Dictionary = {
   'landing.hero.trustSetup': 'Dakikalar içinde kurulum',
   'landing.hero.trustCurrencies': 'Birden fazla para birimiyle çalışır',
 
+  'landing.video.title': "CorpControl'ü 20 saniyede görün",
+  'landing.video.description':
+    'Yapışkan notlara yazılmış giderlerden faturalara, ödemelere ve raporlara: hepsi tek ve düzenli bir yerde. CorpControl ile ilk haftanız böyle görünür.',
+  'landing.video.ariaLabel': 'CorpControl ürün tanıtım videosu',
+  'landing.video.play': 'Videoyu oynat',
+  'landing.video.pause': 'Videoyu durdur',
+  'landing.video.unmute': 'Sesi aç',
+  'landing.video.mute': 'Sesi kapat',
+
   'landing.preview.ariaLabel':
     'CorpControl panelinin önizlemesi: gelir, gider, tahsil edilmemiş bakiye ve son faturaların listesi. Örnek veri.',
   'landing.preview.dashboard': 'Panel',
