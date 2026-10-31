@@ -97,12 +97,12 @@ export const DEFAULT_GOOGLE_CONSENT: GoogleConsentSignals = {
 /**
  * The Google Ads account the conversion tag reports to.
  *
- * Overridable by environment so a staging deployment can point elsewhere or,
- * by setting it empty, run with no tag at all. The literal is the fallback
- * rather than a hardcode, because a build with no environment configured
- * should still behave like production.
+ * Read from NEXT_PUBLIC_GOOGLE_ADS_ID only. When the variable is not set the
+ * Ads tag is not loaded at all — there is deliberately no built-in fallback,
+ * so a deployment measures exactly what it was configured to measure. Used
+ * for display on the cookie policy; loading is decided in lib/tracking.
  */
-export const GOOGLE_ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID ?? 'AW-18398758629';
+export const GOOGLE_ADS_ID = (process.env.NEXT_PUBLIC_GOOGLE_ADS_ID ?? '').trim();
 
 /** Serialises a decision for storage in a cookie value. */
 export function serializeConsent(record: ConsentRecord): string {

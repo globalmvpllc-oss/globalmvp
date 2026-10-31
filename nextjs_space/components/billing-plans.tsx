@@ -325,6 +325,7 @@ export function PlanSelector({
                       showUpgrade
                       onlyPlan={plan}
                       interval={interval}
+                      price={price ?? null}
                     />
                   )
                 ) : null}

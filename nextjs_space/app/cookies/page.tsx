@@ -4,7 +4,7 @@ import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 import { CookieSettingsLink } from '@/components/cookie-settings-link';
 import { companyInfo, companyAddressLine, companyMailto, siteConfig } from '@/lib/site';
 import { getServerLocale } from '@/lib/i18n/server';
-import { CONSENT_COOKIE, GOOGLE_ADS_ID } from '@/lib/consent';
+import { CONSENT_COOKIE } from '@/lib/consent';
 
 /**
  * Cookie Policy.
@@ -115,8 +115,8 @@ function CookiesEn() {
       <LegalSection heading="Advertising and measurement cookies">
         <p>
           CorpControl advertises on Google. To find out which adverts bring people to the site, and
-          which of those people go on to open an account, we use the Google Ads tag{' '}
-          <code>{GOOGLE_ADS_ID}</code>, supplied by Google Ireland Limited and Google LLC.{' '}
+          which of those people go on to open an account, we use the Google Ads tag, supplied by
+          Google Ireland Limited and Google LLC.{' '}
           <strong>These are set only if you allow them.</strong> If you decline, or if you have not
           answered yet, the Google script is never requested and none of these cookies exist.
         </p>
@@ -153,6 +153,36 @@ function CookiesEn() {
           — are never sent to Google and are never used for advertising. What these cookies carry is
           how you arrived at the site and what you did on the public pages, nothing from inside your
           workspace.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Google Analytics and Meta Pixel">
+        {/* REVIEW REQUIRED: added with GA4 and Meta Pixel measurement; to be checked by counsel. */}
+        <p>
+          <strong>REVIEW REQUIRED.</strong> If you allow the matching category, we also use:
+        </p>
+        <ul>
+          <li>
+            <strong>Google Analytics 4</strong> (Google Ireland Limited and Google LLC), only if you
+            allow <em>measurement</em>. It counts visits and a few steps such as sign-up and purchase,
+            using first-party cookies (<code>_ga</code> and <code>_ga_*</code>, up to two years).
+          </li>
+          <li>
+            <strong>Meta Pixel</strong> (Meta Platforms Ireland Limited and Meta Platforms, Inc.), only
+            if you allow <em>advertising</em>. It tells Meta which of our adverts on Facebook and
+            Instagram led to a sign-up or a purchase, using first-party cookies (<code>_fbp</code>,
+            ninety days, and <code>_fbc</code> when you arrive from a Meta advert).
+          </li>
+        </ul>
+        <p>
+          The events we send carry a plan name, an amount, a currency and an order id. We do not send
+          your name, email address, phone number or anything from inside your workspace, and the
+          pixel&rsquo;s automatic form reading is switched off. Data received by Meta may be processed
+          outside your country, including in the United States; see{' '}
+          <a href="https://www.facebook.com/privacy/policies/cookies/" className={LINK} target="_blank" rel="noopener noreferrer">
+            Meta&rsquo;s cookie policy
+          </a>
+          .
         </p>
       </LegalSection>
 
@@ -268,8 +298,7 @@ function CookiesTr() {
         <p>
           CorpControl, Google üzerinden reklam vermektedir. Hangi reklamın siteye ziyaretçi
           getirdiğini ve bu ziyaretçilerden kaçının hesap açtığını görebilmek için, Google Ireland
-          Limited ve Google LLC tarafından sağlanan <code>{GOOGLE_ADS_ID}</code> numaralı Google Ads
-          etiketini kullanıyoruz. <strong>Bu çerezler yalnızca izin vermeniz hâlinde kullanılır.</strong>{' '}
+          Limited ve Google LLC tarafından sağlanan Google Ads etiketini kullanıyoruz. <strong>Bu çerezler yalnızca izin vermeniz hâlinde kullanılır.</strong>{' '}
           Reddetmeniz hâlinde veya henüz bir tercih belirtmediyseniz Google betiği hiç çağrılmaz ve bu
           çerezlerin hiçbiri oluşmaz.
         </p>
@@ -307,6 +336,38 @@ function CookiesTr() {
           giderler — Google&rsquo;a hiçbir şekilde gönderilmez ve reklam amacıyla kullanılmaz. Bu
           çerezlerin taşıdığı bilgi, siteye nasıl ulaştığınız ve herkese açık sayfalarda ne yaptığınızdır;
           çalışma alanınızın içinden hiçbir veri taşınmaz.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="Google Analytics ve Meta Pixel">
+        {/* REVIEW REQUIRED: GA4 ve Meta Pixel ölçümüyle eklendi; avukat incelemesi bekliyor. */}
+        <p>
+          <strong>REVIEW REQUIRED.</strong> İlgili kategoriye izin vermeniz hâlinde ayrıca şunları
+          kullanırız:
+        </p>
+        <ul>
+          <li>
+            <strong>Google Analytics 4</strong> (Google Ireland Limited ve Google LLC), yalnızca
+            <em> ölçümleme</em> iznine bağlı olarak. Ziyaretleri ve kayıt, satın alma gibi birkaç adımı
+            birinci taraf çerezlerle (<code>_ga</code> ve <code>_ga_*</code>, en fazla iki yıl) sayar.
+          </li>
+          <li>
+            <strong>Meta Pixel</strong> (Meta Platforms Ireland Limited ve Meta Platforms, Inc.),
+            yalnızca <em>reklam</em> iznine bağlı olarak. Facebook ve Instagram&rsquo;daki
+            reklamlarımızdan hangisinin kayıt ya da satın almayla sonuçlandığını Meta&rsquo;ya
+            bildirir; birinci taraf çerezler kullanır (<code>_fbp</code>, doksan gün; Meta
+            reklamından geldiyseniz <code>_fbc</code>).
+          </li>
+        </ul>
+        <p>
+          Gönderdiğimiz olaylarda yalnızca plan adı, tutar, para birimi ve sipariş numarası bulunur.
+          Adınız, e-posta adresiniz, telefon numaranız veya çalışma alanınızdaki hiçbir kayıt
+          gönderilmez; pikselin formları otomatik okuma özelliği kapalıdır. Meta&rsquo;nın aldığı
+          veriler Amerika Birleşik Devletleri dâhil ülkenizin dışında işlenebilir; ayrıntılar için{' '}
+          <a href="https://www.facebook.com/privacy/policies/cookies/" className={LINK} target="_blank" rel="noopener noreferrer">
+            Meta çerez politikasına
+          </a>{' '}
+          bakın.
         </p>
       </LegalSection>
 

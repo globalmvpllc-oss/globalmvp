@@ -2,18 +2,17 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
-import Script from 'next/script';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useI18n } from '@/components/i18n-provider';
+import { TrackingTags } from '@/components/tracking-tags';
 import {
   CONSENT_COOKIE,
   CONSENT_COOKIE_MAX_AGE,
   CONSENT_VERSION,
   DENY_ALL,
-  GOOGLE_ADS_ID,
   GRANT_ALL,
   googleConsentFor,
   parseConsent,
@@ -146,29 +145,15 @@ export function CookieConsent() {
     [t]
   );
 
-  const tagAllowed = GOOGLE_ADS_ID !== '' && shouldLoadGoogleTag(choices ?? null);
-
   return (
     <>
       {/*
-        Only reached once a visitor has allowed advertising or measurement.
-        Until then no request is made to Google at all — see
-        `shouldLoadGoogleTag` for why loading it in a denied state is not
-        treated as good enough here.
+        Google (GA4, Ads) and Meta tags. Rendered only once a visitor has
+        allowed advertising or measurement; until then no request is made to
+        either — see `shouldLoadGoogleTag` for why loading a tag in a denied
+        state is not treated as good enough here.
       */}
-      {tagAllowed ? (
-        <>
-          <Script
-            id="google-tag"
-            strategy="afterInteractive"
-            src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
-          />
-          <Script id="google-tag-config" strategy="afterInteractive">
-            {`window.dataLayer=window.dataLayer||[];function gtag(){window.dataLayer.push(arguments);}` +
-              `gtag('js', new Date());gtag('config', ${JSON.stringify(GOOGLE_ADS_ID)});`}
-          </Script>
-        </>
-      ) : null}
+      {shouldLoadGoogleTag(choices ?? null) ? <TrackingTags choices={choices ?? null} /> : null}
 
       {open ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">

@@ -13,6 +13,7 @@ import { CURRENCIES } from '@/lib/currencies';
 import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 import { writeActiveCompanyCookie } from '@/lib/active-company';
+import { track } from '@/lib/tracking/events';
 
 /**
  * `useSearchParams` makes this page dynamic. Without saying so, `next build`
@@ -120,6 +121,12 @@ export default function OnboardingPage() {
          */
         const created = await res.json().catch(() => null);
         if (created?.id) writeActiveCompanyCookie(created.id);
+
+        // The sign-up conversion: a new account has finished setting up its
+        // first company. Covers email and Google sign-ups alike, and is not
+        // sent when an existing user adds another company. track() checks
+        // consent and sends nothing personal.
+        if (!addingAnother) track({ name: 'sign_up' });
 
         // Success path otherwise unchanged: the spinner stays up through the
         // navigation so the button cannot be pressed twice mid-redirect.

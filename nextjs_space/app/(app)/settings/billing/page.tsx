@@ -56,7 +56,7 @@ const PLAN_LABEL: Record<string, TranslationKey> = {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams?: { checkout?: string; plan?: string; interval?: string };
+  searchParams?: { checkout?: string; checkout_id?: string; plan?: string; interval?: string };
 }) {
   /**
    * The plan the reader asked for before they had an account.
@@ -179,7 +179,9 @@ export default async function BillingPage({
         <p className="text-muted-foreground">{t('billing.subtitle')}</p>
       </div>
 
-      {searchParams?.checkout === 'success' ? <CheckoutReturnNotice /> : null}
+      {searchParams?.checkout === 'success' ? (
+        <CheckoutReturnNotice checkoutId={searchParams?.checkout_id} />
+      ) : null}
 
       {onTrial ? (
         <Card className="border-primary/30 bg-primary/5">

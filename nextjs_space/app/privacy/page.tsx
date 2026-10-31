@@ -74,10 +74,12 @@ export default function PrivacyPage() {
           advertising.
         </p>
         <p>
-          We do advertise the product itself on Google. If you allow it, cookies on our public pages
-          measure which advert brought you here and whether that visit led to a sign-up. Nothing from
-          inside your workspace is involved, and nothing is loaded from Google unless you have
-          consented. What is set, for how long, and how to change your answer is in the{' '}
+          We do advertise the product itself, on Google and on Meta (Facebook and Instagram). If you
+          allow it, Google Ads, Google Analytics 4 and the Meta Pixel measure which advert brought you
+          here and whether that visit led to a sign-up or a purchase. They receive a plan name, an
+          amount, a currency and an order id, never your name, email address or phone number, and
+          nothing from inside your workspace. Nothing is loaded from Google or Meta unless you have
+          consented. <strong>REVIEW REQUIRED.</strong> What is set, for how long, and how to change your answer is in the{' '}
           <Link href="/cookies" className="rounded font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             Cookie Policy
           </Link>
