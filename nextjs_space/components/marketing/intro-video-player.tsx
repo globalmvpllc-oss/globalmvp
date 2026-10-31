@@ -15,8 +15,8 @@ export interface IntroVideoLabels {
  * The vertical intro clip on the landing page.
  *
  * Plays muted while it is on screen and stops when it scrolls away. Nothing is
- * downloaded until it is first played (preload="none"), so the page's first
- * load pays only for the poster image.
+ * downloaded until it is first played (preload="none"), and the poster only
+ * once the player is close to the screen, so the first load pays for neither.
  *
  * Visitors who ask for reduced motion get no autoplay: the clip waits behind a
  * play button until they choose to start it. A visitor who pauses it is
@@ -38,6 +38,30 @@ export function IntroVideoPlayer({
   const [reducedMotion, setReducedMotion] = useState(true);
   // Set once the visitor pauses by hand; autoplay stays off after that.
   const userPausedRef = useRef(false);
+  // The poster is attached only when the player nears the screen. A poster
+  // given up front is fetched at page load and competes with the fonts and
+  // hero text, which measurably slowed the mobile Lighthouse score.
+  const [posterSrc, setPosterSrc] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setPosterSrc(poster);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setPosterSrc(poster);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '600px 0px' }
+    );
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, [poster]);
 
   // Read the motion preference on the client only. Starting from `true` means
   // nothing autoplays before we know the answer.
@@ -106,7 +130,7 @@ export function IntroVideoPlayer({
         ref={videoRef}
         className="h-full w-full object-cover"
         src={src}
-        poster={poster}
+        poster={posterSrc}
         width={720}
         height={1280}
         muted
