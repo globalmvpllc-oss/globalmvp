@@ -46,7 +46,10 @@ export async function POST(request: Request) {
     const polar = getPolarClient();
     const checkout = await polar.checkouts.create({
       products: [productId],
-      successUrl: `${getAppBaseUrl()}/settings/billing?checkout=success`,
+      // {CHECKOUT_ID} is filled in by Polar. The billing page uses it to ask
+      // /api/billing/checkout/status whether the payment really succeeded
+      // before reporting a purchase conversion.
+      successUrl: `${getAppBaseUrl()}/settings/billing?checkout=success&checkout_id={CHECKOUT_ID}`,
       customerEmail: user.email ?? undefined,
       // Ties the Polar customer to this company across future checkouts.
       externalCustomerId: companyId,
