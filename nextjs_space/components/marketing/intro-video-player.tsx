@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 
+// Round, translucent dark buttons drawn over the clip. Every visual property is
+// set explicitly so no browser default (grey fill, border) shows through.
+const CONTROL =
+  'absolute z-10 flex h-12 w-12 appearance-none items-center justify-center rounded-full border-0 bg-black/60 p-0 text-white shadow-md backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/40';
+
 export interface IntroVideoLabels {
   video: string;
   play: string;
@@ -155,32 +160,31 @@ export function IntroVideoPlayer({
         </button>
       ) : null}
 
-      <div className="absolute right-3 top-3 flex gap-2">
-        {playing ? (
-          <button
-            type="button"
-            onClick={togglePlay}
-            aria-label={labels.pause}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-          >
-            <Pause aria-hidden="true" className="h-6 w-6" />
-          </button>
-        ) : null}
+      {playing ? (
         <button
           type="button"
-          onClick={toggleMute}
-          aria-label={muted ? labels.unmute : labels.mute}
-          aria-pressed={!muted}
-          className="flex h-12 items-center gap-2 rounded-full bg-black/60 px-4 text-base font-medium text-white backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          onClick={togglePlay}
+          aria-label={labels.pause}
+          className={`${CONTROL} bottom-3 left-3`}
         >
-          {muted ? (
-            <VolumeX aria-hidden="true" className="h-6 w-6" />
-          ) : (
-            <Volume2 aria-hidden="true" className="h-6 w-6" />
-          )}
-          <span>{muted ? labels.unmute : labels.mute}</span>
+          <Pause aria-hidden="true" className="h-6 w-6" />
         </button>
-      </div>
+      ) : null}
+
+      {/* Sound toggle, built into the bottom-right corner of the clip. */}
+      <button
+        type="button"
+        onClick={toggleMute}
+        aria-label={muted ? labels.unmute : labels.mute}
+        title={muted ? labels.unmute : labels.mute}
+        className={`${CONTROL} bottom-3 right-3`}
+      >
+        {muted ? (
+          <VolumeX aria-hidden="true" className="h-6 w-6" />
+        ) : (
+          <Volume2 aria-hidden="true" className="h-6 w-6" />
+        )}
+      </button>
     </div>
   );
 }

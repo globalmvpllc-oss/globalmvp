@@ -332,7 +332,7 @@ export const en = {
   // Intro video section, directly under the hero.
   'landing.video.title': 'See CorpControl in 20 seconds',
   'landing.video.description':
-    'From expenses on sticky notes to invoices, payments and reports in one clear place. This is what your first week with CorpControl looks like.',
+    'Invoices, customers, income, expenses and payments in one simple workspace.',
   'landing.video.ariaLabel': 'CorpControl product tour video',
   'landing.video.play': 'Play video',
   'landing.video.pause': 'Pause video',
