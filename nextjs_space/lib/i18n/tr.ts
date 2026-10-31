@@ -295,7 +295,7 @@ export const tr: Dictionary = {
 
   'landing.video.title': "CorpControl'ü 20 saniyede görün",
   'landing.video.description':
-    'Yapışkan notlara yazılmış giderlerden faturalara, ödemelere ve raporlara: hepsi tek ve düzenli bir yerde. CorpControl ile ilk haftanız böyle görünür.',
+    'Faturalar, müşteriler, gelir, gider ve ödemeler tek bir sade çalışma alanında.',
   'landing.video.ariaLabel': 'CorpControl ürün tanıtım videosu',
   'landing.video.play': 'Videoyu oynat',
   'landing.video.pause': 'Videoyu durdur',
