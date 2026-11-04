@@ -166,8 +166,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Providers>
           </I18nProvider>
         </ThemeProvider>
+        {/* Webtochat support bot. Its knowledge and instructions live in the
+            Webtochat panel (see docs/bot-bilgi.md). `lang` is the visitor's
+            language as this site decided it (Turkey → tr, else en), so the
+            widget can greet in it once Webtochat reads the parameter. */}
         <Script
-          src="https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d"
+          src={`https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d&lang=${locale}`}
           strategy="afterInteractive"
         />
       </body>
