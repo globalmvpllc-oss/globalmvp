@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
+import { ProductLabel } from '@/components/kolaystok/product-label';
 
 /**
  * Sayım (stock count). Pick a category (or resume a count left open), then one
@@ -12,7 +13,7 @@ import { ProductPhoto } from '@/components/kolaystok/product-photo';
  * product comes up. Every number is saved as you go, so a count can be left
  * and continued later. "Finish" writes the differences as "Sayım düzeltmesi".
  */
-interface CountProduct { id: string; code: string; name: string; unit: string; shelf: string | null; hasPhoto: boolean; counted: number | null }
+interface CountProduct { id: string; code: string; name: string; size: string | null; unit: string; shelf: string | null; hasPhoto: boolean; counted: number | null }
 
 export default function KsCount() {
   const { t, fill, locale } = useI18n();
@@ -168,12 +169,15 @@ export default function KsCount() {
         <div className="h-full bg-teal-600" style={{ width: `${(done / products.length) * 100}%` }} />
       </div>
 
-      <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+      <div className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm">
         <ProductPhoto id={product.id} name={product.name} hasPhoto={product.hasPhoto} size={80} />
-        <div className="min-w-0">
-          <p className="text-xl font-bold leading-snug">{product.name}</p>
-          <p className="text-base text-slate-500">{product.code}{product.shelf ? ` · ${t('ks.product.shelf')}: ${product.shelf}` : ''}</p>
-        </div>
+        <ProductLabel
+          large
+          name={product.name}
+          size={product.size}
+          code={product.code}
+          extra={product.shelf ? `${t('ks.product.shelf')}: ${product.shelf}` : null}
+        />
       </div>
 
       <form onSubmit={(e) => { e.preventDefault(); saveAndNext(); }} className="space-y-3">

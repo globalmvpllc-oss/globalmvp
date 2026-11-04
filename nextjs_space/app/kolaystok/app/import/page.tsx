@@ -12,7 +12,7 @@ import { useKs } from '@/components/kolaystok/ks-context';
  * add / update / error), 3. confirm. The same file adds new products and
  * updates stock and prices of existing ones. Nothing is written before 3.
  */
-interface Row { row: number; code: string; action: 'create' | 'update'; values: Record<string, unknown>; errors: string[] }
+interface Row { row: number; code: string; action: 'create' | 'update'; values: Record<string, unknown>; errors: string[]; warnings?: Array<{ code: string; value: string }> }
 
 export default function KsImport() {
   const { t, fill } = useI18n();
@@ -83,12 +83,15 @@ export default function KsImport() {
           </div>
           <ul className="max-h-[50vh] divide-y overflow-y-auto rounded-2xl bg-white shadow-sm">
             {result.rows.map((r) => (
-              <li key={r.row} className={`p-3 ${r.errors.length ? 'bg-red-50' : ''}`}>
+              <li key={r.row} className={`p-3 ${r.errors.length ? 'bg-red-50' : r.warnings?.length ? 'bg-amber-50' : ''}`}>
                 <p className="text-base font-medium">
                   {fill('ks.imp.row', { n: r.row })} · {r.code || '—'} · {t(r.action === 'create' ? 'ks.imp.create' : 'ks.imp.update')}
                 </p>
                 {String(r.values.name ?? '') && <p className="text-sm text-slate-600">{String(r.values.name)}</p>}
                 {r.errors.map((e) => <p key={e} className="text-sm font-medium text-red-700">{errorText(e)}</p>)}
+                {r.warnings?.map((w) => (
+                  <p key={w.code} className="text-sm font-medium text-amber-800">{fill('ks.imp.warn.supplier', { name: w.value })}</p>
+                ))}
               </li>
             ))}
           </ul>

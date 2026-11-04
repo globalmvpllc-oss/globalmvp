@@ -9,6 +9,7 @@ import { importTemplate } from '@/lib/stock/excel';
 import { stockLocale } from '@/lib/stock/alerts';
 import { XLSX_TYPE } from '@/lib/stock/data';
 import { applyImport, checkImportFile, uploadedFile } from '@/lib/stock/import';
+import { SpreadsheetTooLargeError } from '@/lib/stock/karadag-import';
 
 /** GET — the Excel template (manager). */
 export async function GET() {
@@ -45,7 +46,10 @@ export async function POST(request: Request) {
     let checked;
     try {
       checked = await checkImportFile(actor.companyId, file);
-    } catch {
+    } catch (error) {
+      if (error instanceof SpreadsheetTooLargeError) {
+        return NextResponse.json({ error: 'The file is too large once unpacked.', code: 'TOO_BIG' }, { status: 413 });
+      }
       return NextResponse.json({ error: 'This file could not be read.', code: 'UNREADABLE' }, { status: 400 });
     }
     if (mode === 'preview') return NextResponse.json(checked);

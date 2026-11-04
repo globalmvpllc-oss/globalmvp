@@ -6,6 +6,7 @@ import { Plus, Search } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 import { useKs } from '@/components/kolaystok/ks-context';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
+import { ProductLabel } from '@/components/kolaystok/product-label';
 
 /** Products (manager): search, open one to edit, add a new one. */
 export default function KsProducts() {
@@ -47,13 +48,10 @@ export default function KsProducts() {
       <ul className="space-y-2">
         {rows.map((p) => (
           <li key={p.id}>
-            <Link href={`/kolaystok/app/products/${p.id}`} className="flex items-center gap-3 rounded-xl bg-white p-2 shadow-sm">
-              <ProductPhoto id={p.id} name={p.name} hasPhoto={p.hasPhoto} size={48} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold">{p.name}</p>
-                <p className="text-sm text-slate-500">{p.code}{p.categoryName ? ` · ${p.categoryName}` : ''}</p>
-              </div>
-              <div className="text-right">
+            <Link href={`/kolaystok/app/products/${p.id}`} className="flex items-start gap-3 rounded-xl bg-white p-3 shadow-sm">
+              <ProductPhoto id={p.id} name={p.name} hasPhoto={p.hasPhoto} size={56} />
+              <ProductLabel name={p.name} size={p.size} code={p.code} extra={p.categoryName} />
+              <div className="shrink-0 text-right">
                 <p className="text-xl font-bold tabular-nums">{p.quantity}</p>
                 {ks.permissions.prices && <p className="text-sm text-slate-500">{money(p.salePrice)}</p>}
               </div>

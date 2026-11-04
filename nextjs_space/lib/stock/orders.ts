@@ -11,6 +11,17 @@ import { stockLocale } from './alerts';
 
 export const DEFAULT_STOCK_SENDER = 'stok@corpcontrol.net';
 
+/** "4 Kasım 2026" in the company's own time zone (Turkey when unknown). */
+export function orderDate(now: Date, locale: 'tr' | 'en', timeZone?: string | null): string {
+  const format = (tz: string) =>
+    new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(now);
+  try {
+    return format(timeZone || 'Europe/Istanbul');
+  } catch {
+    return format('Europe/Istanbul');
+  }
+}
+
 export const orderSchema = z.object({
   vendorId: z.string().min(1),
   lines: z
@@ -21,13 +32,14 @@ export const orderSchema = z.object({
 });
 
 /** Builds the exact email a supplier would receive (used for preview and send). */
-export async function buildOrderEmail(companyId: string, input: z.infer<typeof orderSchema>) {
+/** senderName: the manager who prepares and sends the order (signed at the bottom). */
+export async function buildOrderEmail(companyId: string, input: z.infer<typeof orderSchema>, senderName: string, now = new Date()) {
   const [company, vendor, products, settings, owner] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId }, select: { name: true, country: true, email: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { name: true, country: true, email: true, timezone: true } }),
     prisma.vendor.findFirst({ where: { id: input.vendorId, companyId }, select: { id: true, name: true, email: true, orderEmails: true } }),
     prisma.stockProduct.findMany({
       where: { companyId, isActive: true, id: { in: input.lines.map((l) => l.productId) } },
-      select: { id: true, code: true, name: true, unit: true },
+      select: { id: true, code: true, name: true, size: true, unit: true },
     }),
     prisma.stockSettings.findUnique({ where: { companyId }, select: { senderEmail: true, senderVerifiedAt: true } }),
     prisma.companyMember.findFirst({
@@ -42,11 +54,17 @@ export async function buildOrderEmail(companyId: string, input: z.infer<typeof o
   const byId = new Map(products.map((p) => [p.id, p]));
   const lines = input.lines
     .filter((l) => byId.has(l.productId))
-    .map((l) => ({ code: byId.get(l.productId)!.code, name: byId.get(l.productId)!.name, unit: byId.get(l.productId)!.unit, quantity: l.quantity }));
+    .map((l) => {
+      const p = byId.get(l.productId)!;
+      return { code: p.code, name: p.name, size: p.size ?? null, unit: p.unit, quantity: l.quantity };
+    });
   if (lines.length === 0) return { error: 'NO_LINES' as const };
 
+  const locale = stockLocale(company?.country);
   const email = stockOrderEmail({
-    locale: stockLocale(company?.country),
+    locale,
+    date: orderDate(now, locale, company?.timezone),
+    senderName: senderName.trim(),
     companyName: company?.name ?? '',
     supplierName: vendor.name,
     lines,

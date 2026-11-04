@@ -179,7 +179,10 @@ describe('PIN sign-in', () => {
   it('the route checks the lock before the PIN and records failures on the staff row', () => {
     const route = src('app/api/stock/public/pin/route.ts');
     expect(route.indexOf('isLocked(staff, now)')).toBeLessThan(route.indexOf('bcrypt.compare'));
-    expect(route).toContain('data: { failedPins: next.failedPins, lockedUntil: next.lockedUntil }');
+    // The attempt is reserved atomically before bcrypt, so parallel guesses cannot dodge the lock.
+    expect(route.indexOf('failedPins: { increment: 1 }')).toBeLessThan(route.indexOf('bcrypt.compare'));
+    expect(route).toContain('failedPins: { lt: PIN_MAX_FAILURES }');
+    expect(route).toContain('failedPins: { gte: PIN_MAX_FAILURES }');
     expect(route).toContain('maxAge: STAFF_SESSION_MAX_AGE');
     expect(route).toContain('httpOnly: true');
   });

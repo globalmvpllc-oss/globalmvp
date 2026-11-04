@@ -9,6 +9,7 @@ import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
+import { ProductLabel } from '@/components/kolaystok/product-label';
 import { MANUAL_REASONS } from '@/lib/stock/rules';
 
 /**
@@ -28,6 +29,7 @@ interface Product {
   level: 'ok' | 'low' | 'out';
   hasPhoto: boolean;
   categoryName: string | null;
+  size: string | null;
 }
 
 const LEVEL_STYLE: Record<Product['level'], string> = {
@@ -212,31 +214,32 @@ export default function KolayStokHome() {
 
       <ul className="space-y-2" aria-busy={loading}>
         {products.map((p) => (
-          <li key={p.id} className="flex items-center gap-3 rounded-xl bg-white p-2 shadow-sm">
-            <ProductPhoto id={p.id} name={p.name} hasPhoto={p.hasPhoto} />
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-base font-semibold leading-snug">{p.name}</p>
-              <p className="text-sm text-slate-500">
-                {p.code}
-                {p.level !== 'ok' ? ` · ${fill('ks.min', { min: fmt(p.minStock, locale) })}` : ''}
-              </p>
+          <li key={p.id} className="rounded-xl bg-white p-3 shadow-sm">
+            <div className="flex items-start gap-3">
+              <ProductPhoto id={p.id} name={p.name} hasPhoto={p.hasPhoto} />
+              <ProductLabel
+                name={p.name}
+                size={p.size}
+                code={p.code}
+                extra={p.level !== 'ok' ? fill('ks.min', { min: fmt(p.minStock, locale) }) : null}
+              />
             </div>
             {ks.permissions.move ? (
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="mt-3 grid grid-cols-[1fr_1.2fr_1fr] gap-2">
                 <button
                   type="button"
                   disabled={busyId === p.id}
                   onClick={() => move(p, -1, ks.quickReasons.minus)}
-                  className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 text-slate-800 active:bg-slate-200 disabled:opacity-50"
-                  aria-label={`${t('ks.minus')}: ${p.name}`}
+                  className="flex h-16 items-center justify-center rounded-xl bg-slate-100 text-slate-800 active:bg-slate-200 disabled:opacity-50"
+                  aria-label={`${t('ks.minus')}: ${p.name}${p.size ? ` ${p.size}` : ''}`}
                 >
-                  <Minus className="h-7 w-7" />
+                  <Minus className="h-8 w-8" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditing(p)}
-                  className={`h-14 min-w-[64px] rounded-xl px-2 text-2xl font-bold tabular-nums ${LEVEL_STYLE[p.level]}`}
-                  aria-label={`${t('ks.qty.title')}: ${p.name}, ${fmt(p.quantity, locale)} ${p.unit}, ${t(`ks.level.${p.level}` as TranslationKey)}`}
+                  className={`h-16 rounded-xl px-2 text-3xl font-bold tabular-nums ${LEVEL_STYLE[p.level]}`}
+                  aria-label={`${t('ks.qty.title')}: ${p.name}${p.size ? ` ${p.size}` : ''}, ${fmt(p.quantity, locale)} ${p.unit}, ${t(`ks.level.${p.level}` as TranslationKey)}`}
                 >
                   {fmt(p.quantity, locale)}
                 </button>
@@ -244,14 +247,14 @@ export default function KolayStokHome() {
                   type="button"
                   disabled={busyId === p.id}
                   onClick={() => move(p, 1, ks.quickReasons.plus)}
-                  className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal-700 text-white active:bg-teal-800 disabled:opacity-50"
-                  aria-label={`${t('ks.plus')}: ${p.name}`}
+                  className="flex h-16 items-center justify-center rounded-xl bg-teal-700 text-white active:bg-teal-800 disabled:opacity-50"
+                  aria-label={`${t('ks.plus')}: ${p.name}${p.size ? ` ${p.size}` : ''}`}
                 >
-                  <Plus className="h-7 w-7" />
+                  <Plus className="h-8 w-8" />
                 </button>
               </div>
             ) : (
-              <span className={`shrink-0 rounded-xl px-3 py-2 text-2xl font-bold tabular-nums ${LEVEL_STYLE[p.level]}`}>{fmt(p.quantity, locale)}</span>
+              <p className={`mt-3 rounded-xl py-2 text-center text-3xl font-bold tabular-nums ${LEVEL_STYLE[p.level]}`}>{fmt(p.quantity, locale)}</p>
             )}
           </li>
         ))}
@@ -302,10 +305,13 @@ function QuantitySheet({
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-8" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <p className="text-lg font-bold">{product.name}</p>
-            <p className="text-base text-slate-500">
-              {product.code} · {new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US').format(product.quantity)} {product.unit}
-            </p>
+            <ProductLabel
+              large
+              name={product.name}
+              size={product.size}
+              code={product.code}
+              extra={`${new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US').format(product.quantity)} ${product.unit}`}
+            />
           </div>
           <button type="button" onClick={onClose} className="h-11 w-11 rounded-full bg-slate-100" aria-label={t('ks.qty.cancel')}>
             <X className="mx-auto h-6 w-6" />

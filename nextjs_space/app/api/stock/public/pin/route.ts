@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { checkRateLimit, clientKey, LOGIN_RULE } from '@/lib/rate-limit';
-import { afterWrongPin, isLocked, isValidPin } from '@/lib/stock/rules';
+import { isLocked, isValidPin, PIN_LOCK_MINUTES, PIN_MAX_FAILURES } from '@/lib/stock/rules';
 import { encodeStaffToken, newStaffToken, STAFF_COOKIE, STAFF_SESSION_MAX_AGE } from '@/lib/stock/session';
 
 /**
@@ -36,29 +36,40 @@ export async function POST(request: Request) {
     if (!staff) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const now = new Date();
-    if (isLocked(staff, now)) {
-      return NextResponse.json({ error: 'Locked. Try again later.', code: 'LOCKED', lockedUntil: staff.lockedUntil }, { status: 423 });
-    }
+    const locked = () =>
+      prisma.stockStaff
+        .findUnique({ where: { id: staff.id }, select: { lockedUntil: true } })
+        .then((s) => NextResponse.json({ error: 'Locked. Try again later.', code: 'LOCKED', lockedUntil: s?.lockedUntil ?? null }, { status: 423 }));
+    if (isLocked(staff, now)) return locked();
+
+    // Reserve this attempt BEFORE checking the PIN, in one atomic step: of many
+    // requests sent at once only five get through, so parallel guessing cannot
+    // get around the five-tries lock.
+    const reserved = await prisma.stockStaff.updateMany({
+      where: { id: staff.id, failedPins: { lt: PIN_MAX_FAILURES }, OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
+      data: { failedPins: { increment: 1 }, lockedUntil: null },
+    });
+    if (reserved.count === 0) return locked();
 
     const ok = await bcrypt.compare(body.pin, staff.pinHash);
     if (!ok) {
-      const next = afterWrongPin(staff, now);
-      await prisma.stockStaff.update({
-        where: { id: staff.id },
-        data: { failedPins: next.failedPins, lockedUntil: next.lockedUntil },
-        select: { id: true },
+      // The fifth reserved failure locks the person for 15 minutes.
+      const lockedUntil = new Date(now.getTime() + PIN_LOCK_MINUTES * 60_000);
+      const lock = await prisma.stockStaff.updateMany({
+        where: { id: staff.id, failedPins: { gte: PIN_MAX_FAILURES } },
+        data: { failedPins: 0, lockedUntil },
       });
+      if (lock.count > 0) {
+        return NextResponse.json({ error: 'Locked for 15 minutes.', code: 'LOCKED', lockedUntil }, { status: 423 });
+      }
+      const after = await prisma.stockStaff.findUnique({ where: { id: staff.id }, select: { failedPins: true } });
       return NextResponse.json(
-        next.lockedUntil
-          ? { error: 'Locked for 15 minutes.', code: 'LOCKED', lockedUntil: next.lockedUntil }
-          : { error: 'Wrong PIN.', code: 'WRONG_PIN', attemptsLeft: 5 - next.failedPins },
-        { status: next.lockedUntil ? 423 : 401 }
+        { error: 'Wrong PIN.', code: 'WRONG_PIN', attemptsLeft: Math.max(PIN_MAX_FAILURES - (after?.failedPins ?? 0), 0) },
+        { status: 401 }
       );
     }
 
-    if (staff.failedPins !== 0 || staff.lockedUntil) {
-      await prisma.stockStaff.update({ where: { id: staff.id }, data: { failedPins: 0, lockedUntil: null }, select: { id: true } });
-    }
+    await prisma.stockStaff.update({ where: { id: staff.id }, data: { failedPins: 0, lockedUntil: null }, select: { id: true } });
     const res = NextResponse.json({ ok: true, name: staff.name, role: staff.role });
     res.cookies.set(STAFF_COOKIE, encodeStaffToken(newStaffToken(staff)), {
       httpOnly: true,

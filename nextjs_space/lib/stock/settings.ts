@@ -33,15 +33,9 @@ export const DEFAULT_QUICK_REASONS = { plus: 'receipt', minus: 'sale' } as const
 
 /**
  * Reasons for one-tap + / −: "Mal kabul" and "Satış" unless the manager
- * chose others. Read with plain SQL and defaulted on any error, so it works
- * before the quick-reasons migration is applied.
+ * chose others.
  */
 export async function getQuickReasons(companyId: string): Promise<{ plus: string; minus: string }> {
-  try {
-    const rows = await prisma.$queryRaw<Array<{ plus: string; minus: string }>>`
-      SELECT "quickPlusReason" AS plus, "quickMinusReason" AS minus FROM "StockSettings" WHERE "companyId" = ${companyId}`;
-    return rows[0] ?? { ...DEFAULT_QUICK_REASONS };
-  } catch {
-    return { ...DEFAULT_QUICK_REASONS };
-  }
+  const s = await prisma.stockSettings.findUnique({ where: { companyId }, select: { quickPlusReason: true, quickMinusReason: true } });
+  return s ? { plus: s.quickPlusReason, minus: s.quickMinusReason } : { ...DEFAULT_QUICK_REASONS };
 }

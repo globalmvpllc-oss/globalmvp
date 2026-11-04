@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Home, Package, ClipboardList, History, Truck, Settings, LogOut } from 'lucide-react';
+import { Home, Package, ClipboardList, History, MoreHorizontal, LogOut } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
@@ -11,20 +11,23 @@ import { useKs } from './ks-context';
 
 /**
  * Phone-first frame: brand at the top, big tab bar at the bottom (one thumb).
- * Tabs a person may not use are not shown; the server refuses them anyway.
+ * At most five tabs; suppliers, settings and the order email sit under
+ * "Diğer". Tabs a person may not use are not shown; the server refuses them
+ * anyway.
  */
+export const MORE_PATHS = ['/kolaystok/app/more', '/kolaystok/app/suppliers', '/kolaystok/app/settings', '/kolaystok/app/orders', '/kolaystok/app/import'];
+
 export function KsShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const ks = useKs();
   const pathname = usePathname() ?? '';
 
-  const tabs: Array<{ href: string; key: TranslationKey; icon: typeof Home; show: boolean }> = [
+  const tabs: Array<{ href: string; key: TranslationKey; icon: typeof Home; show: boolean; paths?: string[] }> = [
     { href: '/kolaystok/app', key: 'ks.nav.home', icon: Home, show: true },
     { href: '/kolaystok/app/products', key: 'ks.nav.products', icon: Package, show: ks.permissions.products },
     { href: '/kolaystok/app/count', key: 'ks.nav.count', icon: ClipboardList, show: ks.permissions.count },
     { href: '/kolaystok/app/movements', key: 'ks.nav.movements', icon: History, show: true },
-    { href: '/kolaystok/app/suppliers', key: 'ks.nav.suppliers', icon: Truck, show: ks.permissions.suppliers },
-    { href: '/kolaystok/app/settings', key: 'ks.nav.settings', icon: Settings, show: ks.permissions.settings },
+    { href: '/kolaystok/app/more', key: 'ks.nav.more', icon: MoreHorizontal, show: ks.permissions.suppliers || ks.permissions.settings, paths: MORE_PATHS },
   ];
   const visible = tabs.filter((tab) => tab.show);
 
@@ -73,13 +76,13 @@ export function KsShell({ children }: { children: ReactNode }) {
       >
         <ul className="mx-auto grid max-w-3xl" style={{ gridTemplateColumns: `repeat(${visible.length}, minmax(0, 1fr))` }}>
           {visible.map((tab) => {
-            const active = tab.href === '/kolaystok/app' ? pathname === tab.href : pathname.startsWith(tab.href);
+            const active = tab.href === '/kolaystok/app' ? pathname === tab.href : (tab.paths ?? [tab.href]).some((p) => pathname.startsWith(p));
             const Icon = tab.icon;
             return (
               <li key={tab.href}>
                 <Link
                   href={tab.href}
-                  className={`flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium ${active ? 'text-teal-700' : 'text-slate-500'}`}
+                  className={`flex h-16 flex-col items-center justify-center gap-1 text-sm font-medium ${active ? 'text-teal-700' : 'text-slate-500'}`}
                   aria-current={active ? 'page' : undefined}
                 >
                   <Icon className="h-6 w-6" aria-hidden="true" />

@@ -72,16 +72,14 @@ export async function PUT(request: Request) {
       await prisma.company.update({ where: { id: actor.companyId }, data: { usageMode: d.usageMode }, select: { id: true } });
     }
     if (d.quickPlusReason || d.quickMinusReason) {
-      try {
-        if (d.quickPlusReason) {
-          await prisma.$executeRaw`UPDATE "StockSettings" SET "quickPlusReason" = ${d.quickPlusReason} WHERE "companyId" = ${actor.companyId}`;
-        }
-        if (d.quickMinusReason) {
-          await prisma.$executeRaw`UPDATE "StockSettings" SET "quickMinusReason" = ${d.quickMinusReason} WHERE "companyId" = ${actor.companyId}`;
-        }
-      } catch {
-        return NextResponse.json({ error: 'This setting needs a database update first.', code: 'MIGRATION_PENDING' }, { status: 409 });
-      }
+      await prisma.stockSettings.update({
+        where: { companyId: actor.companyId },
+        data: {
+          ...(d.quickPlusReason ? { quickPlusReason: d.quickPlusReason } : {}),
+          ...(d.quickMinusReason ? { quickMinusReason: d.quickMinusReason } : {}),
+        },
+        select: { id: true },
+      });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {

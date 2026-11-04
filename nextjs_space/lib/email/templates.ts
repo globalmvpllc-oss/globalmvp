@@ -270,8 +270,16 @@ export function stockResetEmail(input: { locale: Locale; companyName: string; pr
 export interface StockOrderLine {
   code: string;
   name: string;
+  size?: string | null;
   unit: string;
   quantity: number;
+}
+
+/** "Argon Pasta Çemberi" + "Ø40" → "Argon Pasta Çemberi Ø40" (not twice when the name already says it). */
+export function orderLineName(l: Pick<StockOrderLine, 'name' | 'size'>): string {
+  const size = l.size?.trim();
+  if (!size) return l.name;
+  return l.name.toLocaleLowerCase('tr-TR').includes(size.toLocaleLowerCase('tr-TR')) ? l.name : `${l.name} ${size}`;
 }
 
 /** A purchase order to a supplier, prepared by the manager and sent only after they confirm. */
@@ -281,13 +289,17 @@ export function stockOrderEmail(input: {
   supplierName: string;
   lines: StockOrderLine[];
   note?: string | null;
+  /** The order date, already formatted for the company. */
+  date: string;
+  /** The manager who sends it. */
+  senderName: string;
 }): RenderedEmail {
   const { locale } = input;
   const qty = (n: number) => new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US', { maximumFractionDigits: 3 }).format(n);
   const rows = input.lines
     .map(
       (l) =>
-        `<tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${escapeHtml(l.code)}</td><td style="padding:6px 10px;border-bottom:1px solid #eee">${escapeHtml(l.name)}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(qty(l.quantity))} ${escapeHtml(l.unit)}</td></tr>`
+        `<tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${escapeHtml(l.code)}</td><td style="padding:6px 10px;border-bottom:1px solid #eee">${escapeHtml(orderLineName(l))}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(qty(l.quantity))} ${escapeHtml(l.unit)}</td></tr>`
     )
     .join('');
   const table =
@@ -296,16 +308,21 @@ export function stockOrderEmail(input: {
     `<th style="text-align:left;padding:6px 10px">${escapeHtml(translate(locale, 'ks.product.name'))}</th>` +
     `<th style="text-align:right;padding:6px 10px">${escapeHtml(translate(locale, 'ks.qty.amount'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
   const paragraphs = [
+    fill(locale, 'ks.mail.orderDate', { date: input.date }),
     fill(locale, 'ks.mail.orderGreeting', { supplier: input.supplierName }),
     fill(locale, 'ks.mail.orderBody', { company: input.companyName }),
   ];
+  const reply = translate(locale, 'ks.mail.orderReply');
+  const thanks = fill(locale, 'ks.mail.orderThanks', { company: input.companyName });
+  const signature = [input.senderName, input.companyName].filter(Boolean);
   const rendered = compose(fill(locale, 'ks.mail.orderSubject', { company: input.companyName }), paragraphs, table +
     (input.note ? `<p style="margin:0 0 14px">${escapeHtml(input.note)}</p>` : '') +
-    `<p style="margin:0">${escapeHtml(fill(locale, 'ks.mail.orderThanks', { company: input.companyName }))}</p>`);
-  const textLines = input.lines.map((l) => `- ${l.code}  ${l.name}: ${qty(l.quantity)} ${l.unit}`).join('\n');
+    `<p style="margin:0 0 14px">${escapeHtml(reply)}</p>` +
+    `<p style="margin:0">${escapeHtml(thanks)}<br>${signature.map((x) => `<strong>${escapeHtml(x)}</strong>`).join('<br>')}</p>`);
+  const textLines = input.lines.map((l) => `- ${l.code}  ${orderLineName(l)}: ${qty(l.quantity)} ${l.unit}`).join('\n');
   return {
     ...rendered,
-    text: `${paragraphs.join('\n\n')}\n\n${textLines}\n\n${input.note ? `${input.note}\n\n` : ''}${fill(locale, 'ks.mail.orderThanks', { company: input.companyName })}`,
+    text: `${paragraphs.join('\n\n')}\n\n${textLines}\n\n${input.note ? `${input.note}\n\n` : ''}${reply}\n\n${thanks}\n${signature.join('\n')}`,
   };
 }
 

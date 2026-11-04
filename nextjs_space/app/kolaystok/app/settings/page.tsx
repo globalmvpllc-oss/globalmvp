@@ -54,7 +54,7 @@ export default function KsSettings() {
   const put = async (url: string, body: unknown, method = 'PUT') => {
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) toast.error(t(data?.code === 'MIGRATION_PENDING' ? 'ks.set.migrationPending' : data?.code === 'STAFF_LIMIT' ? 'ks.set.limitShort' : 'ks.saveFailed'));
+    if (!res.ok) toast.error(t(data?.code === 'STAFF_LIMIT' ? 'ks.set.limitShort' : 'ks.saveFailed'));
     else toast.success(t('ks.set.saved'));
     load();
     return res.ok ? data : null;

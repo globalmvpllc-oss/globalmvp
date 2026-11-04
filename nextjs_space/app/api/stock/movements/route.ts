@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     const [rows, total] = await Promise.all([
       prisma.stockMovement.findMany({
         where,
-        include: { product: { select: { code: true, name: true, unit: true } } },
+        include: { product: { select: { code: true, name: true, size: true, unit: true } } },
         orderBy: { createdAt: 'desc' },
         take,
         skip,
@@ -50,6 +50,7 @@ export async function GET(request: Request) {
         productId: m.productId,
         productCode: m.product.code,
         productName: m.product.name,
+        productSize: m.product.size ?? null,
         unit: m.product.unit,
         delta: Number(m.delta),
         quantityAfter: Number(m.quantityAfter),

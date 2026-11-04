@@ -76,6 +76,7 @@ export interface OrderCandidate {
   id: string;
   code: string;
   name: string;
+  size?: string | null;
   unit: string;
   quantity: Decimal.Value;
   minStock: Decimal.Value;
@@ -91,15 +92,15 @@ export interface OrderCandidate {
  */
 export function groupOrderLines(products: OrderCandidate[]): Array<{
   vendorId: string | null;
-  lines: Array<{ productId: string; code: string; name: string; unit: string; quantity: number }>;
+  lines: Array<{ productId: string; code: string; name: string; size: string | null; unit: string; quantity: number }>;
 }> {
-  const groups = new Map<string, Array<{ productId: string; code: string; name: string; unit: string; quantity: number }>>();
+  const groups = new Map<string, Array<{ productId: string; code: string; name: string; size: string | null; unit: string; quantity: number }>>();
   for (const p of products) {
     const qty = orderQuantity(p);
     if (qty.lte(0)) continue;
     const key = p.vendorId ?? p.categoryVendorId ?? '';
     const list = groups.get(key) ?? [];
-    list.push({ productId: p.id, code: p.code, name: p.name, unit: p.unit, quantity: qty.toNumber() });
+    list.push({ productId: p.id, code: p.code, name: p.name, size: p.size ?? null, unit: p.unit, quantity: qty.toNumber() });
     groups.set(key, list);
   }
   return [...groups.entries()]

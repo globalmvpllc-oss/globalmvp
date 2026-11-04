@@ -186,6 +186,26 @@ export interface CheckedRow {
     stock?: number;
   };
   errors: string[];
+  /** Not blocking, but shown in the preview (e.g. an unknown supplier name). */
+  warnings?: Array<{ code: 'supplier:unknown'; value: string }>;
+}
+
+/**
+ * Marks rows whose supplier name matches no supplier of the company. Such a
+ * row keeps the product's current supplier (a new product gets none), so the
+ * manager is told before confirming.
+ */
+export function markUnknownSuppliers<T extends Pick<CheckedRow, 'values' | 'warnings'>>(rows: T[], supplierNames: string[]): number {
+  const known = new Set(supplierNames.map((n) => n.trim().toLocaleLowerCase('tr-TR')));
+  let count = 0;
+  for (const r of rows) {
+    const name = r.values.supplier?.trim();
+    if (name && !known.has(name.toLocaleLowerCase('tr-TR'))) {
+      r.warnings = [...(r.warnings ?? []), { code: 'supplier:unknown', value: name }];
+      count += 1;
+    }
+  }
+  return count;
 }
 
 function number(value: string | undefined, field: string, errors: string[]): number | null | undefined {

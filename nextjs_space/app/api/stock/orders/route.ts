@@ -20,7 +20,7 @@ export async function GET() {
     const products = await prisma.stockProduct.findMany({
       where: { companyId: actor.companyId, id: { in: ids.map((r) => r.id) } },
       select: {
-        id: true, code: true, name: true, unit: true, quantity: true, minStock: true, targetStock: true, vendorId: true,
+        id: true, code: true, name: true, size: true, unit: true, quantity: true, minStock: true, targetStock: true, vendorId: true,
         category: { select: { vendorId: true } },
       },
       orderBy: { name: 'asc' },

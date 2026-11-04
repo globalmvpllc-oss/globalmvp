@@ -136,8 +136,8 @@ describe('purchase-order draft', () => {
       { id: 'd', code: 'D', name: 'D', unit: 'adet', quantity: 300, minStock: 50, targetStock: 100, vendorId: 'v2' },
     ]);
     expect(groups).toEqual([
-      { vendorId: 'v1', lines: [{ productId: 'a', code: 'A', name: 'A', unit: 'adet', quantity: 190 }, { productId: 'b', code: 'B', name: 'B', unit: 'adet', quantity: 80 }] },
-      { vendorId: null, lines: [{ productId: 'c', code: 'C', name: 'C', unit: 'kg', quantity: 10 }] },
+      { vendorId: 'v1', lines: [{ productId: 'a', code: 'A', name: 'A', size: null, unit: 'adet', quantity: 190 }, { productId: 'b', code: 'B', name: 'B', size: null, unit: 'adet', quantity: 80 }] },
+      { vendorId: null, lines: [{ productId: 'c', code: 'C', name: 'C', size: null, unit: 'kg', quantity: 10 }] },
     ]);
   });
   it('never sends by itself: send needs the manager’s explicit confirmation and permission', () => {
@@ -290,7 +290,7 @@ describe('one-tap reasons, usage mode, PWA', () => {
     const home = src('app/kolaystok/app/page.tsx');
     expect(home).toContain('move(p, 1, ks.quickReasons.plus)');
     expect(home).toContain('move(p, -1, ks.quickReasons.minus)');
-    expect(src('app/api/stock/settings/route.ts')).toContain("code: 'MIGRATION_PENDING'");
+    expect(src('prisma/schema.prisma')).toContain('quickPlusReason  String    @default("receipt")');
   });
   it('removing a product only deactivates it; no real delete anywhere in KolayStok', () => {
     const product = src('app/api/stock/products/[id]/route.ts');

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!limit.allowed) return NextResponse.json({ error: 'Too many emails.', code: 'RATE_LIMITED' }, { status: 429 });
     const parsed = orderSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Check the quantities.', code: 'INVALID' }, { status: 400 });
-    const built = await buildOrderEmail(actor.companyId, parsed.data);
+    const built = await buildOrderEmail(actor.companyId, parsed.data, actor.name);
     if (built.error) return NextResponse.json({ error: built.error, code: built.error }, { status: STATUS[built.error] });
 
     const results = [];

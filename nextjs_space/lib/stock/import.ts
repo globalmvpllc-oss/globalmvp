@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { checkPlanLimit } from '@/lib/billing/limits';
 import type { TxClient } from '@/lib/invoice-number';
 import { buildSearchKey } from './rules';
-import { checkImportRows, readImportSheet, type CheckedRow } from './excel';
+import { checkImportRows, markUnknownSuppliers, readImportSheet, type CheckedRow } from './excel';
 import { moveStockTx } from './service';
 import type { StockActor } from './actor';
 
@@ -13,10 +13,15 @@ export const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
 /** Reads an uploaded workbook and checks every row against this company. */
 export async function checkImportFile(companyId: string, file: Buffer) {
   const raw = await readImportSheet(file);
-  const existing = await prisma.stockProduct.findMany({ where: { companyId, isActive: true }, select: { code: true } });
+  const [existing, vendors] = await Promise.all([
+    prisma.stockProduct.findMany({ where: { companyId, isActive: true }, select: { code: true } }),
+    prisma.vendor.findMany({ where: { companyId }, select: { name: true } }),
+  ]);
   const verdict = await checkPlanLimit(companyId, 'stockProducts');
   const room = verdict.limit === null ? null : Math.max(verdict.limit - verdict.current, 0);
-  return checkImportRows(raw, new Set(existing.map((p) => p.code)), room);
+  const checked = checkImportRows(raw, new Set(existing.map((p) => p.code)), room);
+  const warningCount = markUnknownSuppliers(checked.rows, vendors.map((v) => v.name));
+  return { ...checked, warningCount };
 }
 
 /**

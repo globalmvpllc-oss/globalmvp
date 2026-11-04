@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
+import { ProductLabel } from '@/components/kolaystok/product-label';
 
 /**
  * Movement history: who, when, how much, why. Filter by person (managers),
@@ -103,8 +104,7 @@ export default function KsMovements() {
             <li key={m.id} className={`rounded-xl bg-white p-3 shadow-sm ${m.undone ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-base font-semibold">{m.productName}</p>
-                  <p className="text-sm text-slate-500">{m.productCode} · {when(m.createdAt)} · {m.actorName}</p>
+                  <ProductLabel name={m.productName} size={m.productSize} code={m.productCode} extra={`${when(m.createdAt)} · ${m.actorName}`} />
                   <p className="text-sm">{t(`ks.reason.${m.reason}` as TranslationKey)}{m.note ? ` — ${m.note}` : ''}{m.undone ? ` (${t('ks.mv.undone')})` : ''}</p>
                 </div>
                 <p className={`shrink-0 text-2xl font-bold tabular-nums ${m.delta < 0 ? 'text-red-700' : 'text-emerald-700'}`}>

@@ -1051,12 +1051,9 @@ model StockSettings {
   senderEmail      String?
   senderDomainId   String?
   senderVerifiedAt DateTime?
-  /// One-tap "+" / "−" reasons (quickPlusReason, quickMinusReason) are added
-  /// by migration 20261108120000_kolaystok_quick_reasons and read/written
-  /// with plain SQL (lib/stock/settings.ts), so nothing breaks before that
-  /// migration is applied. Add them here once it is.
-  /// Until then do NOT run `prisma migrate dev` or `prisma db push`: they would
-  /// see the columns as extra and drop them. `prisma migrate deploy` is safe.
+  /// One-tap "+" / "−" reasons (migration 20261108120000_kolaystok_quick_reasons).
+  quickPlusReason  String    @default("receipt")
+  quickMinusReason String    @default("sale")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)

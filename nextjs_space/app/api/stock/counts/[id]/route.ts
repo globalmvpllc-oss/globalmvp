@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const [products, lines] = await Promise.all([
       prisma.stockProduct.findMany({
         where: { companyId: actor.companyId, isActive: true, ...(count.categoryId ? { categoryId: count.categoryId } : {}) },
-        select: { id: true, code: true, name: true, unit: true, photoKey: true, shelf: true },
+        select: { id: true, code: true, name: true, size: true, unit: true, photoKey: true, shelf: true },
         orderBy: [{ name: 'asc' }, { code: 'asc' }],
         take: 5000,
       }),
@@ -38,6 +38,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         id: p.id,
         code: p.code,
         name: p.name,
+        size: p.size,
         unit: p.unit,
         shelf: p.shelf,
         hasPhoto: Boolean(p.photoKey),

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import { useKs } from '@/components/kolaystok/ks-context';
+import { ProductLabel } from '@/components/kolaystok/product-label';
 
 /**
  * "Sipariş maili hazırla": critical products grouped by supplier with the
@@ -11,7 +12,7 @@ import { useKs } from '@/components/kolaystok/ks-context';
  * email; only "Send" — pressed by the manager after the preview — sends it.
  * Nothing is ever sent automatically.
  */
-interface Line { productId: string; code: string; name: string; unit: string; quantity: number }
+interface Line { productId: string; code: string; name: string; size: string | null; unit: string; quantity: number }
 interface Group { vendorId: string | null; vendorName: string | null; emails: string[]; lines: Line[] }
 
 export default function KsOrders() {
@@ -100,18 +101,15 @@ export default function KsOrders() {
           {g.vendorId && <p className="break-all text-sm text-slate-500">{g.emails.join(', ') || t('ks.order.noEmail')}</p>}
           <ul className="divide-y">
             {g.lines.map((l) => (
-              <li key={l.productId} className="flex items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-base font-medium">{l.name}</p>
-                  <p className="text-sm text-slate-500">{l.code}</p>
-                </div>
-                <label className="flex items-center gap-1">
+              <li key={l.productId} className="space-y-2 py-3">
+                <ProductLabel name={l.name} size={l.size} code={l.code} />
+                <label className="flex items-center justify-end gap-2">
                   <input
                     inputMode="decimal"
                     value={qty[l.productId] ?? ''}
                     onChange={(e) => setQty({ ...qty, [l.productId]: e.target.value.replace(/[^0-9.,]/g, '') })}
-                    className="h-12 w-24 rounded-lg border-2 px-2 text-right text-lg tabular-nums"
-                    aria-label={`${t('ks.qty.amount')}: ${l.name}`}
+                    className="h-14 w-32 rounded-lg border-2 px-3 text-right text-xl tabular-nums"
+                    aria-label={`${t('ks.qty.amount')}: ${l.name}${l.size ? ` ${l.size}` : ''}`}
                   />
                   <span className="text-sm text-slate-500">{l.unit}</span>
                 </label>

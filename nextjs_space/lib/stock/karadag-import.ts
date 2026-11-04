@@ -74,8 +74,33 @@ function normalizeUnit(text: string): string {
  * prefix (<x:workbook>, <x:row>). Excel reads that; exceljs does not. This
  * rewrites the prefix away in memory — the file on disk is never touched.
  */
+/** An .xlsx is a zip: refuse files that would unpack to more than this (zip bombs). */
+export const XLSX_MAX_UNPACKED_BYTES = 100 * 1024 * 1024;
+export const XLSX_MAX_ENTRIES = 5000;
+
+export class SpreadsheetTooLargeError extends Error {
+  constructor() {
+    super('SPREADSHEET_TOO_LARGE');
+  }
+}
+
+/**
+ * Reads only the zip's table of contents (nothing is unpacked yet) and
+ * refuses a file whose parts would unpack past the limits.
+ */
+export function assertSpreadsheetSize(zip: JSZip): void {
+  let total = 0;
+  let entries = 0;
+  zip.forEach((_path, entry) => {
+    entries += 1;
+    total += Number((entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0);
+  });
+  if (entries > XLSX_MAX_ENTRIES || total > XLSX_MAX_UNPACKED_BYTES) throw new SpreadsheetTooLargeError();
+}
+
 export async function normalizeSpreadsheetPrefix(input: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(input);
+  assertSpreadsheetSize(zip);
   const workbook = await zip.file('xl/workbook.xml')?.async('string');
   if (!workbook || !/<x:workbook[\s>]/.test(workbook)) return input;
   for (const name of Object.keys(zip.files)) {

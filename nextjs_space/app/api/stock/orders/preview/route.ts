@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     if (error) return error;
     const parsed = orderSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: 'Check the quantities.', code: 'INVALID' }, { status: 400 });
-    const built = await buildOrderEmail(actor.companyId, parsed.data);
+    const built = await buildOrderEmail(actor.companyId, parsed.data, actor.name);
     if (built.error) return NextResponse.json({ error: built.error, code: built.error }, { status: STATUS[built.error] });
     return NextResponse.json({
       to: built.to,
