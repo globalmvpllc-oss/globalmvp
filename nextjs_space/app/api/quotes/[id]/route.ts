@@ -6,7 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { quoteUpdateSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
-import { computeLineItems } from '@/lib/line-items';
+import { applyCompanyTaxLabel, computeLineItems } from '@/lib/line-items';
 import { canEditQuote, canTransitionQuote } from '@/lib/quote-status';
 import type { TxClient } from '@/lib/invoice-number';
 
@@ -71,7 +71,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    const computed = data.items ? computeLineItems(data.items) : null;
+    const company = data.items
+      ? await prisma.company.findUnique({ where: { id: companyId }, select: { country: true } })
+      : null;
+    const computed = data.items ? computeLineItems(applyCompanyTaxLabel(data.items, company?.country)) : null;
     if (computed && computed.errors.length > 0) {
       return NextResponse.json({ error: 'Validation failed', details: computed.errors }, { status: 400 });
     }

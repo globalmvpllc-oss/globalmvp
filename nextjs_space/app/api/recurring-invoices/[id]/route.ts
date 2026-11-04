@@ -6,7 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { recurringUpdateSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
-import { computeLineItems } from '@/lib/line-items';
+import { applyCompanyTaxLabel, computeLineItems } from '@/lib/line-items';
 import type { TxClient } from '@/lib/invoice-number';
 
 const INCLUDE = {
@@ -38,7 +38,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { data, error } = validateBody(recurringUpdateSchema, await request.json());
     if (error) return NextResponse.json(error, { status: 400 });
 
-    const computed = data.items ? computeLineItems(data.items) : null;
+    const company = data.items
+      ? await prisma.company.findUnique({ where: { id: companyId }, select: { country: true } })
+      : null;
+    const computed = data.items ? computeLineItems(applyCompanyTaxLabel(data.items, company?.country)) : null;
     if (computed && computed.errors.length > 0) {
       return NextResponse.json({ error: 'Validation failed', details: computed.errors }, { status: 400 });
     }

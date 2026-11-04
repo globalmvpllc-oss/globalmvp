@@ -7,7 +7,7 @@ import { quoteCreateSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { allocateQuoteNumber } from '@/lib/quote-number';
-import { computeLineItems } from '@/lib/line-items';
+import { applyCompanyTaxLabel, companyCurrency, computeLineItems } from '@/lib/line-items';
 import { isQuoteStatus } from '@/lib/quote-status';
 import type { TxClient } from '@/lib/invoice-number';
 
@@ -50,7 +50,12 @@ export async function POST(request: Request) {
     });
     if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-    const { totals, rows, errors } = computeLineItems(data.items);
+    // Currency and tax label come from the company's settings when not given.
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, defaultCurrency: true },
+    });
+    const { totals, rows, errors } = computeLineItems(applyCompanyTaxLabel(data.items, company?.country));
     if (errors.length > 0) {
       return NextResponse.json({ error: 'Validation failed', details: errors }, { status: 400 });
     }
@@ -74,7 +79,7 @@ export async function POST(request: Request) {
           status: 'DRAFT',
           issueDate,
           validUntil,
-          currency: data.currency ?? 'USD',
+          currency: companyCurrency(data.currency, company),
           ...totals,
           notes: data.notes,
           items: { create: rows },

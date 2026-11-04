@@ -2,6 +2,8 @@
 --
 -- Purely additive:
 --   * new tables Quote, QuoteItem, RecurringInvoice, RecurringInvoiceItem
+--     (column defaults: currency 'TRY', taxLabel 'KDV'; the app fills both
+--     from the company's settings on every write, the defaults are a fallback)
 --   * Company.quotePrefix (nullable), Company.quoteNextNumber (default 1)
 --   * Invoice.recurringInvoiceId (nullable)
 --   * ExpenseTransaction.taxRate / taxAmount (nullable)
@@ -32,7 +34,7 @@ CREATE TABLE "Quote" (
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
     "issueDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "validUntil" TIMESTAMP(3) NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" TEXT NOT NULL DEFAULT 'TRY',
     "subtotal" DECIMAL(15,2) NOT NULL DEFAULT 0,
     "taxTotal" DECIMAL(15,2) NOT NULL DEFAULT 0,
     "discountTotal" DECIMAL(15,2) NOT NULL DEFAULT 0,
@@ -56,7 +58,7 @@ CREATE TABLE "QuoteItem" (
     "unitPrice" DECIMAL(15,2) NOT NULL DEFAULT 0,
     "discount" DECIMAL(15,2) NOT NULL DEFAULT 0,
     "taxRate" DECIMAL(7,4) NOT NULL DEFAULT 0,
-    "taxLabel" TEXT NOT NULL DEFAULT 'VAT',
+    "taxLabel" TEXT NOT NULL DEFAULT 'KDV',
     "amount" DECIMAL(15,2) NOT NULL DEFAULT 0,
 
     CONSTRAINT "QuoteItem_pkey" PRIMARY KEY ("id")
@@ -74,7 +76,7 @@ CREATE TABLE "RecurringInvoice" (
     "endDate" TIMESTAMP(3),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "autoSend" BOOLEAN NOT NULL DEFAULT false,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
+    "currency" TEXT NOT NULL DEFAULT 'TRY',
     "paymentTermsDays" INTEGER NOT NULL DEFAULT 30,
     "notes" TEXT,
     "lastRunAt" TIMESTAMP(3),
@@ -94,7 +96,7 @@ CREATE TABLE "RecurringInvoiceItem" (
     "unitPrice" DECIMAL(15,2) NOT NULL DEFAULT 0,
     "discount" DECIMAL(15,2) NOT NULL DEFAULT 0,
     "taxRate" DECIMAL(7,4) NOT NULL DEFAULT 0,
-    "taxLabel" TEXT NOT NULL DEFAULT 'VAT',
+    "taxLabel" TEXT NOT NULL DEFAULT 'KDV',
     "position" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "RecurringInvoiceItem_pkey" PRIMARY KEY ("id")
@@ -158,7 +160,7 @@ ALTER TABLE "RecurringInvoice" ADD CONSTRAINT "RecurringInvoice_customerId_fkey"
 ALTER TABLE "RecurringInvoiceItem" ADD CONSTRAINT "RecurringInvoiceItem_recurringInvoiceId_fkey" FOREIGN KEY ("recurringInvoiceId") REFERENCES "RecurringInvoice"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
--- Rollback (drops the new data):
+-- Rollback (drops the new data; order matters):
 --   ALTER TABLE "Invoice" DROP CONSTRAINT "Invoice_recurringInvoiceId_fkey";
 --   DROP TABLE "RecurringInvoiceItem"; DROP TABLE "RecurringInvoice";
 --   DROP TABLE "QuoteItem"; DROP TABLE "Quote";

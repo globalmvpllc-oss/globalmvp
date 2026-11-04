@@ -6,7 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { recurringCreateSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
-import { computeLineItems } from '@/lib/line-items';
+import { applyCompanyTaxLabel, companyCurrency, computeLineItems } from '@/lib/line-items';
 
 /** Recurring invoice templates of the session's company. */
 export async function GET() {
@@ -40,7 +40,12 @@ export async function POST(request: Request) {
     const customer = await prisma.customer.findFirst({ where: { id: data.customerId, companyId }, select: { id: true } });
     if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-    const { rows, errors } = computeLineItems(data.items);
+    // Currency and tax label come from the company's settings when not given.
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, defaultCurrency: true },
+    });
+    const { rows, errors } = computeLineItems(applyCompanyTaxLabel(data.items, company?.country));
     if (errors.length > 0) return NextResponse.json({ error: 'Validation failed', details: errors }, { status: 400 });
 
     const start = parseCalendarDate(data.startDate)!;
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
         isActive: true,
         // Off unless the user explicitly turned it on.
         autoSend: data.autoSend === true,
-        currency: data.currency ?? 'USD',
+        currency: companyCurrency(data.currency, company),
         paymentTermsDays: data.paymentTermsDays ?? 30,
         notes: data.notes,
         items: {

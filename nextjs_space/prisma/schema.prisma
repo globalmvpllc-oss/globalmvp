@@ -912,7 +912,7 @@ model Quote {
   status             String      @default("DRAFT")
   issueDate          DateTime    @default(now())
   validUntil         DateTime
-  currency           String      @default("USD")
+  currency           String      @default("TRY")
   subtotal           Decimal     @default(0) @db.Decimal(15, 2)
   taxTotal           Decimal     @default(0) @db.Decimal(15, 2)
   discountTotal      Decimal     @default(0) @db.Decimal(15, 2)
@@ -945,7 +945,7 @@ model QuoteItem {
   unitPrice   Decimal @default(0) @db.Decimal(15, 2)
   discount    Decimal @default(0) @db.Decimal(15, 2)
   taxRate     Decimal @default(0) @db.Decimal(7, 4)
-  taxLabel    String  @default("VAT")
+  taxLabel    String  @default("KDV")
   amount      Decimal @default(0) @db.Decimal(15, 2)
   quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
@@ -967,7 +967,7 @@ model RecurringInvoice {
   endDate          DateTime?
   isActive         Boolean                @default(true)
   autoSend         Boolean                @default(false)
-  currency         String                 @default("USD")
+  currency         String                 @default("TRY")
   paymentTermsDays Int                    @default(30)
   notes            String?
   lastRunAt        DateTime?
@@ -992,7 +992,7 @@ model RecurringInvoiceItem {
   unitPrice          Decimal          @default(0) @db.Decimal(15, 2)
   discount           Decimal          @default(0) @db.Decimal(15, 2)
   taxRate            Decimal          @default(0) @db.Decimal(7, 4)
-  taxLabel           String           @default("VAT")
+  taxLabel           String           @default("KDV")
   position           Int              @default(0)
   recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
 

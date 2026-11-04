@@ -1,4 +1,23 @@
 import { calculateInvoice, d2n, type InvoiceItemInput } from '@/lib/invoice-calc';
+import { isTurkishCountry } from '@/lib/tr-tax';
+
+/**
+ * Line labels follow the company: a Turkish company's lines say KDV. The item
+ * schema defaults an omitted label to 'VAT', so for a Turkish company 'VAT'
+ * (or nothing) becomes 'KDV'; a label the user typed (e.g. ÖTV) is kept.
+ */
+export function applyCompanyTaxLabel<T extends { taxLabel?: string }>(items: T[], country: unknown): T[] {
+  if (!isTurkishCountry(country)) return items;
+  return items.map((item) => {
+    const label = (item.taxLabel ?? '').trim();
+    return label === '' || label.toUpperCase() === 'VAT' ? { ...item, taxLabel: 'KDV' } : item;
+  });
+}
+
+/** The company's currency when the request did not name one. */
+export function companyCurrency(requested: string | undefined, company: { defaultCurrency?: string | null } | null): string {
+  return requested || company?.defaultCurrency || 'TRY';
+}
 
 /**
  * Line items + totals for any document that has them (invoice, quote,

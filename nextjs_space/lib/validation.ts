@@ -284,7 +284,8 @@ export const quoteCreateSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
   issueDate: dateString.optional(),
   validUntil: dateString,
-  currency: z.enum(VALID_CURRENCIES).default('USD'),
+  /** Omitted → the company's default currency (set in the route). */
+  currency: z.enum(VALID_CURRENCIES).optional(),
   notes: z.string().max(5000).optional(),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required').max(200),
 });
@@ -309,7 +310,8 @@ export const recurringCreateSchema = z.object({
   frequency: z.enum(RECURRING_FREQUENCIES),
   startDate: dateString,
   endDate: dateString.optional().or(z.literal('')),
-  currency: z.enum(VALID_CURRENCIES).default('USD'),
+  /** Omitted → the company's default currency (set in the route). */
+  currency: z.enum(VALID_CURRENCIES).optional(),
   paymentTermsDays: z.number().int().min(0).max(365).default(30),
   autoSend: z.boolean().default(false),
   notes: z.string().max(5000).optional(),

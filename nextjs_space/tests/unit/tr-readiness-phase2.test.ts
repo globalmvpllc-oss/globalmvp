@@ -397,3 +397,35 @@ describe('navigation and safety', () => {
     expect(sql).not.toMatch(/\bDROP\b|\bRENAME\b|ALTER COLUMN/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+import { applyCompanyTaxLabel, companyCurrency } from '@/lib/line-items';
+
+describe('Turkish defaults for quotes and recurring invoices', () => {
+  it('the new tables default to TRY and KDV', () => {
+    const sql = src('prisma/migrations/20261105120000_tr_readiness_phase2/migration.sql');
+    for (const table of ['Quote', 'RecurringInvoice']) {
+      const body = sql.split(`CREATE TABLE "${table}" (`)[1].split(');')[0];
+      expect(body, table).toContain(`"currency" TEXT NOT NULL DEFAULT 'TRY'`);
+    }
+    for (const table of ['QuoteItem', 'RecurringInvoiceItem']) {
+      const body = sql.split(`CREATE TABLE "${table}" (`)[1].split(');')[0];
+      expect(body, table).toContain(`"taxLabel" TEXT NOT NULL DEFAULT 'KDV'`);
+    }
+  });
+
+  it('the server fills currency and label from the company', () => {
+    expect(companyCurrency(undefined, { defaultCurrency: 'EUR' })).toBe('EUR');
+    expect(companyCurrency('USD', { defaultCurrency: 'TRY' })).toBe('USD');
+    expect(companyCurrency(undefined, null)).toBe('TRY');
+    const items = [{ taxLabel: 'VAT' }, { taxLabel: '' }, { taxLabel: 'ÖTV' }];
+    expect(applyCompanyTaxLabel(items, 'TR').map((i) => i.taxLabel)).toEqual(['KDV', 'KDV', 'ÖTV']);
+    expect(applyCompanyTaxLabel(items, 'US').map((i) => i.taxLabel)).toEqual(['VAT', '', 'ÖTV']);
+    for (const file of ['app/api/quotes/route.ts', 'app/api/recurring-invoices/route.ts']) {
+      const route = src(file);
+      expect(route, file).toContain('companyCurrency(data.currency, company)');
+      expect(route, file).toContain('applyCompanyTaxLabel(data.items, company?.country)');
+      expect(route, file).not.toContain("?? 'USD'");
+    }
+  });
+});
