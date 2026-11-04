@@ -11,7 +11,7 @@ import { canEditQuote, canTransitionQuote } from '@/lib/quote-status';
 import type { TxClient } from '@/lib/invoice-number';
 
 const INCLUDE = {
-  items: true,
+  items: { orderBy: { id: 'asc' as const } },
   customer: true,
   convertedInvoice: { select: { id: true, invoiceNumber: true, status: true } },
 } as const;
@@ -77,6 +77,16 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const computed = data.items ? computeLineItems(applyCompanyTaxLabel(data.items, company?.country)) : null;
     if (computed && computed.errors.length > 0) {
       return NextResponse.json({ error: 'Validation failed', details: computed.errors }, { status: 400 });
+    }
+
+    // Same rule as POST, checked against the stored date when only one side changes.
+    const nextIssue = parseCalendarDate(data.issueDate) ?? existing.issueDate;
+    const nextValid = parseCalendarDate(data.validUntil) ?? existing.validUntil;
+    if (nextIssue && nextValid && new Date(nextValid).getTime() < new Date(nextIssue).getTime()) {
+      return NextResponse.json(
+        { error: 'The quote cannot expire before its date.', code: 'VALID_BEFORE_ISSUE' },
+        { status: 400 }
+      );
     }
 
     await prisma.$transaction(async (tx: TxClient) => {

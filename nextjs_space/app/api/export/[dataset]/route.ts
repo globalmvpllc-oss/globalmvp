@@ -44,7 +44,10 @@ export async function GET(request: Request, { params }: { params: { dataset: str
     const to = searchParams.get('to');
     let period: { gte?: Date; lt?: Date; from?: string; to?: string } = {};
     if (from || to || params.dataset === 'vat') {
-      const parsed = vatPeriod(from, to);
+      // Only the VAT report defaults to the current month. For lists a missing
+      // bound means "from the beginning" / "up to now and later".
+      const parsed =
+        params.dataset === 'vat' ? vatPeriod(from, to) : vatPeriod(from ?? '1900-01-01', to ?? '9999-12-30');
       if (!parsed) return NextResponse.json({ error: 'Use dates such as 2026-11-01', code: 'BAD_PERIOD' }, { status: 400 });
       period = parsed;
     }
@@ -52,7 +55,14 @@ export async function GET(request: Request, { params }: { params: { dataset: str
     const locale = getServerLocale();
     const tables = await buildExportTables(params.dataset, companyId, locale, period);
     const stamp = new Date().toISOString().slice(0, 10);
-    const base = `corpcontrol-${params.dataset}-${period.from && period.to ? `${period.from}_${period.to}` : stamp}`;
+    // The file name shows the dates the user asked for, never the open-ended stand-ins.
+    const span =
+      params.dataset === 'vat' && period.from && period.to
+        ? `${period.from}_${period.to}`
+        : from || to
+          ? `${from ?? 'start'}_${to ?? stamp}`
+          : stamp;
+    const base = `corpcontrol-${params.dataset}-${span}`;
 
     if (format === 'csv') {
       return new Response(buildCsv(tables[0], locale), {

@@ -84,7 +84,7 @@ export async function POST(request: Request) {
           notes: data.notes,
           items: { create: rows },
         },
-        include: { items: true, customer: true },
+        include: { items: { orderBy: { id: 'asc' } }, customer: true },
       });
     });
     return NextResponse.json(quote, { status: 201 });

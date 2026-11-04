@@ -78,8 +78,11 @@ export function downloadBytes(bytes: Uint8Array, fileName: string, type = 'appli
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = fileName;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // Revoked later: Safari and Firefox start the download asynchronously.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 /**
@@ -148,6 +151,9 @@ export function downloadZip(zip: Uint8Array, fileName: string) {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = fileName;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // Revoked later: Safari and Firefox start the download asynchronously.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }

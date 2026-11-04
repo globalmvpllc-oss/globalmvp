@@ -205,6 +205,9 @@ export async function expireQuotes(now: Date): Promise<number> {
  *   limit simply waits.
  * - autoSend (off by default) emails the invoice with its PDF and marks it
  *   SENT; if that fails the invoice stays a DRAFT for the user to send.
+ *   Only today's period is emailed: a catch-up invoice for an earlier period
+ *   (a template created with a past start date) stays a DRAFT, so a customer
+ *   is never sent a stack of back-dated invoices.
  */
 export async function generateRecurringInvoices(now: Date): Promise<{ created: number; sent: number; skipped: number }> {
   const today = startOfUtcDay(now);
@@ -265,7 +268,8 @@ export async function generateRecurringInvoices(now: Date): Promise<{ created: n
     if (!invoice) continue;
     created += 1;
 
-    if (template.autoSend && invoice.customer?.email) {
+    const isCurrentPeriod = issueDate.getTime() >= today.getTime();
+    if (template.autoSend && isCurrentPeriod && invoice.customer?.email) {
       try {
         const company = await prisma.company.findUnique({
           where: { id: template.companyId },

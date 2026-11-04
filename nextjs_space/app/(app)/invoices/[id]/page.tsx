@@ -199,7 +199,7 @@ export default function InvoiceDetailPage() {
         return;
       }
       const bytes = new Uint8Array(await res.arrayBuffer());
-      downloadBytes(bytes, `${String(invoice?.invoiceNumber ?? 'invoice').replace(/[^w.-]+/g, '_')}.pdf`);
+      downloadBytes(bytes, `${String(invoice?.invoiceNumber ?? 'invoice').replace(/[^\w.-]+/g, '_')}.pdf`);
       toast.success(t('invoices.pdfDownloaded'));
     } catch {
       toast.error(t('invoices.pdfNotPrepared'));

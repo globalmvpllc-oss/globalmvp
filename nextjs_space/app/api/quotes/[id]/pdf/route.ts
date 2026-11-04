@@ -16,7 +16,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     const quote = await prisma.quote.findFirst({
       where: { id: params.id, companyId },
-      include: { items: true, customer: true },
+      include: { items: { orderBy: { id: 'asc' } }, customer: true },
     });
     if (!quote) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

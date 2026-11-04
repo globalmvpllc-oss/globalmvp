@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const quote = await prisma.quote.findFirst({
       where: { id: params.id, companyId },
-      include: { items: true },
+      include: { items: { orderBy: { id: 'asc' } } },
     });
     if (!quote) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (quote.convertedInvoiceId) {
@@ -54,7 +54,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const result = await prisma.$transaction(async (tx: TxClient) => {
       const claimed = await tx.quote.updateMany({
-        where: { id: quote.id, companyId, convertedInvoiceId: null, convertedAt: null },
+        // Compare-and-set on the value read above: a quote whose invoice was
+        // deleted (convertedInvoiceId set null, convertedAt left behind) can be
+        // converted again, while two concurrent clicks still make one invoice.
+        where: { id: quote.id, companyId, convertedInvoiceId: null, convertedAt: quote.convertedAt },
         data: { convertedAt: new Date(), status: 'ACCEPTED' },
       });
       if (claimed.count !== 1) return null;

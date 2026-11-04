@@ -81,7 +81,7 @@ export default function ExpensesPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const emptyForm = () => ({ description: '', category: '', amount: '', currency: 'USD', date: new Date().toISOString().split('T')[0], dueDate: '', vendorId: '', status: 'UNPAID', notes: '', taxRate: '', taxAmount: '' });
+  const emptyForm = () => ({ description: '', category: '', amount: '', currency: company?.defaultCurrency ?? 'USD', date: new Date().toISOString().split('T')[0], dueDate: '', vendorId: '', status: 'UNPAID', notes: '', taxRate: '', taxAmount: '' });
 
   const openCreate = () => { setEditingId(null); setForm(emptyForm()); setOpen(true); };
 

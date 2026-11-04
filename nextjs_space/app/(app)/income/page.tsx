@@ -76,7 +76,7 @@ export default function IncomePage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const emptyForm = () => ({ description: '', category: '', amount: '', currency: 'USD', date: new Date().toISOString().split('T')[0], expectedPaymentDate: '', customerId: '', status: 'EXPECTED', notes: '' });
+  const emptyForm = () => ({ description: '', category: '', amount: '', currency: company?.defaultCurrency ?? 'USD', date: new Date().toISOString().split('T')[0], expectedPaymentDate: '', customerId: '', status: 'EXPECTED', notes: '' });
 
   const openCreate = () => { setEditingId(null); setForm(emptyForm()); setOpen(true); };
 

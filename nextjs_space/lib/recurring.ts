@@ -56,6 +56,25 @@ export function afterRun(
   return { nextRunDate: next, isActive: stillActive };
 }
 
+/**
+ * The first run on or after today, for a template being resumed.
+ *
+ * Without this a template paused in January and resumed in July would make
+ * one back-dated invoice per missed month, a day at a time. Resuming means
+ * "carry on from now", so the missed periods are skipped.
+ */
+export function rollForward(
+  template: { nextRunDate: Date | string; frequency: string; dayOfMonth: number },
+  now: Date
+): Date {
+  const frequency = isRecurringFrequency(template.frequency) ? template.frequency : 'MONTHLY';
+  const today = utcToday(now).getTime();
+  let next = new Date(template.nextRunDate);
+  // Bounded: 1200 months is a century of monthly runs.
+  for (let i = 0; i < 1200 && next.getTime() < today; i++) next = nextRunDate(next, frequency, template.dayOfMonth);
+  return next;
+}
+
 /** Due date of a generated invoice: issue date + payment terms. */
 export function dueDateFor(issueDate: Date, paymentTermsDays: number): Date {
   return new Date(issueDate.getTime() + Math.max(0, paymentTermsDays) * 24 * 60 * 60 * 1000);

@@ -119,7 +119,8 @@ describe('quote lifecycle', () => {
   it('the convert route is company-scoped, single-use and counts the invoice', () => {
     const route = src('app/api/quotes/[id]/convert/route.ts');
     expect(route).toContain('where: { id: params.id, companyId }');
-    expect(route).toContain('convertedInvoiceId: null, convertedAt: null');
+    // Single use: compare-and-set on the convertedAt read, plus the unique convertedInvoiceId below.
+    expect(route).toContain('convertedInvoiceId: null, convertedAt: quote.convertedAt');
     expect(route).toContain("enforcePlanLimit(companyId, 'invoicesPerMonth')");
     expect(route).toContain("status: 'DRAFT'");
     expect(src('prisma/schema.prisma')).toMatch(/convertedInvoiceId String\?\s+@unique/);

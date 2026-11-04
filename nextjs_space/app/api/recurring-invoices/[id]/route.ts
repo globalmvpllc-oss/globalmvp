@@ -7,6 +7,7 @@ import { recurringUpdateSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { applyCompanyTaxLabel, computeLineItems } from '@/lib/line-items';
+import { rollForward } from '@/lib/recurring';
 import type { TxClient } from '@/lib/invoice-number';
 
 const INCLUDE = {
@@ -32,7 +33,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const { error: authError, companyId } = await requireUserCompany();
     if (authError) return authError;
-    const existing = await prisma.recurringInvoice.findFirst({ where: { id: params.id, companyId }, select: { id: true } });
+    const existing = await prisma.recurringInvoice.findFirst({
+      where: { id: params.id, companyId },
+      select: { id: true, isActive: true, nextRunDate: true, frequency: true, dayOfMonth: true },
+    });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
     const { data, error } = validateBody(recurringUpdateSchema, await request.json());
@@ -46,17 +50,26 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Validation failed', details: computed.errors }, { status: 400 });
     }
 
+    // Resuming carries on from today: missed periods are not back-filled.
+    const resumed = data.isActive === true && !existing.isActive;
+    const nextRun = resumed ? rollForward(existing, new Date()) : existing.nextRunDate;
+    // An end date before the next run ends the template now, visibly, rather
+    // than leaving it "running" until the nightly job quietly switches it off.
+    const endDate = data.endDate === undefined ? undefined : data.endDate ? parseCalendarDate(data.endDate) : null;
+    const endsBeforeNextRun = Boolean(endDate && endDate.getTime() < new Date(nextRun).getTime());
+
     await prisma.$transaction(async (tx: TxClient) => {
       if (computed) await tx.recurringInvoiceItem.deleteMany({ where: { recurringInvoiceId: existing.id } });
       await tx.recurringInvoice.update({
         where: { id: existing.id },
         data: {
           name: data.name ?? undefined,
-          isActive: data.isActive ?? undefined,
+          isActive: endsBeforeNextRun ? false : data.isActive ?? undefined,
+          ...(resumed ? { nextRunDate: nextRun } : {}),
           autoSend: data.autoSend ?? undefined,
           paymentTermsDays: data.paymentTermsDays ?? undefined,
           notes: data.notes ?? undefined,
-          endDate: data.endDate === undefined ? undefined : data.endDate ? parseCalendarDate(data.endDate) : null,
+          endDate,
           ...(computed
             ? {
                 items: {
