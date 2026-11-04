@@ -63,9 +63,16 @@ export default function KsCount() {
   const saveAndNext = async () => {
     const product = products[index];
     if (!product || !countId) return;
-    const n = Number(value.replace(',', '.'));
-    if (value.trim() === '' || !Number.isFinite(n) || n < 0) {
+    // Empty = skip this product. Anything that is not a plain number stays
+    // on screen with a message, so nothing is skipped by mistake.
+    if (value.trim() === '') {
       go(index + 1);
+      return;
+    }
+    const plain = value.trim().replace(/\s/g, '');
+    const n = /^\d+([.,]\d+)?$/.test(plain) ? Number(plain.replace(',', '.')) : NaN;
+    if (!Number.isFinite(n)) {
+      toast.error(t('ks.count.invalid'));
       return;
     }
     setSaving(true);

@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { REQUEST_PATH_HEADER } from '@/lib/accountant/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getActiveMembership } from '@/lib/auth-helpers';
@@ -40,9 +42,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { companyId } = membership;
 
   // "Sadece stok" companies live in Avc KolayStok; the invoice screens are
-  // not theirs. (Their accountant still reads the stock there.)
+  // not theirs. (Their accountant still reads the stock there.) Settings stay
+  // open: plan/billing, accountant invite and the company switcher live there.
   const mode = await prisma.company.findUnique({ where: { id: companyId }, select: { usageMode: true } });
-  if (mode?.usageMode === 'stock') redirect('/kolaystok/app');
+  const path = headers().get(REQUEST_PATH_HEADER) ?? '';
+  if (mode?.usageMode === 'stock' && !path.startsWith('/settings')) redirect('/kolaystok/app');
 
   // An accountant (mali müşavir) sees the books read-only. Decided here, on
   // the server, from the same membership every API route resolves; the

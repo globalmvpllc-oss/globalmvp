@@ -114,16 +114,24 @@ export function importTemplate(locale: Locale): Uint8Array {
 
 export type RawImportRow = Partial<Record<ImportColumn, string>> & { row: number };
 
-function text(cell: ExcelJS.Cell): string {
+/**
+ * A cell as text. With numeric=true a real number cell is written with a
+ * decimal comma ("0,125"), so the Turkish-style parser below never mistakes
+ * its decimal point for a thousands dot.
+ */
+function text(cell: ExcelJS.Cell, numeric = false): string {
   const v: any = cell.value;
   if (v === null || v === undefined) return '';
+  if (numeric && typeof v === 'number') return String(v).replace('.', ',');
   if (typeof v === 'object') {
-    if ('result' in v) return String(v.result ?? '').trim();
+    if ('result' in v) return numeric && typeof v.result === 'number' ? String(v.result).replace('.', ',') : String(v.result ?? '').trim();
     if ('richText' in v) return v.richText.map((r: any) => r.text).join('').trim();
     if ('text' in v) return String(v.text).trim();
   }
   return String(v).trim();
 }
+
+const NUMERIC_COLUMNS = new Set<ImportColumn>(['purchasePrice', 'salePrice', 'minStock', 'targetStock', 'stock'] as ImportColumn[]);
 
 /** Reads the first sheet: the header row says which column is which (TR or EN names). */
 export async function readImportSheet(buffer: Buffer): Promise<RawImportRow[]> {
@@ -147,7 +155,7 @@ export async function readImportSheet(buffer: Buffer): Promise<RawImportRow[]> {
     const out: RawImportRow = { row: r };
     let any = false;
     for (const [col, key] of columnOf) {
-      const value = text(row.getCell(col));
+      const value = text(row.getCell(col), NUMERIC_COLUMNS.has(key));
       if (value) {
         out[key] = value;
         any = true;
@@ -183,7 +191,16 @@ export interface CheckedRow {
 function number(value: string | undefined, field: string, errors: string[]): number | null | undefined {
   if (value === undefined) return undefined;
   if (value === '' || value === '-') return null;
-  const n = Number(value.replace(/\s/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
+  const v = value.replace(/\s/g, '');
+  // "1.234" / "1.234,5" → Turkish thousands dots; "12,5" → decimal comma;
+  // anything else (e.g. "0.125", "12.5") is read with a decimal point.
+  const n = /^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(v)
+    ? Number(v.replace(/\./g, '').replace(',', '.'))
+    : /^\d+,\d+$/.test(v)
+      ? Number(v.replace(',', '.'))
+      : /^\d+(\.\d+)?$/.test(v)
+        ? Number(v)
+        : NaN;
   if (!Number.isFinite(n) || n < 0 || n > 1e12) {
     errors.push(`${field}:invalid`);
     return undefined;

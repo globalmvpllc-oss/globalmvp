@@ -49,7 +49,9 @@ export async function applyImport(actor: StockActor, rows: CheckedRow[]): Promis
       let moved = 0;
       for (const row of rows) {
         const v = row.values;
-        const vendorId = v.supplier ? vendorByName.get(v.supplier.toLocaleLowerCase('tr-TR')) ?? null : undefined;
+        // An unknown supplier name (typo, cut-off text) leaves the product's
+        // current supplier alone instead of wiping it.
+        const vendorId = v.supplier ? vendorByName.get(v.supplier.toLocaleLowerCase('tr-TR')) : undefined;
         const existing = await tx.stockProduct.findFirst({
           where: { companyId: actor.companyId, code: row.code },
           select: { id: true, name: true, size: true, material: true, quantity: true, isActive: true },

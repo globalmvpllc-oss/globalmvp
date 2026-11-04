@@ -1977,6 +1977,8 @@ export const en = {
   'ks.mode.finance': 'Invoices and finance',
   'ks.mode.stock': 'Stock only (Avc KolayStok)',
   'ks.mode.both': 'Both',
+  'ks.count.invalid': 'Enter a valid number (e.g. 12 or 12.5).',
+  'ks.mode.account': 'Plan, accountant and company settings',
   'ks.mv.excel': 'Excel',
   'ks.order.prepare': 'Prepare order email',
   'ks.order.hint': 'Critical products by supplier. Change any quantity, then check the email before sending.',

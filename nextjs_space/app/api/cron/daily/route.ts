@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 import { NextResponse } from 'next/server';
 import { isAuthorizedCron } from '@/lib/cron/auth';
@@ -67,17 +67,19 @@ export async function GET(request: Request) {
   }
 
   try {
-    report.stock = await runStockNightly(now);
-  } catch (error) {
-    console.error('[cron] stock step failed', { code: (error as { code?: string })?.code });
-    report.stock = 'failed';
-  }
-
-  try {
     report.trialReminders = await sendTrialReminders(now);
   } catch (error) {
     console.error('[cron] trial reminder step failed', { code: (error as { code?: string })?.code });
     report.trialReminders = 'failed';
+  }
+
+  // Last: the heaviest step (an Excel backup per company). It stops taking
+  // new companies near the time limit, so the steps above always run.
+  try {
+    report.stock = await runStockNightly(now);
+  } catch (error) {
+    console.error('[cron] stock step failed', { code: (error as { code?: string })?.code });
+    report.stock = 'failed';
   }
 
   return NextResponse.json({ ok: true, ...report });

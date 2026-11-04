@@ -54,6 +54,11 @@ export async function PUT(request: Request) {
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: 'Check the values.', code: 'INVALID' }, { status: 400 });
     const d = parsed.data;
+    // Refuse before writing anything, so a refused request changes nothing.
+    // The company's mode belongs to the account owner, not to PIN staff.
+    if (d.usageMode && actor.kind !== 'user') {
+      return NextResponse.json({ error: 'Only the account owner can change this.', code: 'STOCK_FORBIDDEN' }, { status: 403 });
+    }
     await ensureStockSettings(actor.companyId);
 
     if (d.alertEmails) {
@@ -64,8 +69,6 @@ export async function PUT(request: Request) {
       });
     }
     if (d.usageMode) {
-      // The company's mode belongs to the account owner, not to PIN staff.
-      if (actor.kind !== 'user') return NextResponse.json({ error: 'Only the account owner can change this.', code: 'STOCK_FORBIDDEN' }, { status: 403 });
       await prisma.company.update({ where: { id: actor.companyId }, data: { usageMode: d.usageMode }, select: { id: true } });
     }
     if (d.quickPlusReason || d.quickMinusReason) {

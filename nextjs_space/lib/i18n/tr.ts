@@ -1930,6 +1930,8 @@ export const tr: Dictionary = {
   'ks.mode.finance': 'Fatura ve finans',
   'ks.mode.stock': 'Sadece stok (Avc KolayStok)',
   'ks.mode.both': 'İkisi',
+  'ks.count.invalid': 'Geçerli bir sayı yazın (ör. 12 ya da 12,5).',
+  'ks.mode.account': 'Plan, mali müşavir ve şirket ayarları',
   'ks.mv.excel': 'Excel',
   'ks.order.prepare': 'Sipariş maili hazırla',
   'ks.order.hint': 'Kritik ürünler tedarikçiye göre gruplandı. Miktarları değiştirebilirsiniz; göndermeden önce maili görürsünüz.',

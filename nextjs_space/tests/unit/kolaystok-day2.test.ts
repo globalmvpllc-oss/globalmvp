@@ -160,6 +160,8 @@ describe('reset all stock and undo', () => {
   it('needs the account password and the word SIFIRLA; backup before the reset', () => {
     expect(isResetWord('SIFIRLA')).toBe(true);
     expect(isResetWord(' sıfırla ')).toBe(true);
+    expect(isResetWord('sifirla')).toBe(true); // English keyboard
+    expect(isResetWord('Sıfırla')).toBe(true);
     expect(isResetWord('RESET')).toBe(false);
     const route = src('app/api/stock/reset/route.ts');
     expect(route).toContain("actor.kind !== 'user'");
@@ -299,7 +301,7 @@ describe('one-tap reasons, usage mode, PWA', () => {
     expect(src('lib/stock/service.ts')).toContain("...(systemReason ? {} : { isActive: true })");
   });
   it('"Sadece stok" sends the company to KolayStok', () => {
-    expect(src('app/(app)/layout.tsx')).toContain("if (mode?.usageMode === 'stock') redirect('/kolaystok/app');");
+    expect(src('app/(app)/layout.tsx')).toContain("if (mode?.usageMode === 'stock' && !path.startsWith('/settings')) redirect('/kolaystok/app');");
     expect(src('app/onboarding/page.tsx')).toContain("form.usageMode === 'stock' ? '/kolaystok/app' : destination");
   });
   it('installable as "Avc KolayStok"', () => {
@@ -311,5 +313,45 @@ describe('one-tap reasons, usage mode, PWA', () => {
   it('the nightly job backs up and summarizes stock', () => {
     expect(src('app/api/cron/daily/route.ts')).toContain('runStockNightly(now)');
     expect(src('lib/stock/data.ts')).toContain('BACKUP_DAYS = 30');
+  });
+});
+
+describe('Excel numbers (code-review fix)', () => {
+  it('reads decimal points, decimal commas and Turkish thousands dots correctly', () => {
+    const { rows } = checkImportRows(
+      [
+        { row: 2, code: 'A', name: 'A', stock: '0,125' }, // a number cell 0.125 arrives like this
+        { row: 3, code: 'B', name: 'B', stock: '0.125' },
+        { row: 4, code: 'C', name: 'C', stock: '12.5', salePrice: '1.234' },
+        { row: 5, code: 'D', name: 'D', salePrice: '1.234.567,5' },
+        { row: 6, code: 'E', name: 'E', stock: '1..2' },
+      ],
+      new Set(),
+      null
+    );
+    expect(rows[0].values.stock).toBe(0.125);
+    expect(rows[1].values.stock).toBe(0.125);
+    expect(rows[2].values).toMatchObject({ stock: 12.5, salePrice: 1234 });
+    expect(rows[3].values.salePrice).toBe(1234567.5);
+    expect(rows[4].errors).toContain('stock:invalid');
+  });
+});
+
+describe('code-review fixes in the routes', () => {
+  it('a Resend domain already registered is reused only within the same owner', () => {
+    const route = src('app/api/stock/sender/route.ts');
+    expect(route).toContain('mayReuseDomain(actor.companyId, domainId)');
+    expect(route).toContain("code: 'DOMAIN_TAKEN'");
+  });
+  it('stock-only companies can still open settings (plan, accountant, company switch)', () => {
+    expect(src('app/(app)/layout.tsx')).toContain("!path.startsWith('/settings')");
+  });
+  it('the daily job runs the stock step last, with a time budget', () => {
+    const cron = src('app/api/cron/daily/route.ts');
+    expect(cron.indexOf('runStockNightly(now)')).toBeGreaterThan(cron.indexOf('sendTrialReminders(now)'));
+    expect(src('lib/cron/stock-jobs.ts')).toContain('TIME_BUDGET_MS');
+  });
+  it('an unknown supplier name in Excel does not wipe the current supplier', () => {
+    expect(src('lib/stock/import.ts')).not.toMatch(/vendorByName\.get\([^)]*\)\) \?\? null/);
   });
 });

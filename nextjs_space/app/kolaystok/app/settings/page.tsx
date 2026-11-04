@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
-import { MANUAL_REASONS } from '@/lib/stock/rules';
+import { MANUAL_REASONS, isResetWord } from '@/lib/stock/rules';
 
 /**
  * KolayStok settings (manager). One section per job, each with one clear
@@ -112,6 +112,7 @@ export default function KsSettings() {
               </button>
             ))}
           </div>
+          <a href="/settings" className="mt-3 flex h-12 items-center justify-center rounded-xl border-2 text-lg font-medium">{t('ks.mode.account')}</a>
         </Section>
       )}
 
@@ -230,7 +231,7 @@ export default function KsSettings() {
           <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); doReset(); }}>
             <input type="password" autoComplete="current-password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder={t('ks.reset.password')} className="h-12 w-full rounded-xl border-2 px-3 text-lg" />
             <input value={resetWord} onChange={(e) => setResetWord(e.target.value)} placeholder={t('ks.reset.wordPlaceholder')} autoCapitalize="characters" className="h-12 w-full rounded-xl border-2 px-3 text-lg tracking-widest" />
-            <button type="submit" disabled={!resetPassword || resetWord.trim().toLocaleUpperCase('tr-TR') !== 'SIFIRLA'} className="h-14 w-full rounded-xl bg-red-600 text-lg font-bold text-white disabled:opacity-40">{t('ks.reset.button')}</button>
+            <button type="submit" disabled={!resetPassword || !isResetWord(resetWord)} className="h-14 w-full rounded-xl bg-red-600 text-lg font-bold text-white disabled:opacity-40">{t('ks.reset.button')}</button>
           </form>
         </Section>
       )}

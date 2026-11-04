@@ -18,18 +18,19 @@ export default function KsOrders() {
   const { t, fill } = useI18n();
   const ks = useKs();
   const [groups, setGroups] = useState<Group[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [qty, setQty] = useState<Record<string, string>>({});
   const [note, setNote] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<{ vendorId: string; to: string[]; from: string; replyTo: string | null; subject: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch('/api/stock/orders').then((r) => (r.ok ? r.json() : { groups: [] })).then((d) => {
+    fetch('/api/stock/orders').then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((d) => {
       setGroups(d.groups);
       const q: Record<string, string> = {};
       for (const g of d.groups) for (const l of g.lines) q[l.productId] = String(l.quantity);
       setQty(q);
-    }).catch(() => setGroups([]));
+    }).catch(() => setFailed(true));
   }, []);
 
   if (!ks.permissions.orderEmail) return <p className="p-6 text-lg">{t('ks.forbidden')}</p>;
@@ -91,7 +92,7 @@ export default function KsOrders() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t('ks.order.prepare')}</h1>
       <p className="text-base text-slate-600">{t('ks.order.hint')}</p>
-      {groups === null && <p className="text-lg">{t('ks.loadFailed')}</p>}
+      {groups === null && <p className="text-lg">{failed ? t('ks.loadFailed') : t('common.loading')}</p>}
       {groups?.length === 0 && <p className="py-8 text-center text-lg text-slate-500">{t('ks.order.none')}</p>}
       {groups?.map((g) => (
         <section key={g.vendorId ?? 'none'} className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">

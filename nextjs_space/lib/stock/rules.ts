@@ -107,9 +107,14 @@ export function groupOrderLines(products: OrderCandidate[]): Array<{
     .sort((a, b) => (a.vendorId === null ? 1 : b.vendorId === null ? -1 : 0));
 }
 
-/** "Tüm stokları sıfırla" needs the word SIFIRLA typed out (any case). */
+/**
+ * "Tüm stokları sıfırla" needs the word SIFIRLA typed out, in any case and
+ * with or without Turkish letters ("sıfırla", "sifirla", "SIFIRLA").
+ */
 export function isResetWord(value: unknown): boolean {
-  return typeof value === 'string' && value.trim().toLocaleUpperCase('tr-TR') === 'SIFIRLA';
+  if (typeof value !== 'string') return false;
+  const plain = value.trim().toLocaleLowerCase('tr-TR').replace(/ı/g, 'i');
+  return plain === 'sifirla';
 }
 
 /** Which part of CorpControl a company uses. */

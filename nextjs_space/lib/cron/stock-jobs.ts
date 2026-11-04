@@ -15,13 +15,21 @@ import { backupCompanyStock } from '@/lib/stock/data';
  *     Telegram — only when there is something to report.
  * One company failing does not stop the others.
  */
-export async function runStockNightly(now: Date): Promise<{ companies: number; backups: number; summaries: number; failed: number }> {
+const TIME_BUDGET_MS = 240_000; // the route may run 300 s; leave room to answer
+
+export async function runStockNightly(now: Date): Promise<{ companies: number; backups: number; summaries: number; failed: number; skipped: number }> {
+  const started = Date.now();
+  let skipped = 0;
   const companies = await prisma.stockProduct.groupBy({ by: ['companyId'], where: { isActive: true } });
   let backups = 0;
   let summaries = 0;
   let failed = 0;
   const base = getBaseUrl().replace(/\/+$/, '');
   for (const { companyId } of companies) {
+    if (Date.now() - started > TIME_BUDGET_MS) {
+      skipped += 1;
+      continue;
+    }
     try {
       await backupCompanyStock(companyId, now);
       backups += 1;
@@ -50,5 +58,6 @@ export async function runStockNightly(now: Date): Promise<{ companies: number; b
       console.error('[cron] stock step failed for a company', { code: (error as { code?: string })?.code });
     }
   }
-  return { companies: companies.length, backups, summaries, failed };
+  if (skipped > 0) console.error('[cron] stock step ran out of time', { skipped });
+  return { companies: companies.length, backups, summaries, failed, skipped };
 }

@@ -52,6 +52,21 @@ export async function GET() {
   }
 }
 
+/** True when every company already using this Resend domain shares an owner with this one (and at least one does). */
+async function mayReuseDomain(companyId: string, domainId: string): Promise<boolean> {
+  const users = await prisma.stockSettings.findMany({ where: { senderDomainId: domainId }, select: { companyId: true } });
+  if (users.length === 0) return false; // registered outside KolayStok (another app or customer)
+  const owners = async (id: string) =>
+    new Set((await prisma.companyMember.findMany({ where: { companyId: id, role: 'owner' }, select: { userId: true } })).map((m) => m.userId));
+  const mine = await owners(companyId);
+  for (const u of users) {
+    if (u.companyId === companyId) continue;
+    const theirs = await owners(u.companyId);
+    if (![...theirs].some((id) => mine.has(id))) return false;
+  }
+  return true;
+}
+
 const schema = z.object({ email: z.string().trim().toLowerCase().email().max(255) });
 
 export async function POST(request: Request) {
@@ -69,9 +84,14 @@ export async function POST(request: Request) {
     const created = await client.domains.create({ name: domain });
     if (created.data?.id) domainId = created.data.id;
     else {
-      // Already registered (by this or another company of the same owner): reuse it.
+      // Already registered on the shared Resend account. Reuse it only when it
+      // is this company's own, or belongs to another company with the same
+      // owner. Otherwise one customer could send as another customer's domain.
       const listed = await client.domains.list();
       domainId = (listed.data?.data ?? []).find((d: any) => d.name === domain)?.id ?? null;
+      if (domainId && !(await mayReuseDomain(actor.companyId, domainId))) {
+        return NextResponse.json({ error: 'This domain is already in use by another account.', code: 'DOMAIN_TAKEN' }, { status: 409 });
+      }
     }
     if (!domainId) return NextResponse.json({ error: 'The domain could not be registered.', code: 'DOMAIN_FAILED' }, { status: 502 });
 
