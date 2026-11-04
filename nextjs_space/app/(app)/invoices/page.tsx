@@ -19,6 +19,7 @@ import { useI18n } from '@/components/i18n-provider';
 import { toast } from 'sonner';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { formatCalendarDate } from '@/lib/calendar-date';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 export default function InvoicesPage() {
   const company = useCompany();
@@ -170,6 +171,7 @@ export default function InvoicesPage() {
           {/* Sits beside the primary action; the per-invoice "Download PDF"
               lives on the detail page and is untouched. */}
           <BulkPdfButton invoices={invoices} selectedIds={selectedIds} company={company} className="w-full sm:w-auto" />
+          <ListPdfButton kind="invoices" params={{ status: statusFilter }} className="w-full sm:w-auto" />
           <ExportMenu dataset="invoices" className="w-full sm:w-auto" />
           <Button asChild className="w-full sm:w-auto">
             <Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> {t('invoices.create')}</Link>

@@ -19,6 +19,7 @@ import { useI18n } from '@/components/i18n-provider';
 import { ExportMenu } from '@/components/export-menu';
 import type { TranslationKey } from '@/lib/i18n';
 import { isValidTrTaxId, trTaxIdRuleApplies } from '@/lib/tr-tax';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 /** Sentinel for "no selection" — Radix Select cannot hold an empty string value. */
 const NONE = '__none__';
@@ -172,6 +173,7 @@ export default function CustomersPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <ExportMenu dataset="customers" className="w-full sm:w-auto" />
+          <ListPdfButton kind="customers" className="w-full sm:w-auto" />
           <Button onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" /> {t('customers.add')}
           </Button>

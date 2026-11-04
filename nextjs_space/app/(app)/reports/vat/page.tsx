@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useI18n } from '@/components/i18n-provider';
 import { ExportMenu } from '@/components/export-menu';
 import { formatCurrency } from '@/lib/currencies';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 function monthRange(offset: number): { from: string; to: string } {
   const now = new Date();
@@ -55,7 +56,10 @@ export default function VatReportPage() {
             <p className="text-base text-muted-foreground">{t('vat.subtitle')}</p>
           </div>
         </div>
-        <ExportMenu dataset="vat" from={range.from} to={range.to} className="w-full sm:w-auto" />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ExportMenu dataset="vat" from={range.from} to={range.to} className="w-full sm:w-auto" />
+          <ListPdfButton kind="vat" params={{ from: range.from, to: range.to }} className="w-full sm:w-auto" />
+        </div>
       </div>
 
       <Card>

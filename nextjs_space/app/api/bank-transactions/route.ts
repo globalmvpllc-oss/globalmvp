@@ -7,7 +7,8 @@ import { bankTransactionSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { MATCH_INCLUDE, describeMatch } from '@/lib/banking/candidates';
-import { UNRECONCILED_WHERE, effectiveStatus } from '@/lib/banking/reconciliation';
+import { effectiveStatus } from '@/lib/banking/reconciliation';
+import { bankTransactionWhere } from '@/lib/banking/transaction-filter';
 
 /**
  * Bank statement lines.
@@ -33,39 +34,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status') ?? undefined;
     const search = searchParams.get('q')?.trim() ?? '';
 
-    const where: Record<string, unknown> = { companyId };
-    if (bankAccountId) where.bankAccountId = bankAccountId;
-
-    // "unmatched" is asked as a query about links rather than about the status
-    // column, so a row whose matched record was deleted comes back into the
-    // queue instead of being hidden as MATCHED forever.
-    if (status === 'UNMATCHED') Object.assign(where, UNRECONCILED_WHERE);
-    else if (status === 'IGNORED') where.status = 'IGNORED';
-    else if (status === 'MATCHED') {
-      where.status = { not: 'IGNORED' };
-      where.OR = [
-        { matchedInvoiceId: { not: null } },
-        { matchedPaymentId: { not: null } },
-        { matchedIncomeId: { not: null } },
-        { matchedExpenseId: { not: null } },
-      ];
-    }
-
-    if (search) {
-      // `where.OR` is only set by the MATCHED branch above, which is mutually
-      // exclusive with a search in practice; AND-ing keeps them composable
-      // rather than one silently replacing the other.
-      const searchClause = [
-        { description: { contains: search, mode: 'insensitive' as const } },
-        { reference: { contains: search, mode: 'insensitive' as const } },
-      ];
-      if (where.OR) {
-        where.AND = [{ OR: where.OR }, { OR: searchClause }];
-        delete where.OR;
-      } else {
-        where.OR = searchClause;
-      }
-    }
+    const where = bankTransactionWhere(companyId, { bankAccountId, status, search });
 
     const [rows, total] = await Promise.all([
       prisma.bankTransaction.findMany({

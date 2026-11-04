@@ -24,6 +24,7 @@ import { useCompany } from '@/hooks/use-company';
 import { toCalendarInput, formatCalendarDate } from '@/lib/calendar-date';
 import { useI18n } from '@/components/i18n-provider';
 import { ExportMenu } from '@/components/export-menu';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 export default function IncomePage() {
   const { t, locale, intl, category: categoryLabel } = useI18n();
@@ -197,6 +198,7 @@ export default function IncomePage() {
           <p className="text-muted-foreground">{t('income.subtitle')}</p>
         </div>
         <ExportMenu dataset="income" className="w-full sm:w-auto" />
+        <ListPdfButton kind="income" className="w-full sm:w-auto" />
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
           <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('income.add')}</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">

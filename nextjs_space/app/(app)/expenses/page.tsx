@@ -27,6 +27,7 @@ import { ExportMenu } from '@/components/export-menu';
 import { TR_VAT_RATES } from '@/lib/tr-tax';
 import { vatFromGross } from '@/lib/vat-report';
 import { getChequeStatusBadge } from '@/lib/cheque-status';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 export default function ExpensesPage() {
   const { t, fill, locale, intl, category: categoryLabel } = useI18n();
@@ -245,6 +246,7 @@ export default function ExpensesPage() {
           <p className="text-muted-foreground">{t('expenses.subtitle')}</p>
         </div>
         <ExportMenu dataset="expenses" className="w-full sm:w-auto" />
+        <ListPdfButton kind="expenses" className="w-full sm:w-auto" />
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
           <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('expenses.add')}</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">

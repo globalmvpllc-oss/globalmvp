@@ -25,6 +25,7 @@ import { fillTranslation, type TranslationKey } from '@/lib/i18n';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { toast } from 'sonner';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 /**
  * Banking overview.
@@ -252,6 +253,7 @@ export default function BankingPage() {
           <p className="text-muted-foreground">{t('banking.subtitle')}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <ListPdfButton kind="bank-accounts" className="w-full sm:w-auto" />
           <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link href="/banking/reconcile">
               {t('banking.reconcile')}

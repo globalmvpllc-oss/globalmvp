@@ -35,6 +35,7 @@ import {
   type ChequeStatus,
 } from '@/lib/cheque-status';
 import type { ChequeTotals } from '@/lib/cheque-totals';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 /**
  * Cheques and promissory notes — çek ve senet.
@@ -371,9 +372,12 @@ export default function ChequesPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('cheques.title')}</h1>
           <p className="text-muted-foreground">{t('cheques.subtitle')}</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" /> {t('cheques.add')}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ListPdfButton kind="cheques" params={{ direction: directionFilter, status: statusFilter }} className="w-full sm:w-auto" />
+          <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" /> {t('cheques.add')}
+          </Button>
+        </div>
       </div>
 
       {/* Totals — per currency, never summed across them. */}

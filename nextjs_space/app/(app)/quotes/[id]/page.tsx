@@ -151,7 +151,7 @@ export default function QuoteDetailPage() {
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={downloadPdf} disabled={busy !== null}><Download className="mr-2 h-4 w-4" /> {busy === 'pdf' ? t('invoices.generating') : 'PDF'}</Button>
+        <Button variant="outline" onClick={downloadPdf} disabled={busy !== null}><Download className="mr-2 h-4 w-4" /> {busy === 'pdf' ? t('invoices.generating') : t('listPdf.download')}</Button>
         {quote.status !== 'DRAFT' && quote.status !== 'REJECTED' && !quote.convertedInvoice && (
           <Button variant="outline" onClick={sendEmail} disabled={busy !== null}><Mail className="mr-2 h-4 w-4" /> {t('quotes.resend')}</Button>
         )}

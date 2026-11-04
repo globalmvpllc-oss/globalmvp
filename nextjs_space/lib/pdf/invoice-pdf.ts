@@ -36,7 +36,7 @@ import {
 import {
   logoFromDataUrl,
   renderBusinessDocumentPdf,
-  type BusinessDocumentSpec,
+  type AddressedDocumentSpec,
   type DocBlock,
 } from './engine';
 
@@ -98,7 +98,7 @@ export function buildCommercialDocumentSpec(
   doc: any,
   company: any,
   options: CommercialDocumentOptions
-): BusinessDocumentSpec {
+): AddressedDocumentSpec {
   const locale = documentLocaleFor(doc?.customer, company);
   const t = (key: TranslationKey) => translate(locale, key);
   const currency = doc?.currency ?? 'USD';
@@ -225,7 +225,7 @@ export function buildCommercialDocumentSpec(
   };
 }
 
-export function buildInvoicePdfSpec(invoice: any, company: any): BusinessDocumentSpec {
+export function buildInvoicePdfSpec(invoice: any, company: any): AddressedDocumentSpec {
   return buildCommercialDocumentSpec(invoice, company, {
     titleKey: isProformaInvoice(invoice, company) ? 'pdf.proformaTitle' : 'pdf.invoiceTitle',
     dates: [
@@ -241,7 +241,7 @@ export function renderInvoicePdf(invoice: any, company: any, createdAt?: Date): 
   return renderBusinessDocumentPdf({ ...buildInvoicePdfSpec(invoice, company), createdAt });
 }
 
-export function buildQuotePdfSpec(quote: any, company: any): BusinessDocumentSpec {
+export function buildQuotePdfSpec(quote: any, company: any): AddressedDocumentSpec {
   return buildCommercialDocumentSpec(quote, company, {
     titleKey: 'pdf.quoteTitle',
     dates: [

@@ -25,6 +25,7 @@ import { fillTranslation, type TranslationKey } from '@/lib/i18n';
 import { formatCalendarDate, todayCalendarInput } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { toast } from 'sonner';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 /**
  * The reconciliation workspace.
@@ -418,6 +419,7 @@ function ReconcileWorkspace() {
           <p className="text-muted-foreground">{t('banking.reconcileSubtitle')}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <ListPdfButton kind="bank-transactions" params={{ bankAccountId: accountFilter, status: statusFilter }} className="w-full sm:w-auto" />
           <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link href="/banking"><Landmark className="w-4 h-4 mr-2" /> {t('banking.accounts')}</Link>
           </Button>

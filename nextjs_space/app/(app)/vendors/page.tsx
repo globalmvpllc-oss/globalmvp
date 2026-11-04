@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Truck, Mail, Phone } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 /**
  * Vendor list.
@@ -49,9 +50,12 @@ export default function VendorsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">{t('vendors.title')}</h1>
-        <p className="text-muted-foreground">{t('vendors.subtitle')}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('vendors.title')}</h1>
+          <p className="text-muted-foreground">{t('vendors.subtitle')}</p>
+        </div>
+        <ListPdfButton kind="vendors" className="w-full sm:w-auto" />
       </div>
 
       {loading ? (

@@ -11,6 +11,7 @@ import { readErrorMessage, networkErrorMessage } from '@/lib/api-feedback';
 import { useI18n } from '@/components/i18n-provider';
 import { toAmount } from '@/lib/payment-math';
 import { emptyTotals, type ReportsPayload } from '@/lib/reports-aggregate';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 const RechartsCharts = dynamic(() => import('@/components/reports-charts'), { ssr: false, loading: () => <div className="h-64 bg-muted rounded-lg animate-pulse" /> });
 
@@ -92,7 +93,10 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('reports.title')}</h1>
           <p className="text-muted-foreground">{t('reports.subtitle')}</p>
         </div>
-        <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/reports/vat">{t('vat.open')}</Link></Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ListPdfButton kind="reports" className="w-full sm:w-auto" />
+          <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/reports/vat">{t('vat.open')}</Link></Button>
+        </div>
       </div>
 
       {!hasRecords ? (

@@ -343,7 +343,7 @@ export default function InvoiceDetailPage() {
             <Printer className="w-4 h-4 mr-2" /> {t('statement.print')}
           </Button>
           <Button variant="outline" className="flex-1 sm:flex-none" onClick={downloadPdf} disabled={pdfLoading}>
-            <Download className="w-4 h-4 mr-2" /> {pdfLoading ? t('invoices.generating') : 'PDF'}
+            <Download className="w-4 h-4 mr-2" /> {pdfLoading ? t('invoices.generating') : t('listPdf.download')}
           </Button>
           <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('common.delete')} onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
         </div>

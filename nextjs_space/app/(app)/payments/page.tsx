@@ -21,6 +21,7 @@ import { toCalendarInput, formatCalendarDate } from '@/lib/calendar-date';
 import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
 import { useI18n } from '@/components/i18n-provider';
 import { ExportMenu } from '@/components/export-menu';
+import { ListPdfButton } from '@/components/list-pdf-button';
 
 export default function PaymentsPage() {
   const { t, fill, locale, intl } = useI18n();
@@ -150,6 +151,7 @@ export default function PaymentsPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <ExportMenu dataset="payments" className="w-full sm:w-auto" />
+          <ListPdfButton kind="payments" className="w-full sm:w-auto" />
           <Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('invoices.recordPayment')}</Button>
         </div>
       </div>

@@ -55,7 +55,8 @@ export interface BusinessDocumentSpec {
   brandColor?: string | null;
   logo?: DocLogo | null;
   issuer: { name: string; lines: string[] };
-  party: { heading: string; name: string; lines: string[] };
+  /** The addressee. Left out for lists and reports, which have none. */
+  party?: { heading: string; name: string; lines: string[] } | null;
   meta: Array<{ label: string; value: string }>;
   blocks: DocBlock[];
   footer?: string;
@@ -248,7 +249,12 @@ function drawHeader(w: Writer, spec: BusinessDocumentSpec, logo: PDFImage | null
   const rightWidth = w.width * 0.4;
   const rx = w.right - rightWidth;
   let rightY = top - 22;
-  w.text(spec.title, rx, rightY, { size: 22, bold: true, align: 'right', width: rightWidth });
+  // Long titles ("TEKRARLAYAN FATURALAR") shrink to fit the column instead of
+  // running into the issuer block.
+  let titleSize = 22;
+  const title = clean(spec.title, w.fonts);
+  while (titleSize > 12 && w.fonts.bold.widthOfTextAtSize(title, titleSize) > rightWidth) titleSize -= 1;
+  w.text(spec.title, rx, rightY, { size: titleSize, bold: true, align: 'right', width: rightWidth });
   if (spec.number) {
     rightY -= 16;
     w.text(spec.number, rx, rightY, { size: 11, color: MUTED, align: 'right', width: rightWidth });
@@ -264,6 +270,7 @@ function drawHeader(w: Writer, spec: BusinessDocumentSpec, logo: PDFImage | null
   w.y -= 20;
 
   // Party block.
+  if (!spec.party) return;
   w.text(spec.party.heading, w.left, w.y, { size: 8, color: FAINT });
   w.y -= 14;
   for (const line of w.wrap(spec.party.name, 11, w.width * 0.7, true)) {
@@ -292,7 +299,9 @@ function drawTable(w: Writer, block: Extract<DocBlock, { kind: 'table' }>) {
   const line = 12;
 
   if (block.heading) {
-    w.ensure(40);
+    // Room for the heading, the column header and a first row, so a heading
+    // is never left alone at the bottom of a page.
+    w.ensure(90);
     w.text(block.heading, w.left, w.y, { size: 10, bold: true, color: MUTED });
     w.y -= 14;
   }
@@ -413,6 +422,9 @@ function fontBytes() {
   }
   return cachedFonts;
 }
+
+/** A document addressed to someone: invoices, quotes, statements. */
+export type AddressedDocumentSpec = BusinessDocumentSpec & { party: NonNullable<BusinessDocumentSpec['party']> };
 
 /** Renders a document spec to PDF bytes. */
 export async function renderBusinessDocumentPdf(spec: BusinessDocumentSpec): Promise<Uint8Array> {
