@@ -10,6 +10,7 @@ import {
   sendCalendarReminders,
   sendPaymentReminders,
 } from '@/lib/cron/jobs';
+import { sendTrialReminders } from '@/lib/cron/trial-reminders';
 
 /**
  * The daily job (Vercel Cron, see vercel.json).
@@ -62,6 +63,13 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('[cron] recurring step failed', { code: (error as { code?: string })?.code });
     report.recurring = 'failed';
+  }
+
+  try {
+    report.trialReminders = await sendTrialReminders(now);
+  } catch (error) {
+    console.error('[cron] trial reminder step failed', { code: (error as { code?: string })?.code });
+    report.trialReminders = 'failed';
   }
 
   return NextResponse.json({ ok: true, ...report });

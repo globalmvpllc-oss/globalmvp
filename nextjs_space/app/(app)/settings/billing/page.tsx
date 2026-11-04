@@ -6,7 +6,7 @@ import { getUserCompanyId } from '@/lib/auth-helpers';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, intlLocale, type Locale, type TranslationKey } from '@/lib/i18n';
 import { billingState, currentPlan, daysRemaining } from '@/lib/billing/access';
-import { isOnTrial, trialDaysRemaining, TRIAL_DAYS } from '@/lib/billing/trial';
+import { isOnTrial, trialDaysRemaining, trialDaysFor } from '@/lib/billing/trial';
 import { resolveTrialAnchor } from '@/lib/billing/trial-anchor';
 import { isBillingConfigured, isPaidPlan, isBillingInterval } from '@/lib/billing/plans';
 import { yearlySaving } from '@/lib/billing/pricing';
@@ -14,6 +14,7 @@ import { getPlanPricing } from '@/lib/billing/pricing-server';
 import { PlanSelector } from '@/components/billing-plans';
 import { formatCurrency } from '@/lib/currencies';
 import { BillingActions, CheckoutReturnNotice } from '@/components/billing-actions';
+import { quoteCurrencyForRequest } from '@/lib/billing/pricing-currency-server';
 
 /**
  * Subscription & Billing.
@@ -129,7 +130,7 @@ export default async function BillingPage({
    * getPlanPricing absorbs failures and returns no prices, and the cards then
    * render without figures rather than inventing one.
    */
-  const pricing = await getPlanPricing();
+  const pricing = await getPlanPricing(await quoteCurrencyForRequest(companyId));
   const savings = {
     pro: yearlySaving(pricing.prices.pro.month, pricing.prices.pro.year),
     business: yearlySaving(pricing.prices.business.month, pricing.prices.business.year),
@@ -191,7 +192,7 @@ export default async function BillingPage({
                 <div className="flex items-center gap-2">
                   <Badge>{t('trial.proTrial')}</Badge>
                   <span className="text-sm font-medium">
-                    {fill('trial.freeTrial', { days: TRIAL_DAYS })}
+                    {fill('trial.freeTrial', { days: trialDaysFor(trialAnchor) })}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">

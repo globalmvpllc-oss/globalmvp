@@ -43,7 +43,7 @@ export function Hero() {
               second one.
 
               This line is only true because of two constants: "3 customers" is
-              PLAN_LIMITS.free.customers (lib/billing/features.ts) and "15 days"
+              PLAN_LIMITS.free.customers (lib/billing/features.ts) and "7 days"
               is TRIAL_DAYS (lib/billing/trial.ts). If either changes, change the
               copy (EN and TR) to match — the claim must stay accurate.
 

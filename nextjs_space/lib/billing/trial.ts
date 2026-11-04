@@ -3,7 +3,8 @@ import type { Plan } from './plans';
 /**
  * The automatic Pro trial.
  *
- * A person gets Pro for 15 days to evaluate the product — once. The window runs
+ * A person gets Pro for 7 days to evaluate the product — once, no card. The
+ * window runs
  * from the *trial anchor*: the creation date of the earliest company its owner
  * has ever had, resolved by `./trial-anchor`, not the creation date of the
  * company being asked about.
@@ -33,7 +34,22 @@ import type { Plan } from './plans';
  */
 
 /** Length of the trial, in days. */
-export const TRIAL_DAYS = 15;
+export const TRIAL_DAYS = 7;
+
+/**
+ * The trial used to be 15 days. Companies whose trial anchor falls before the
+ * switch keep the 15 days they were promised; a trial already running is never
+ * cut short, and no existing company is given a new one.
+ */
+export const LEGACY_TRIAL_DAYS = 15;
+export const SEVEN_DAY_TRIAL_FROM = new Date('2026-11-06T00:00:00.000Z');
+
+/** Trial length for a given anchor. */
+export function trialDaysFor(trialAnchor: Date | string | null | undefined): number {
+  const anchored = toDate(trialAnchor);
+  if (anchored && anchored.getTime() < SEVEN_DAY_TRIAL_FROM.getTime()) return LEGACY_TRIAL_DAYS;
+  return TRIAL_DAYS;
+}
 
 const DAY_MS = 86_400_000;
 
@@ -52,7 +68,7 @@ function toDate(value: Date | string | null | undefined): Date | null {
 export function trialEndsAt(trialAnchor: Date | string | null | undefined): Date | null {
   const anchored = toDate(trialAnchor);
   if (!anchored) return null;
-  return new Date(anchored.getTime() + TRIAL_DAYS * DAY_MS);
+  return new Date(anchored.getTime() + trialDaysFor(anchored) * DAY_MS);
 }
 
 /** Whether the trial window is still open. */
@@ -109,4 +125,23 @@ export function isOnTrial(
   now: Date = new Date()
 ): boolean {
   return paidPlan === 'free' && isTrialActive(trialAnchor, now);
+}
+
+/**
+ * Which trial reminder today's daily run sends, if any — by calendar day (UTC;
+ * the job runs at 04:00 UTC, the same date in Turkey and Europe):
+ *
+ *   'soon'  — the trial ends two days from today
+ *   'ended' — the trial ends today
+ *
+ * The job runs once a day, so each reminder matches exactly one run; it also
+ * records each send and checks first, so a re-run never repeats one.
+ */
+export function trialReminderKind(endsAt: Date | null, now: Date = new Date()): 'soon' | 'ended' | null {
+  if (!endsAt) return null;
+  const day = (d: Date) => Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / DAY_MS);
+  const diff = day(endsAt) - day(now);
+  if (diff === 2) return 'soon';
+  if (diff === 0) return 'ended';
+  return null;
 }

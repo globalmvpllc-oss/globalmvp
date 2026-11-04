@@ -192,6 +192,13 @@ export function PlanSelector({
     return `${limit.toLocaleString(intl)}${monthly ? ` ${t('billing.perMonthShort')}` : ''}`;
   };
 
+  // Turkish prices come from Polar in TRY and are shown VAT included; the
+  // yearly price is ten monthly payments, i.e. two months free.
+  const shownCurrency =
+    (Object.values(prices).flatMap((byInterval) => Object.values(byInterval ?? {})) as Array<{ currency: string } | undefined>)
+      .find((p) => p?.currency)?.currency ?? 'USD';
+  const isTry = shownCurrency === 'TRY';
+
   return (
     <div className="space-y-6">
       {/* Interval toggle */}
@@ -215,6 +222,11 @@ export function PlanSelector({
           ))}
         </div>
       </div>
+      {isTry ? (
+        <p className="text-center text-base font-medium text-foreground">
+          {t('billing.vatIncluded')} · {t('billing.twoMonthsFree')}
+        </p>
+      ) : null}
 
       {/* Plan cards */}
       <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
@@ -253,7 +265,7 @@ export function PlanSelector({
                 </div>
 
                 {plan === 'free' ? (
-                  <p className="font-mono text-2xl font-bold">{formatCurrency(0, 'USD')}</p>
+                  <p className="font-mono text-2xl font-bold">{formatCurrency(0, shownCurrency)}</p>
                 ) : price ? (
                   <div className="space-y-1">
                     <p className="font-mono text-2xl font-bold">
@@ -262,6 +274,9 @@ export function PlanSelector({
                         {t(interval === 'year' ? 'billing.perYear' : 'billing.perMonth')}
                       </span>
                     </p>
+                    {price.currency === 'TRY' ? (
+                      <p className="text-sm text-muted-foreground">{t('billing.vatIncluded')}</p>
+                    ) : null}
 
                     {interval === 'year' && saving ? (
                       <div className="space-y-0.5 text-xs text-muted-foreground">
@@ -281,14 +296,18 @@ export function PlanSelector({
                           })}
                         </p>
                         <Badge variant="secondary" className="mt-1">
-                          {fill('billing.savePercent', { percent: saving.percent })}
+                          {price.currency === 'TRY'
+                            ? t('billing.twoMonthsFree')
+                            : fill('billing.savePercent', { percent: saving.percent })}
                         </Badge>
                       </div>
                     ) : null}
 
                     {interval === 'month' && saving ? (
                       <p className="text-xs text-muted-foreground">
-                        {fill('billing.yearlyExplainer', { percent: saving.percent })}
+                        {price.currency === 'TRY'
+                          ? t('billing.twoMonthsFree')
+                          : fill('billing.yearlyExplainer', { percent: saving.percent })}
                       </p>
                     ) : null}
                   </div>

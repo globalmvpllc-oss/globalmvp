@@ -15,29 +15,39 @@ import type { PlanPrice, PlanPrices, PlanPricing } from './pricing';
 const EMPTY: PlanPrices = { pro: {}, business: {} };
 
 /** Picks the fixed recurring price off a Polar product. */
-function readPrice(product: { prices?: Array<any> } | null): PlanPrice | null {
+/**
+ * The product's fixed price in one currency, or null.
+ *
+ * A product can carry a price per currency (Polar multi-currency: USD plus
+ * TRY for Turkey). Picking "the first fixed price" would quote a US visitor
+ * in lira the day a TRY price is added, so the currency is always matched.
+ */
+export function readPrice(product: { prices?: Array<any> } | null, currency: string = 'USD'): PlanPrice | null {
   if (!product?.prices?.length) return null;
+  const wanted = currency.toLowerCase();
 
   const fixed = product.prices.find(
-    (price) => price?.amountType === 'fixed' && !price?.isArchived && typeof price?.priceAmount === 'number'
+    (price) =>
+      price?.amountType === 'fixed' &&
+      !price?.isArchived &&
+      typeof price?.priceAmount === 'number' &&
+      String(price?.priceCurrency ?? 'usd').toLowerCase() === wanted
   );
   if (!fixed) return null;
 
   return {
     // Polar reports money in minor units, matching the webhook mapping.
     amount: fixed.priceAmount / 100,
-    currency: typeof fixed.priceCurrency === 'string' ? fixed.priceCurrency.toUpperCase() : 'USD',
+    currency: wanted.toUpperCase(),
   };
 }
 
 /**
- * Loads every configured plan price.
- *
- * Failures are swallowed deliberately: a pricing panel is not worth taking the
- * billing page down for, and the caller renders the plans without figures when
- * nothing came back.
+ * Plan prices in the preferred currency. Turkish lira is used only when every
+ * plan has a TRY price in Polar; otherwise everyone sees the USD prices, so a
+ * page never mixes currencies and nothing breaks before the TRY prices exist.
  */
-export async function getPlanPricing(): Promise<PlanPricing> {
+export async function getPlanPricing(preferred: 'USD' | 'TRY' = 'USD'): Promise<PlanPricing> {
   let polar: Polar;
   try {
     polar = getPolarClient();
@@ -47,21 +57,30 @@ export async function getPlanPricing(): Promise<PlanPricing> {
   }
 
   const prices: PlanPrices = { pro: {}, business: {} };
+  const tryPrices: PlanPrices = { pro: {}, business: {} };
   let available = false;
+  let tryComplete = preferred === 'TRY';
 
   await Promise.all(
     PAID_PLANS.flatMap((plan) =>
       BILLING_INTERVALS.map(async (interval) => {
         const productId = priceIdFor(plan, interval);
-        if (!productId) return;
+        if (!productId) {
+          tryComplete = false;
+          return;
+        }
         try {
           const product = await polar.products.get({ id: productId });
-          const price = readPrice(product as { prices?: Array<any> });
+          const price = readPrice(product as { prices?: Array<any> }, 'USD');
           if (price) {
             prices[plan][interval] = price;
             available = true;
           }
+          const lira = readPrice(product as { prices?: Array<any> }, 'TRY');
+          if (lira) tryPrices[plan][interval] = lira;
+          else tryComplete = false;
         } catch (error) {
+          tryComplete = false;
           // The real Polar reason is logged (no secret can travel in it) so a
           // production "no prices" is diagnosable — a sandbox/production server
           // mismatch or a product id from the other environment shows up here.
@@ -75,5 +94,6 @@ export async function getPlanPricing(): Promise<PlanPricing> {
     )
   );
 
+  if (tryComplete) return { prices: tryPrices, available: true };
   return { prices, available };
 }

@@ -5,6 +5,7 @@ import { PlanSelector } from '@/components/billing-plans';
 import { Container } from '@/components/marketing/section';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
+import { quoteCurrencyForRequest } from '@/lib/billing/pricing-currency-server';
 
 /**
  * Prices and the plan comparison, on the public pages.
@@ -41,7 +42,8 @@ export async function PublicPricing({ id = 'pricing' }: { id?: string }) {
   const locale = getServerLocale();
   const t = (key: TranslationKey) => translate(locale, key);
 
-  const pricing = await getPlanPricing();
+  // Turkey (visitor or registered company) is quoted in lira, everyone else in USD.
+  const pricing = await getPlanPricing(await quoteCurrencyForRequest());
   const savings = {
     pro: yearlySaving(pricing.prices.pro.month, pricing.prices.pro.year),
     business: yearlySaving(pricing.prices.business.month, pricing.prices.business.year),

@@ -5,6 +5,9 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { getPolarClient, getAppBaseUrl, BillingNotConfiguredError, describePolarError } from '@/lib/billing/polar';
 import { isPaidPlan, isBillingInterval, priceIdFor } from '@/lib/billing/plans';
+import { quoteCurrencyForRequest, requestIp } from '@/lib/billing/pricing-currency-server';
+import { readPrice } from '@/lib/billing/pricing-server';
+import { polarCurrencyCode } from '@/lib/billing/pricing-region';
 
 /**
  * Starts a Polar checkout for the signed-in user's company.
@@ -44,8 +47,20 @@ export async function POST(request: Request) {
     }
 
     const polar = getPolarClient();
+
+    // Turkey is charged in lira, at the VAT-inclusive TRY price set on the
+    // product in Polar — but only if that price exists; otherwise Polar's own
+    // default (USD) applies, exactly as before.
+    let currency: 'try' | undefined;
+    if ((await quoteCurrencyForRequest(companyId)) === 'TRY') {
+      const product = await polar.products.get({ id: productId }).catch(() => null);
+      if (readPrice(product as { prices?: Array<any> } | null, 'TRY')) currency = polarCurrencyCode('TRY') as 'try';
+    }
+
     const checkout = await polar.checkouts.create({
       products: [productId],
+      ...(currency ? { currency } : {}),
+      customerIpAddress: requestIp(),
       // {CHECKOUT_ID} is filled in by Polar. The billing page uses it to ask
       // /api/billing/checkout/status whether the payment really succeeded
       // before reporting a purchase conversion.

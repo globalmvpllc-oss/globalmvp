@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   TRIAL_DAYS,
+  LEGACY_TRIAL_DAYS,
   trialEndsAt,
   isTrialActive,
   trialDaysRemaining,
@@ -25,10 +26,13 @@ const DAY = 86_400_000;
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * DAY);
 
 describe('trial window', () => {
-  it('ends exactly 15 days after the company was created', () => {
+  // These anchors (June 2026) predate the switch to a 7-day trial, so they keep
+  // the 15 days they were given; the 7-day rule is pinned in accountant-and-pricing tests.
+  it('ends exactly 15 days after the company was created (before the 7-day switch)', () => {
     const created = new Date('2026-06-01T00:00:00.000Z');
-    expect(trialEndsAt(created)).toEqual(new Date(created.getTime() + TRIAL_DAYS * DAY));
-    expect(TRIAL_DAYS).toBe(15);
+    expect(trialEndsAt(created)).toEqual(new Date(created.getTime() + LEGACY_TRIAL_DAYS * DAY));
+    expect(LEGACY_TRIAL_DAYS).toBe(15);
+    expect(TRIAL_DAYS).toBe(7);
   });
 
   it('is active inside the window', () => {
@@ -115,8 +119,8 @@ describe('the trial cannot be extended by client input', () => {
   it('ties the end date to createdAt alone, with a fixed window length', () => {
     const older = daysAgo(20);
     const newer = daysAgo(2);
-    expect(trialEndsAt(older)!.getTime()).toBe(older.getTime() + TRIAL_DAYS * DAY);
-    expect(trialEndsAt(newer)!.getTime()).toBe(newer.getTime() + TRIAL_DAYS * DAY);
+    expect(trialEndsAt(older)!.getTime()).toBe(older.getTime() + LEGACY_TRIAL_DAYS * DAY);
+    expect(trialEndsAt(newer)!.getTime()).toBe(newer.getTime() + LEGACY_TRIAL_DAYS * DAY);
     // A company created earlier is expired; a later one is still on trial. Only
     // createdAt moves the boundary — there is no separate lever to pull.
     expect(isTrialActive(older, NOW)).toBe(false);
