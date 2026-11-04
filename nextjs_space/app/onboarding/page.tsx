@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart3, Building2, Globe, Coins, Briefcase, MapPin, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
-import { readErrorMessage, NETWORK_ERROR_MESSAGE } from '@/lib/api-feedback';
+import { readErrorMessage, networkErrorMessage } from '@/lib/api-feedback';
+import { useI18n } from '@/components/i18n-provider';
+import type { TranslationKey } from '@/lib/i18n';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 import { writeActiveCompanyCookie } from '@/lib/active-company';
 import { track } from '@/lib/tracking/events';
@@ -22,11 +24,21 @@ import { track } from '@/lib/tracking/events';
  */
 export const dynamic = 'force-dynamic';
 
-const BUSINESS_TYPES = [
-  'Freelancer', 'Sole Proprietor', 'LLC', 'Corporation', 'Partnership', 'Agency', 'E-commerce', 'Consultant', 'Other',
+/** Stored values stay English; only the label follows the language. */
+const BUSINESS_TYPES: Array<{ value: string; labelKey: TranslationKey }> = [
+  { value: 'Freelancer', labelKey: 'onboarding.type.freelancer' },
+  { value: 'Sole Proprietor', labelKey: 'onboarding.type.soleProprietor' },
+  { value: 'LLC', labelKey: 'onboarding.type.llc' },
+  { value: 'Corporation', labelKey: 'onboarding.type.corporation' },
+  { value: 'Partnership', labelKey: 'onboarding.type.partnership' },
+  { value: 'Agency', labelKey: 'onboarding.type.agency' },
+  { value: 'E-commerce', labelKey: 'onboarding.type.ecommerce' },
+  { value: 'Consultant', labelKey: 'onboarding.type.consultant' },
+  { value: 'Other', labelKey: 'onboarding.type.other' },
 ];
 
 export default function OnboardingPage() {
+  const { t, locale } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -138,9 +150,9 @@ export default function OnboardingPage() {
       // Previously there was no else branch and the catch was a noop, so a
       // rejected request left the user on this screen with no message and no
       // way into the product — with nothing on screen to explain why.
-      setError(await readErrorMessage(res));
+      setError(await readErrorMessage(res, locale));
     } catch {
-      setError(NETWORK_ERROR_MESSAGE);
+      setError(networkErrorMessage(locale));
     } finally {
       // Runs on the failure paths; the success path has already returned.
       setLoading(false);
@@ -148,11 +160,11 @@ export default function OnboardingPage() {
   };
 
   const steps = [
-    { icon: Building2, title: 'Business name', desc: 'What’s your business called?' },
-    { icon: Globe, title: 'Country', desc: 'Where is your business based?' },
-    { icon: Coins, title: 'Currency', desc: 'Your primary currency' },
-    { icon: Briefcase, title: 'Business type', desc: 'What kind of business?' },
-    { icon: MapPin, title: 'Details', desc: 'Address and tax info (optional)' },
+    { icon: Building2, title: t('onboarding.businessName'), desc: t('onboarding.businessNameDesc') },
+    { icon: Globe, title: t('onboarding.country'), desc: t('onboarding.countryDesc') },
+    { icon: Coins, title: t('onboarding.currency'), desc: t('onboarding.currencyDesc') },
+    { icon: Briefcase, title: t('onboarding.businessType'), desc: t('onboarding.businessTypeDesc') },
+    { icon: MapPin, title: t('onboarding.details'), desc: t('onboarding.detailsDesc') },
   ];
 
   return (
@@ -183,13 +195,13 @@ export default function OnboardingPage() {
           <CardContent>
             {step === 1 && (
               <div className="space-y-2">
-                <Label>Business name</Label>
-                <Input placeholder="Acme Inc" value={form.name} onChange={(e: any) => update('name', e.target.value)} autoFocus />
+                <Label>{t('onboarding.businessName')}</Label>
+                <Input placeholder={t('onboarding.namePlaceholder')} value={form.name} onChange={(e: any) => update('name', e.target.value)} autoFocus />
               </div>
             )}
             {step === 2 && (
               <div className="space-y-2">
-                <Label>Country</Label>
+                <Label>{t('onboarding.country')}</Label>
                 <Select
                   value={form.country}
                   onValueChange={(v: string) => {
@@ -203,11 +215,12 @@ export default function OnboardingPage() {
                     {COUNTRIES.map((c: any) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {form.country === 'TR' && <p className="text-sm text-muted-foreground">{t('onboarding.trHint')}</p>}
               </div>
             )}
             {step === 3 && (
               <div className="space-y-2">
-                <Label>Default currency</Label>
+                <Label>{t('onboarding.currency')}</Label>
                 <Select value={form.defaultCurrency} onValueChange={(v: string) => update('defaultCurrency', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -218,11 +231,11 @@ export default function OnboardingPage() {
             )}
             {step === 4 && (
               <div className="space-y-2">
-                <Label>Business type</Label>
+                <Label>{t('onboarding.businessType')}</Label>
                 <Select value={form.businessType} onValueChange={(v: string) => update('businessType', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {BUSINESS_TYPES.map((t: any) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    {BUSINESS_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{t(type.labelKey)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -231,27 +244,27 @@ export default function OnboardingPage() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Address</Label>
-                    <Input placeholder="Street address" value={form.address} onChange={(e: any) => update('address', e.target.value)} />
+                    <Label>{t('onboarding.address')}</Label>
+                    <Input placeholder={t('onboarding.addressPlaceholder')} value={form.address} onChange={(e: any) => update('address', e.target.value)} />
                   </div>
                   <div className="space-y-1">
-                    <Label>City</Label>
-                    <Input placeholder="City" value={form.city} onChange={(e: any) => update('city', e.target.value)} />
+                    <Label>{t('onboarding.city')}</Label>
+                    <Input placeholder={t('onboarding.city')} value={form.city} onChange={(e: any) => update('city', e.target.value)} />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label>Postal code</Label>
-                  <Input placeholder="Postal code" value={form.postalCode} onChange={(e: any) => update('postalCode', e.target.value)} />
+                  <Label>{t('onboarding.postalCode')}</Label>
+                  <Input placeholder={t('onboarding.postalCode')} value={form.postalCode} onChange={(e: any) => update('postalCode', e.target.value)} />
                 </div>
                 {form.country === 'TR' && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label>Tax number</Label>
-                      <Input placeholder="Tax number" value={form.taxNumber} onChange={(e: any) => update('taxNumber', e.target.value)} />
+                      <Label>{t('onboarding.taxNumber')}</Label>
+                      <Input inputMode="numeric" placeholder={t('onboarding.taxNumber')} value={form.taxNumber} onChange={(e: any) => update('taxNumber', e.target.value)} />
                     </div>
                     <div className="space-y-1">
-                      <Label>Tax office</Label>
-                      <Input placeholder="Tax office" value={form.taxOffice} onChange={(e: any) => update('taxOffice', e.target.value)} />
+                      <Label>{t('onboarding.taxOffice')}</Label>
+                      <Input placeholder={t('onboarding.taxOffice')} value={form.taxOffice} onChange={(e: any) => update('taxOffice', e.target.value)} />
                     </div>
                   </div>
                 )}
@@ -264,15 +277,15 @@ export default function OnboardingPage() {
             ) : null}
             <div className="flex justify-between mt-6">
               {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(step - 1)}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+                <Button variant="outline" onClick={() => setStep(step - 1)}><ChevronLeft className="w-4 h-4 mr-1" /> {t('onboarding.back')}</Button>
               ) : <div />}
               {step < 5 ? (
                 <Button onClick={() => setStep(step + 1)} disabled={step === 1 && !form.name.trim()}>
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                  {t('onboarding.next')} <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               ) : (
                 <Button onClick={handleFinish} disabled={loading || !form.name.trim()}>
-                  <Check className="w-4 h-4 mr-1" /> {loading ? 'Setting up...' : 'Finish setup'}
+                  <Check className="w-4 h-4 mr-1" /> {loading ? t('onboarding.finishing') : t('onboarding.finish')}
                 </Button>
               )}
             </div>

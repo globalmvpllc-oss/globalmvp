@@ -6,9 +6,9 @@ import type { CurrencyStatement, MovementKind } from '@/lib/statement-ledger';
  * The printable account statement.
  *
  * Deliberately the same shape as an invoice document: one self-contained HTML
- * string, every interpolated value already escaped, handed to the existing
- * `/api/generate-pdf` with the existing options. There is no second PDF path
- * and no second escaping convention — `esc`, `safeBrandColor` and `safeLogoSrc`
+ * string, every interpolated value already escaped, opened in the browser's
+ * print view. (The downloadable PDF is built on the server by lib/pdf.) There
+ * is no second escaping convention — `esc`, `safeBrandColor` and `safeLogoSrc`
  * are the ones the invoice templates use, so a customer name carrying a `<` is
  * as safe here as it is there.
  *

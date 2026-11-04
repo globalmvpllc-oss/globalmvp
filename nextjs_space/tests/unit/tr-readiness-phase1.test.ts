@@ -373,7 +373,7 @@ describe('send invoice by email (route contract)', () => {
 
   it('never sends without the PDF and records the send', () => {
     expect(route).toContain("code: 'PDF_FAILED'");
-    expect(route.indexOf('renderPdf(')).toBeLessThan(route.indexOf('sendMail('));
+    expect(route.indexOf('renderInvoicePdf(')).toBeLessThan(route.indexOf('sendMail('));
     expect(route).toContain("action: 'invoice.emailed'");
     expect(route).toContain("status: 'DRAFT' },\n        data: { status: 'SENT' }");
   });

@@ -166,7 +166,7 @@ describe('Multi-Tenant Security (Section 1)', () => {
       ['GET', '/api/dashboard'], ['GET', '/api/invoices'], ['GET', '/api/customers'],
       ['GET', '/api/payments'], ['GET', '/api/income'], ['GET', '/api/expenses'],
       ['GET', '/api/categories'], ['GET', '/api/vendors'],
-      ['POST', '/api/generate-pdf'], ['POST', '/api/generate-pdf/status'], ['POST', '/api/upload/presigned'],
+      ['GET', '/api/invoices/any-id/pdf'], ['POST', '/api/upload/presigned'],
     ];
     for (const [method, path] of endpoints) {
       it(`${method} ${path} returns 403`, async () => {
@@ -183,7 +183,7 @@ describe('Multi-Tenant Security (Section 1)', () => {
 describe('Authentication (Section 2)', () => {
   const unauthEndpoints: [string, string][] = [
     ['GET', '/api/dashboard'], ['GET', '/api/invoices'], ['GET', '/api/customers'],
-    ['GET', '/api/payments'], ['POST', '/api/generate-pdf'], ['POST', '/api/generate-pdf/status'],
+    ['GET', '/api/payments'], ['GET', '/api/invoices/any-id/pdf'],
     ['POST', '/api/upload/presigned'], ['GET', '/api/income'], ['GET', '/api/expenses'],
     ['GET', '/api/categories'], ['GET', '/api/vendors'],
   ];
@@ -458,24 +458,26 @@ describe('Invoice Number Concurrency (Section 8)', () => {
 // Section 9: PDF Security
 // ====================================================================
 describe('PDF Security (Section 9)', () => {
+  // PDFs are built on the server from the stored invoice (lib/pdf); nothing
+  // the browser sends is rendered.
   it('unauthenticated PDF → 401', async () => {
-    const res = await api('/api/generate-pdf', { method: 'POST', body: JSON.stringify({ html_content: '<p>test</p>' }) });
-    expect(res.status).toBe(401);
-  });
-  it('unauthenticated PDF status → 401', async () => {
-    const res = await api('/api/generate-pdf/status', { method: 'POST', body: JSON.stringify({ request_id: 'fake' }) });
+    const res = await api(`/api/invoices/${companyAInvoiceId}/pdf`);
     expect(res.status).toBe(401);
   });
   it('no-company PDF → 403', async () => {
-    const res = await api('/api/generate-pdf', { method: 'POST', cookies: cookiesNoCompany, body: JSON.stringify({ html_content: '<p>test</p>' }) });
+    const res = await api(`/api/invoices/${companyAInvoiceId}/pdf`, { cookies: cookiesNoCompany });
     expect(res.status).toBe(403);
   });
-  it('valid user can request PDF', async () => {
-    const res = await api('/api/generate-pdf', { method: 'POST', cookies: cookiesA, body: JSON.stringify({ html_content: '<p>Valid PDF test</p>' }) });
-    expect([200, 201]).toContain(res.status);
-    const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.request_id).toBeTruthy();
+  it('another company cannot download the PDF → 404', async () => {
+    const res = await api(`/api/invoices/${companyAInvoiceId}/pdf`, { cookies: cookiesB });
+    expect(res.status).toBe(404);
+  });
+  it('valid user gets a PDF', async () => {
+    const res = await api(`/api/invoices/${companyAInvoiceId}/pdf`, { cookies: cookiesA });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-');
   });
 });
 

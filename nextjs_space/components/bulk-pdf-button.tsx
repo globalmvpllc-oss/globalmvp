@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button';
 import { FileArchive } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
-import { generateInvoiceHtml } from '@/lib/invoice-html';
-import { resolveStoredFileUrl } from '@/lib/company-identity';
 import { generateBulkPdfZip, downloadZip, MAX_BULK_PDFS } from '@/lib/bulk-pdf';
 import type { TranslationKey } from '@/lib/i18n';
 
@@ -58,14 +56,11 @@ export function BulkPdfButton({
         toast.message(fill('bulk.maxPerBatch', { max: MAX_BULK_PDFS }));
       }
 
-      // Resolved once for the whole batch rather than per invoice: the logo is
-      // the same on every page and fetching it repeatedly is wasted work.
-      const logoDataUrl = await resolveStoredFileUrl(company?.logoUrl).catch(() => null);
-
+      // Each PDF is built on the server from the stored invoice.
       const chosen = invoices.filter((invoice: any) => selectedIds.includes(invoice?.id));
       const items = chosen.map((invoice: any) => ({
         name: invoice?.invoiceNumber ?? 'invoice',
-        html: generateInvoiceHtml(invoice, company, logoDataUrl),
+        id: String(invoice?.id ?? ''),
       }));
 
       const result = await generateBulkPdfZip(items, {

@@ -14,7 +14,7 @@ import { formatCalendarDate } from '@/lib/calendar-date';
 import { useCompany } from '@/hooks/use-company';
 import { useI18n } from '@/components/i18n-provider';
 import { resolveStoredFileUrl } from '@/lib/company-identity';
-import { generateSinglePdf } from '@/lib/bulk-pdf';
+import { fetchPdf, downloadBytes } from '@/lib/bulk-pdf';
 import { generateStatementHtml } from '@/lib/statement-html';
 import type { CurrencyStatement, MovementKind, StatementRow } from '@/lib/statement-ledger';
 import type { Reconciliation } from '@/lib/statement-sources';
@@ -219,37 +219,25 @@ export function AccountStatement({
     if (win.document.readyState === 'complete') win.print();
   };
 
+  /**
+   * The statement as a PDF, built on the server from the same ledger this
+   * screen shows (`?format=pdf` on the statement endpoint), for the same
+   * date range. Printing stays available as its own button.
+   */
   const downloadPdf = async () => {
     setPdfBusy(true);
     try {
-      const html = await buildHtml();
-      if (!html) return;
-
-      // Exactly the flow the invoice download and the bulk ZIP use — same
-      // endpoint, same options, same polling.
-      const outcome = await generateSinglePdf(html);
-
+      if (!data) return;
+      const query = new URLSearchParams({ format: 'pdf' });
+      if (applied.from) query.set('from', applied.from);
+      if (applied.to) query.set('to', applied.to);
+      const outcome = await fetchPdf(`${endpoint}?${query}`);
       if ('bytes' in outcome) {
-        const blob = new Blob([outcome.bytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `${fileNameBase}.pdf`;
-        anchor.click();
-        URL.revokeObjectURL(url);
+        downloadBytes(outcome.bytes, `${fileNameBase}.pdf`);
         toast.success(t('statement.pdfDownloaded'));
         return;
       }
-
-      if (outcome.reason === 'not-configured') {
-        toast.message(t('statement.pdfOpeningPrint'), {
-          description: t('statement.pdfNotConfigured'),
-        });
-        await printStatement();
-        return;
-      }
-
-      toast.error(t('statement.pdfFailed'));
+      toast.error(outcome.reason === 'limit-reached' ? t('pdf.limitReached') : t('statement.pdfFailed'));
     } finally {
       setPdfBusy(false);
     }

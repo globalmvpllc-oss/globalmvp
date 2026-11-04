@@ -4,33 +4,24 @@ import { createZip, safeEntryName, archiveName, type ZipEntry } from '@/lib/zip'
  * Turning several invoices into one ZIP.
  *
  * The per-invoice work is exactly what the single download does: the same
- * `generateInvoiceHtml` output, posted to the same `/api/generate-pdf`, polled
- * at the same `/api/generate-pdf/status`. That is deliberate — a bulk file that
- * differs from the one-at-a-time file would be a second PDF format to maintain,
- * and the two would drift.
+ * server-built PDF from `/api/invoices/[id]/pdf`. A bulk file that differed
+ * from the one-at-a-time file would be a second PDF format to maintain.
  *
- * Sequential rather than parallel. The generator is an external service and the
- * monthly PDF allowance is enforced per request; firing twenty at once would
- * hammer the first and make the second fail in a confusing order.
+ * Sequential rather than parallel: the monthly PDF allowance is enforced per
+ * request, and twenty at once would make it fail in a confusing order.
  */
 
-/** Same options the single download sends, so the output matches page for page. */
-export const PDF_OPTIONS = {
-  format: 'A4',
-  margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
-} as const;
+/** Page settings of every generated document (see lib/pdf/page.ts). */
+export { PDF_OPTIONS } from '@/lib/pdf/page';
 
 /** Upper bound on one batch. Beyond this the wait stops being reasonable. */
 export const MAX_BULK_PDFS = 25;
 
-/** How long to wait for one PDF before giving up on it. */
-const POLL_INTERVAL_MS = 1500;
-const MAX_ATTEMPTS = 40;
-
 export interface BulkPdfItem {
   /** Used for the file name inside the archive. */
   name: string;
-  html: string;
+  /** The invoice id; the server renders it. */
+  id: string;
 }
 
 export type BulkFailureReason =
@@ -49,80 +40,54 @@ export interface BulkPdfResult {
   stoppedBecause: BulkFailureReason | null;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 /**
- * Produces one PDF, or a reason it could not be produced.
+ * Downloads one server-built PDF, or says why it could not.
  *
- * Exported so anything else that needs a single PDF — the account statement —
- * goes through this exact create/poll flow rather than growing a second one.
- * The bulk run below is this function in a loop.
+ * Exported so anything else that needs a single PDF — the invoice page, the
+ * account statement — uses the same request and the same failure reasons.
+ * 402 means the plan's monthly PDF allowance is spent.
  */
-export async function generateSinglePdf(
-  html: string,
+export async function fetchPdf(
+  url: string,
   signal?: AbortSignal
 ): Promise<{ bytes: Uint8Array } | { reason: BulkFailureReason }> {
-  let createRes: Response;
+  let res: Response;
   try {
-    createRes = await fetch('/api/generate-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html_content: html, pdf_options: PDF_OPTIONS }),
-      signal,
-    });
+    res = await fetch(url, { signal });
   } catch {
     return { reason: 'network' };
   }
-
-  // 503: no PDF service configured. 402: the plan's monthly PDF allowance is
-  // spent. Neither is worth retrying for the remaining invoices.
-  if (createRes.status === 503) return { reason: 'not-configured' };
-  if (createRes.status === 402) return { reason: 'limit-reached' };
-  if (!createRes.ok) return { reason: 'rejected' };
-
-  const created = await createRes.json().catch(() => null);
-  if (!created?.success || !created?.token) return { reason: 'rejected' };
-
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    if (signal?.aborted) return { reason: 'network' };
-    await sleep(POLL_INTERVAL_MS);
-
-    let statusRes: Response;
-    try {
-      statusRes = await fetch('/api/generate-pdf/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: created.token }),
-        signal,
-      });
-    } catch {
-      return { reason: 'network' };
-    }
-
-    const status = await statusRes.json().catch(() => null);
-    if (status?.status === 'SUCCESS' && status?.pdf_base64) {
-      return { bytes: base64ToBytes(status.pdf_base64) };
-    }
-    if (status?.status === 'FAILED') return { reason: 'rejected' };
+  if (res.status === 402) return { reason: 'limit-reached' };
+  if (!res.ok) return { reason: 'rejected' };
+  try {
+    return { bytes: new Uint8Array(await res.arrayBuffer()) };
+  } catch {
+    return { reason: 'network' };
   }
+}
 
-  return { reason: 'timeout' };
+/** The PDF of one invoice. */
+export function fetchInvoicePdf(id: string, signal?: AbortSignal) {
+  return fetchPdf(`/api/invoices/${encodeURIComponent(id)}/pdf`, signal);
+}
+
+/** Saves bytes as a file in the browser. */
+export function downloadBytes(bytes: Uint8Array, fileName: string, type = 'application/pdf') {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 /**
  * Generates PDFs for the given invoices and packs them into one archive.
  *
  * A single bad invoice does not sink the batch: it is recorded and the run
- * continues. Two conditions do stop it, because continuing would only repeat
- * the same failure — the PDF service being unconfigured, and the monthly
- * allowance running out.
+ * continues. Running out of the monthly allowance stops it, because
+ * continuing would only repeat the same failure.
  */
 export async function generateBulkPdfZip(
   items: BulkPdfItem[],
@@ -141,7 +106,7 @@ export async function generateBulkPdfZip(
 
   for (let index = 0; index < batch.length; index++) {
     const item = batch[index];
-    const outcome = await generateSinglePdf(item.html, options.signal);
+    const outcome = await fetchInvoicePdf(item.id, options.signal);
 
     if ('bytes' in outcome) {
       entries.push({

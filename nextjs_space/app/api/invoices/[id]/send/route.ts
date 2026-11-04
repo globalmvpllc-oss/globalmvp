@@ -7,8 +7,8 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { enforcePlanLimit } from '@/lib/billing/limits';
 import { checkRateLimit } from '@/lib/rate-limit';
-import { renderInvoiceHtml } from '@/lib/invoice-templates';
-import { renderPdf, isPdfServiceConfigured } from '@/lib/pdf-service';
+import { renderInvoicePdf, invoicePdfFileName } from '@/lib/pdf/invoice-pdf';
+import { loadDocumentCompany } from '@/lib/pdf/response';
 import { sendMail, isMailConfigured } from '@/lib/email/mailer';
 import { invoiceEmail } from '@/lib/email/templates';
 import { documentLocaleFor } from '@/lib/tr-tax';
@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const invoice = await prisma.invoice.findFirst({
       where: { id: params.id, companyId },
-      include: { items: true, customer: true, company: true },
+      include: { items: true, customer: true },
     });
     if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -52,7 +52,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         { status: 400 }
       );
     }
-    if (!isMailConfigured() || !isPdfServiceConfigured()) {
+    if (!isMailConfigured()) {
       return NextResponse.json(
         { error: 'Email sending is not configured.', code: 'NOT_CONFIGURED' },
         { status: 503 }
@@ -71,12 +71,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const denied = await enforcePlanLimit(companyId, 'invoicePdfPerMonth');
     if (denied) return denied;
 
-    const company = invoice.company;
-    // Only an inline image logo is embedded; a legacy storage key is skipped
-    // rather than fetched, and the invoice renders without it.
-    const logo = typeof company.logoUrl === 'string' && company.logoUrl.startsWith('data:') ? company.logoUrl : null;
-    const html = renderInvoiceHtml(invoice, company, logo);
-    const pdf = await renderPdf(html);
+    const company = await loadDocumentCompany(companyId);
+    if (!company) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    // Built here by the in-house PDF engine; no external service.
+    let pdf: Uint8Array | null = null;
+    try {
+      pdf = await renderInvoicePdf(invoice, company);
+    } catch (pdfError) {
+      console.error('[invoices:send] pdf failed', { name: (pdfError as { name?: string })?.name });
+    }
     if (!pdf) {
       return NextResponse.json(
         { error: 'The PDF could not be prepared, so nothing was sent.', code: 'PDF_FAILED' },
@@ -99,7 +102,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       ...email,
       replyTo: company.email,
       senderName: company.name,
-      attachments: [{ filename: `${invoice.invoiceNumber.replace(/[^\w.-]+/g, '_')}.pdf`, content: pdf }],
+      attachments: [{ filename: invoicePdfFileName(invoice.invoiceNumber), content: Buffer.from(pdf) }],
     });
     if (!result.ok) {
       return NextResponse.json(

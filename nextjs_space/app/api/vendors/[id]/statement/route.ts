@@ -6,6 +6,10 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarRange } from '@/lib/calendar-range';
 import { buildStatement, STATEMENT_MAX_ROWS } from '@/lib/statement-ledger';
+import { enforcePlanLimit } from '@/lib/billing/limits';
+import { renderStatementPdf } from '@/lib/pdf/statement-pdf';
+import { loadDocumentCompany, pdfResponse } from '@/lib/pdf/response';
+import { getServerLocale } from '@/lib/i18n/server';
 import { vendorMovements } from '@/lib/statement-sources';
 
 /**
@@ -49,6 +53,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         address: true,
         country: true,
         taxId: true,
+        taxOffice: true,
       },
     });
     if (!vendor) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -111,6 +116,23 @@ export async function GET(request: Request, { params }: { params: { id: string }
       defaultCurrency: company?.defaultCurrency ?? 'USD',
       window: range,
     });
+
+    // ?format=pdf: the same statement as a PDF, built here on the server.
+    if (searchParams.get('format') === 'pdf') {
+      const denied = await enforcePlanLimit(companyId, 'invoicePdfPerMonth');
+      if (denied) return denied;
+      const documentCompany = await loadDocumentCompany(companyId);
+      const bytes = await renderStatementPdf({
+        locale: getServerLocale(),
+        party: vendor,
+        company: documentCompany,
+        sections: statement.currencies
+          .map((currency) => statement.byCurrency[currency])
+          .filter(Boolean),
+        range: { from: searchParams.get('from'), to: searchParams.get('to') },
+      });
+      return pdfResponse(bytes, `statement-${vendor.name}.pdf`);
+    }
 
     return NextResponse.json({
       party: {

@@ -1515,6 +1515,32 @@ export const en = {
   'landing.features.bankingTitle': 'Bank statement import and matching',
   'landing.features.bankingBody': 'Upload your bank statement file and match each line to an invoice, payment or expense, with suggestions ready for you.',
 
+  // --- Aşama 1.5: PDF ve kayıt ekranı ---
+  'pdf.page': 'Page {page} of {total}',
+  'pdf.paid': 'Paid',
+  'pdf.balanceDue': 'Balance due',
+  'pdf.limitReached': 'Your plan\'s monthly PDF allowance is used up.',
+  'onboarding.namePlaceholder': 'Acme Inc',
+  'onboarding.address': 'Address',
+  'onboarding.addressPlaceholder': 'Street address',
+  'onboarding.city': 'City',
+  'onboarding.postalCode': 'Postal code',
+  'onboarding.taxNumber': 'Tax number',
+  'onboarding.taxOffice': 'Tax office',
+  'onboarding.back': 'Back',
+  'onboarding.next': 'Next',
+  'onboarding.finishing': 'Setting up...',
+  'onboarding.trHint': 'Turkish businesses start with Turkish lira and 20% VAT (KDV). You can change both later in Settings.',
+  'onboarding.type.freelancer': 'Freelancer',
+  'onboarding.type.soleProprietor': 'Sole Proprietor',
+  'onboarding.type.llc': 'LLC',
+  'onboarding.type.corporation': 'Corporation',
+  'onboarding.type.partnership': 'Partnership',
+  'onboarding.type.agency': 'Agency',
+  'onboarding.type.ecommerce': 'E-commerce',
+  'onboarding.type.consultant': 'Consultant',
+  'onboarding.type.other': 'Other',
+
 } as const;
 
 export type TranslationKey = keyof typeof en;

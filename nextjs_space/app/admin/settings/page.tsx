@@ -54,7 +54,7 @@ export default async function AdminSettingsPage() {
           <Row label="Authentication" value={process.env.NEXTAUTH_SECRET ? 'configured' : 'not configured'} />
           <Row label="Billing (Polar)" value={isBillingConfigured() ? 'configured' : 'not configured'} />
           <Row label="Polar environment" value={process.env.POLAR_SERVER ?? 'sandbox (default)'} />
-          <Row label="PDF service" value={process.env.ABACUSAI_API_KEY ? 'configured' : 'not configured'} />
+          <Row label="PDF service" value="built in (no external service)" />
           <Row label="Email (Resend)" value={process.env.RESEND_API_KEY ? 'configured' : 'not configured'} />
           <Row label="Admin account" value={check.admin.email} />
         </CardContent>

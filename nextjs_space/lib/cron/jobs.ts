@@ -5,6 +5,8 @@ import { calendarReminderEmail, paymentReminderEmail } from '@/lib/email/templat
 import { documentLocaleFor } from '@/lib/tr-tax';
 import { resolveLocale } from '@/lib/i18n';
 import { getBaseUrl } from '@/lib/site';
+import { renderInvoicePdf, invoicePdfFileName } from '@/lib/pdf/invoice-pdf';
+import { COMPANY_DOCUMENT_SELECT } from '@/lib/pdf/response';
 import {
   OVERDUE_SOURCE_STATUSES,
   FOLLOW_UP_LAST_DAY,
@@ -50,18 +52,11 @@ export async function sendPaymentReminders(now: Date): Promise<{ sent: number; f
       dueDate: { gte: new Date(today - FOLLOW_UP_LAST_DAY * DAY_MS), lt: new Date(today) },
       OR: [{ overdueReminderSentAt: null }, { followUpReminderSentAt: null }],
     },
-    select: {
-      id: true,
-      status: true,
-      invoiceNumber: true,
-      dueDate: true,
-      total: true,
-      amountPaid: true,
-      currency: true,
-      overdueReminderSentAt: true,
-      followUpReminderSentAt: true,
-      customer: { select: { name: true, email: true, language: true, country: true } },
-      company: { select: { name: true, email: true, country: true } },
+    // The whole invoice, because the reminder carries the invoice PDF.
+    include: {
+      items: true,
+      customer: true,
+      company: { select: COMPANY_DOCUMENT_SELECT },
     },
     take: BATCH,
     orderBy: { dueDate: 'asc' },
@@ -92,11 +87,20 @@ export async function sendPaymentReminders(now: Date): Promise<{ sent: number; f
       currency: invoice.currency,
       dueDate: invoice.dueDate,
     });
+    // The PDF is a courtesy: if it cannot be built the reminder still goes.
+    let attachments: Array<{ filename: string; content: Buffer }> | undefined;
+    try {
+      const pdf = await renderInvoicePdf(invoice, invoice.company);
+      attachments = [{ filename: invoicePdfFileName(invoice.invoiceNumber), content: Buffer.from(pdf) }];
+    } catch (pdfError) {
+      console.error('[cron] reminder pdf failed', { name: (pdfError as { name?: string })?.name });
+    }
     const result = await sendMail({
       to,
       ...email,
       replyTo: invoice.company.email,
       senderName: invoice.company.name,
+      attachments,
       idempotencyKey: `reminder-${kind}-${invoice.id}`,
     });
     if (result.ok) {

@@ -1,9 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-
-/** Roughly two minutes at a two-second interval. */
-const MAX_PDF_POLL_ATTEMPTS = 60;
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -25,6 +22,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
+import { downloadBytes } from '@/lib/bulk-pdf';
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -35,21 +33,6 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
-  /**
-   * Held in a ref so the interval can be cleared from anywhere, including on
-   * unmount. Previously it was a local that nothing cancelled, so leaving the
-   * page left it polling the service for around two minutes.
-   */
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  };
-
-  useEffect(() => stopPolling, []);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ amount: '', paymentMethod: 'bank_transfer', reference: '', notes: '' });
 
@@ -200,84 +183,26 @@ export default function InvoiceDetailPage() {
     if (win.document.readyState === 'complete') win.print();
   };
 
+  /**
+   * Downloads the PDF the server builds from the stored invoice (in-house
+   * engine, no external service). A refusal keeps the API's own message —
+   * including the plan's monthly PDF limit.
+   */
   const downloadPdf = async () => {
     setPdfLoading(true);
     try {
-      const logoDataUrl = await loadLogoDataUrl();
-      const html = generateInvoiceHtml(invoice, company, logoDataUrl);
-      const createRes = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html_content: html, pdf_options: { format: 'A4', margin: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' } } }),
-      });
-
-      if (!createRes.ok) {
-        // 503 means the service has no key configured. That is not something
-        // the user can act on, so print instead of showing them an error.
-        if (createRes.status === 503) {
-          setPdfLoading(false);
-          toast.message(t('statement.pdfOpeningPrint'), {
-            description: t('statement.pdfNotConfigured'),
-          });
-          await printInvoice();
-          return;
-        }
-        // Every other failure keeps the API's own message rather than
-        // collapsing it into "Failed to generate PDF".
-        toast.error(await readErrorMessage(createRes));
-        setPdfLoading(false);
+      const res = await fetch(`/api/invoices/${params?.id}/pdf`);
+      if (!res.ok) {
+        toast.error(await readErrorMessage(res, locale));
         return;
       }
-
-      const createData = await createRes.json();
-      if (!createData?.success || !createData?.token) {
-        toast.error(createData?.error ?? t('invoices.pdfRejected'));
-        setPdfLoading(false);
-        return;
-      }
-
-      let attempts = 0;
-      pollRef.current = setInterval(async () => {
-        attempts++;
-        try {
-          const statusRes = await fetch('/api/generate-pdf/status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: createData.token }),
-          });
-          const statusData = await statusRes.json();
-
-          if (statusData?.status === 'SUCCESS' && statusData?.pdf_base64) {
-            stopPolling();
-            const binaryStr = atob(statusData.pdf_base64);
-            const bytes = new Uint8Array(binaryStr.length);
-            for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-            const blob = new Blob([bytes], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${invoice?.invoiceNumber ?? 'invoice'}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
-            setPdfLoading(false);
-            toast.success(t('invoices.pdfDownloaded'));
-          } else if (statusData?.status === 'FAILED' || attempts > MAX_PDF_POLL_ATTEMPTS) {
-            stopPolling();
-            setPdfLoading(false);
-            toast.error(
-              statusData?.error ??
-                t('invoices.pdfUnfinished')
-            );
-          }
-        } catch {
-          stopPolling();
-          setPdfLoading(false);
-          toast.error(t('invoices.pdfLostContact'));
-        }
-      }, 2000);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      downloadBytes(bytes, `${String(invoice?.invoiceNumber ?? 'invoice').replace(/[^w.-]+/g, '_')}.pdf`);
+      toast.success(t('invoices.pdfDownloaded'));
     } catch {
-      setPdfLoading(false);
       toast.error(t('invoices.pdfNotPrepared'));
+    } finally {
+      setPdfLoading(false);
     }
   };
 
