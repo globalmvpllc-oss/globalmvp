@@ -14,6 +14,8 @@
  * - Refuses the Fida Horeca project (different product, never touched here).
  * - Writes C:\Projelerim\corpcontrol\yedek\corpcontrol-YYYYMMDD-HHMM.sql plus a
  *   short summary (sizes and row counts only, no data).
+ * - pg_dump is looked up at PG_DUMP_PATH, then C:\pgsql\bin\pg_dump.exe, then
+ *   PATH, then C:\Program Files\PostgreSQL\<ver>\bin.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, readdirSync, createReadStream } from 'node:fs';
@@ -36,7 +38,15 @@ function fail(message) {
   process.exit(1);
 }
 
+// Default location on this machine (pg_dump 18.6, not on PATH). PG_DUMP_PATH overrides it.
+const DEFAULT_PG_DUMP = 'C:\\pgsql\\bin\\pg_dump.exe';
+
 function findPgDump() {
+  for (const bin of [process.env.PG_DUMP_PATH, DEFAULT_PG_DUMP].filter(Boolean)) {
+    if (!existsSync(bin)) continue;
+    const out = spawnSync(bin, ['--version'], { encoding: 'utf8' });
+    if (out.status === 0) return { bin, version: out.stdout.trim() };
+  }
   const probe = spawnSync('pg_dump', ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' });
   if (probe.status === 0) return { bin: 'pg_dump', version: probe.stdout.trim() };
   const root = 'C:\\Program Files\\PostgreSQL';
