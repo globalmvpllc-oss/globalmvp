@@ -149,3 +149,6 @@ vite.config.ts.timestamp-*
 
 # Abacus internal metadata
 .abacus.donotdelete
+
+# Database backups: never commit (customer data).
+yedek/
