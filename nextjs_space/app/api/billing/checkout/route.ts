@@ -6,7 +6,7 @@ import { handleApiError } from '@/lib/api-error';
 import { getPolarClient, getAppBaseUrl, BillingNotConfiguredError, describePolarError } from '@/lib/billing/polar';
 import { isPaidPlan, isBillingInterval, priceIdFor } from '@/lib/billing/plans';
 import { quoteCurrencyForRequest, requestIp } from '@/lib/billing/pricing-currency-server';
-import { readPrice } from '@/lib/billing/pricing-server';
+import { getPlanPricing } from '@/lib/billing/pricing-server';
 import { polarCurrencyCode } from '@/lib/billing/pricing-region';
 
 /**
@@ -51,10 +51,12 @@ export async function POST(request: Request) {
     // Turkey is charged in lira, at the VAT-inclusive TRY price set on the
     // product in Polar — but only if that price exists; otherwise Polar's own
     // default (USD) applies, exactly as before.
+    // Same rule as the price cards: lira only when every plan has a TRY price,
+    // so a Turkish customer is never shown USD and then charged TRY.
     let currency: 'try' | undefined;
     if ((await quoteCurrencyForRequest(companyId)) === 'TRY') {
-      const product = await polar.products.get({ id: productId }).catch(() => null);
-      if (readPrice(product as { prices?: Array<any> } | null, 'TRY')) currency = polarCurrencyCode('TRY') as 'try';
+      const shown = await getPlanPricing('TRY');
+      if (shown.prices[plan]?.[interval]?.currency === 'TRY') currency = polarCurrencyCode('TRY') as 'try';
     }
 
     const checkout = await polar.checkouts.create({

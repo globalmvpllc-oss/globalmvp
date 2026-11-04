@@ -65,6 +65,11 @@ export async function POST(request: Request) {
     await recordAccountantEvent({ actor: user, action: 'accountant.joined', companyId: invite.companyId, request });
     return NextResponse.json({ ok: true, email: user.email, companyId: invite.companyId });
   } catch (error) {
+    // Two submits (or a signup in another tab) can both pass the "exists" check;
+    // the second insert then hits the unique email. Same answer as above.
+    if ((error as { code?: string })?.code === 'P2002') {
+      return NextResponse.json({ error: 'An account already exists. Please sign in.', code: 'ACCOUNT_EXISTS' }, { status: 409 });
+    }
     if (error instanceof Error && error.message === 'INVITE_CLAIM_FAILED') {
       return NextResponse.json({ error: 'This invitation cannot be used.', code: 'used' }, { status: 410 });
     }

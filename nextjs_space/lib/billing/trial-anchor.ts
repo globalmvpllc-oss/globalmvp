@@ -70,7 +70,11 @@ export function earliestCreatedAt(
  */
 export async function resolveTrialAnchor(companyId: string): Promise<Date | null> {
   const founding = await prisma.companyMember.findFirst({
-    where: { companyId },
+    // The founder is the oldest owner. An accountant (read-only, invited) is
+    // never the founder, and the companies an accountant merely reads are not
+    // theirs: counting them would shorten or erase the trial on their own
+    // company, or tie this company's trial to its accountant's clients.
+    where: { companyId, role: 'owner' },
     // Oldest membership is the creator; `id` breaks a tie between two rows
     // written in the same transaction, so the answer never depends on row order.
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -78,6 +82,7 @@ export async function resolveTrialAnchor(companyId: string): Promise<Date | null
       user: {
         select: {
           companyMembers: {
+            where: { role: { not: 'accountant' } },
             select: { company: { select: { createdAt: true } } },
           },
         },

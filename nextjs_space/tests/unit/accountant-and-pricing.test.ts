@@ -261,7 +261,9 @@ describe('plans, PDFs and the audit log', () => {
     }
     expect(src('app/api/pdf/[kind]/route.ts')).toContain('recordAccountantDownload(auth, request');
     const exp = src('app/api/export/[dataset]/route.ts');
-    expect(exp).toContain('!isAccountant(role) && !planDelivers(plan, capability)');
+    // Export follows the company's plan for everyone, accountants included.
+    expect(exp).toContain('if (!planDelivers(plan, capability)) {');
+    expect(exp).not.toContain('isAccountant');
     expect(exp).toContain('recordAccountantDownload(auth, request');
   });
   it('accountants are not seats: nothing counts memberships against a plan', () => {
@@ -328,6 +330,24 @@ describe('7-day trial', () => {
   });
 });
 
+describe('review fixes', () => {
+  it('trial anchor: founder is the oldest owner; accountant memberships never count', () => {
+    const anchor = src('lib/billing/trial-anchor.ts');
+    expect(anchor).toContain("where: { companyId, role: 'owner' },");
+    expect(anchor).toContain("where: { role: { not: 'accountant' } },");
+  });
+  it('checkout charges lira only when the cards show lira', () => {
+    expect(src('app/api/billing/checkout/route.ts')).toContain("shown.prices[plan]?.[interval]?.currency === 'TRY'");
+  });
+  it('invitations are rate limited; a double sign-up answers ACCOUNT_EXISTS', () => {
+    expect(src('app/api/company/accountants/route.ts')).toContain('ACCOUNTANT_INVITE_RULE');
+    expect(src('app/api/accountant/public/register/route.ts')).toContain("=== 'P2002'");
+  });
+  it('the reminder job is not capped', () => {
+    expect(src('lib/cron/trial-reminders.ts')).not.toMatch(/take:\s*\d+/);
+  });
+});
+
 describe('Turkish prices', () => {
   it('Turkey (visitor or company) is quoted in TRY; everyone else in USD', () => {
     expect(pricingCurrencyFor({ visitorCountry: 'TR' })).toBe('TRY');
@@ -346,9 +366,9 @@ describe('Turkish prices', () => {
     expect(readPrice(product, 'TRY')).toEqual({ amount: 299, currency: 'TRY' });
     expect(readPrice({ prices: [product.prices[1]] }, 'TRY')).toBeNull();
   });
-  it('checkout asks Polar for lira only when the product has a TRY price', () => {
+  it('checkout asks Polar for lira only when the shown price is in lira', () => {
     const route = src('app/api/billing/checkout/route.ts');
-    expect(route).toContain("readPrice(product as { prices?: Array<any> } | null, 'TRY')");
+    expect(route).toContain("await getPlanPricing('TRY')");
     expect(route).toContain('...(currency ? { currency } : {})');
     expect(route).toContain('customerIpAddress: requestIp()');
   });

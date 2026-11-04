@@ -28,7 +28,9 @@ export async function sendTrialReminders(now: Date): Promise<{ sent: number; ski
       grantedPlanUntil: true,
       subscription: { select: { status: true } },
     },
-    take: 500,
+    // No cap: the window is ten days of sign-ups, and a capped, unordered
+    // query would silently skip someone's reminder on the one day it is due.
+    orderBy: { createdAt: 'asc' },
   });
 
   let sent = 0;

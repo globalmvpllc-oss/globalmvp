@@ -62,6 +62,9 @@ export const RESET_PASSWORD_RULE: RateLimitRule = { limit: 10, windowMs: 15 * 60
 /** Re-sending a verification email, bounded like the reset request. */
 export const RESEND_VERIFICATION_RULE: RateLimitRule = { limit: 5, windowMs: 60 * 60 * 1000 };
 
+/** Accountant invitations send email to an outside address: a few per hour per owner. */
+export const ACCOUNTANT_INVITE_RULE: RateLimitRule = { limit: 10, windowMs: 60 * 60 * 1000 };
+
 const buckets = new Map<string, Bucket>();
 
 /**

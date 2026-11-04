@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { SESSION_MAX_AGE, SESSION_UPDATE_AGE } from '@/lib/session-config';
 import { isGoogleConfigured, isSignInAllowed } from '@/lib/auth/oauth';
+import { ACCOUNTANT_ROLE } from '@/lib/accountant/rules';
 
 /**
  * Constant-time-ish decoy hash.
@@ -113,7 +114,7 @@ export const authOptions: NextAuthOptions = {
       if (!user?.id) return;
       try {
         const memberships = await prisma.companyMember.findMany({
-          where: { userId: user.id, role: 'accountant' },
+          where: { userId: user.id, role: ACCOUNTANT_ROLE },
           select: { companyId: true },
         });
         if (memberships.length === 0) return;

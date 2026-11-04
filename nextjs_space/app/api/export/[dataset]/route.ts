@@ -10,7 +10,6 @@ import { getServerLocale } from '@/lib/i18n/server';
 import { vatPeriod } from '@/lib/vat-report';
 import { buildCsv, buildXlsx } from '@/lib/export/tabular';
 import { buildExportTables, isExportDataset } from '@/lib/export/datasets';
-import { isAccountant } from '@/lib/accountant/rules';
 import { recordAccountantDownload } from '@/lib/accountant/audit';
 
 /**
@@ -26,7 +25,7 @@ export async function GET(request: Request, { params }: { params: { dataset: str
   try {
     const auth = await requireUserCompany();
     if (auth.error) return auth.error;
-    const { companyId, role } = auth;
+    const { companyId } = auth;
 
     if (!isExportDataset(params.dataset)) {
       return NextResponse.json({ error: 'Unknown dataset' }, { status: 404 });
@@ -36,9 +35,9 @@ export async function GET(request: Request, { params }: { params: { dataset: str
 
     const capability = CAPABILITIES.find((c) => c.id === 'dataExport')!;
     const plan = await getCurrentPlan(companyId);
-    // Accountants may export on every plan: reading the books is their job,
-    // and the invitation itself is free on every plan.
-    if (!isAccountant(role) && !planDelivers(plan, capability)) {
+    // Same plan rule for an accountant as for the owner: export comes with the
+    // company's plan (an accountant cannot unlock it for a Free company).
+    if (!planDelivers(plan, capability)) {
       return NextResponse.json(
         { error: 'Data export is part of the Pro plan.', code: 'FEATURE_NOT_IN_PLAN', feature: 'dataExport', plan },
         { status: 402 }

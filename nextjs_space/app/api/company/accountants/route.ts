@@ -18,6 +18,7 @@ import {
   normalizeEmail,
 } from '@/lib/accountant/rules';
 import { recordAccountantEvent } from '@/lib/accountant/audit';
+import { checkRateLimit, ACCOUNTANT_INVITE_RULE } from '@/lib/rate-limit';
 
 /**
  * Accountant access for the active company — owner/admin only.
@@ -81,6 +82,11 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     if (!canManageAccountants(auth.role)) return forbidden();
     const { companyId, user } = auth;
+
+    const limit = checkRateLimit(`accountant-invite:${user.id}`, ACCOUNTANT_INVITE_RULE);
+    if (!limit.allowed) {
+      return NextResponse.json({ error: 'Too many invitations. Please wait and try again.', code: 'RATE_LIMITED' }, { status: 429 });
+    }
 
     const parsed = inviteSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: 'Enter a valid email address.', code: 'INVALID_EMAIL' }, { status: 400 });
