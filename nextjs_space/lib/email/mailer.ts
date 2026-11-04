@@ -29,10 +29,17 @@ export interface MailInput {
   attachments?: MailAttachment[];
   /** Resend idempotency key, so a retried request is not sent twice. */
   idempotencyKey?: string;
+  /**
+   * A different sender address (e.g. stok@<customer domain>, verified in
+   * Resend, or stok@corpcontrol.net). Only ever set by server code.
+   */
+  fromEmail?: string | null;
 }
 
-function fromAddress(senderName?: string | null): string {
-  const configured = process.env.RESEND_FROM_EMAIL || 'CorpControl <no-reply@corpcontrol.net>';
+function fromAddress(senderName?: string | null, fromEmail?: string | null): string {
+  const configured = fromEmail
+    ? `CorpControl <${fromEmail.replace(/[<>"\r\n\s]/g, '')}>`
+    : process.env.RESEND_FROM_EMAIL || 'CorpControl <no-reply@corpcontrol.net>';
   if (!senderName) return configured;
   // Keep the configured address, replace only the display name. Characters
   // that would break the header are dropped from the name.
@@ -56,7 +63,7 @@ export async function sendMail(input: MailInput): Promise<SendResult> {
     const resend = new Resend(key);
     const { data, error } = await resend.emails.send(
       {
-        from: fromAddress(input.senderName),
+        from: fromAddress(input.senderName, input.fromEmail),
         to: input.to,
         subject: input.subject,
         text: input.text,

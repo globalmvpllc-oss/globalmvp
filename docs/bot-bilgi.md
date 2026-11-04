@@ -273,6 +273,80 @@ Privacy: corpcontrol.net/privacy · Terms: corpcontrol.net/terms · Refund polic
 
 ---
 
+## Bölüm 4 — Avc KolayStok (KolayStok canlıya çıkınca ekle)
+
+Bölüm 3'ün **sonuna ekle** (yerine değil). KolayStok canlıya çıkmadan yapıştırma.
+
+```
+===== TÜRKÇE =====
+
+AVC KOLAYSTOK NEDİR
+Avc KolayStok, CorpControl'ün içindeki sade stok takip bölümüdür. Telefondan çalışır; uygulama mağazası gerekmez, tarayıcıdan "Ana ekrana ekle" ile uygulama gibi açılır. Adresi: corpcontrol.net/kolaystok
+
+KİMLER İÇİN
+Deposu, rafı ya da tezgâhı olan küçük işletmeler: toptancı, imalatçı, mağaza, horeca tedarikçisi. Şirket kurulurken üç kullanım seçeneği vardır: sadece fatura/finans, sadece stok (KolayStok) ya da ikisi birden. Sonradan Ayarlar'dan değiştirilebilir.
+
+NASIL ÇALIŞIR
+- Ürün listesi telefona göre tasarlandı: her üründe büyük − ve + tuşları vardır. + mal kabul, − satış olarak kaydedilir (yönetici Ayarlar'dan değiştirebilir). Sayıya basınca neden seçilir (iade, fire, sayım düzeltmesi vb.).
+- Yanlış basışta 2 dakika içinde "Geri al".
+- Arama Türkçe karakter duyarsızdır: "cember" yazınca "Çember" bulunur; "pz1" yazınca "PZ001" bulunur.
+- Kritik seviye: ürün alt sınıra inince bir kez uyarı gider (e-posta ve istenirse Telegram). Her sabah 07:00'de günlük özet e-postası.
+- Sayım: rafları tek tek sayıp farkları tek seferde düzeltme.
+- Hareket geçmişi: kim, ne zaman, neden; PDF ve Excel olarak indirilebilir.
+- Sipariş maili: kritik ürünler tedarikçiye göre gruplanır, miktarlar düzenlenir, mail önce gösterilir, onaylanınca gider. Asla kendiliğinden gönderilmez.
+- Excel ile toplu yükleme ve güncelleme: önce önizleme, sonra onay.
+- Her gece otomatik Excel yedeği, 30 gün saklanır.
+- "Tüm stokları sıfırla": şifre ve onay kelimesi ister, önce yedek alır, 24 saat içinde geri alınabilir.
+- Ürün silinmez, pasife alınır; geçmiş kayıtları ve raporlardaki adı korunur.
+
+PERSONEL
+- En fazla 5 personel. Personel e-posta ile değil, şirkete özel link ve 4 haneli PIN ile girer.
+- 5 yanlış PIN denemesinde 15 dakika kilit. Telefon 30 gün hatırlanır.
+- Personel fiyatları ve stok değerini görmez; ürün ekleyemez/kaldıramaz, ayar değiştiremez, sipariş maili gönderemez.
+- Mali müşavir stokları yalnız görüntüler ve indirir; değiştiremez.
+
+TELEGRAM
+Ayarlar'daki "Telegram'a bağlan" tuşu kişiye özel, 30 dakika geçerli bir link açar; botta "Başlat"a basmak yeterlidir. Bağlantı Ayarlar'dan ya da botta /stop yazarak kesilir.
+
+PLAN SINIRLARI (ürün sayısı)
+Ücretsiz: 20 ürün · Pro: 1.000 ürün · Business: sınırsız.
+
+===== ENGLISH =====
+
+WHAT IS AVC KOLAYSTOK
+Avc KolayStok is the simple stock-tracking part of CorpControl. It is built for phones and needs no app store: open it in the browser and use "Add to Home Screen". Address: corpcontrol.net/kolaystok
+
+WHO IT IS FOR
+Small businesses with a warehouse, shelves or a counter: wholesalers, makers, shops, hospitality suppliers. When a company is created there are three modes: invoicing/finance only, stock only (KolayStok), or both. It can be changed later in Settings.
+
+HOW IT WORKS
+- Phone-first product list with big − and + buttons. + records a goods receipt and − a sale (a manager can change this in Settings). Tapping the number lets you choose a reason (return, waste, count correction, etc.).
+- "Undo" within 2 minutes of a mistaken tap.
+- Search ignores Turkish accents and leading zeros: "cember" finds "Çember", "pz1" finds "PZ001".
+- Low stock: one alert when a product drops to its minimum (email, and Telegram if connected). A daily summary email at 07:00.
+- Stock count: count shelf by shelf and fix all differences at once.
+- Movement history: who, when, why; downloadable as PDF and Excel.
+- Order email: low-stock products grouped by supplier, quantities editable, the email is shown first and sent only after confirmation. Never sent automatically.
+- Bulk upload and update with Excel: preview first, then confirm.
+- Automatic Excel backup every night, kept for 30 days.
+- "Reset all stock": asks for the password and a confirmation word, backs up first, can be undone within 24 hours.
+- Products are never deleted, only deactivated; history and report names stay.
+
+STAFF
+- Up to 5 staff. Staff sign in with a company link and a 4-digit PIN, not an email.
+- 5 wrong PINs lock the person out for 15 minutes. The phone is remembered for 30 days.
+- Staff never see prices or stock value; they cannot add/remove products, change settings or send order emails.
+- The accountant can view and download stock but cannot change it.
+
+TELEGRAM
+"Connect Telegram" in Settings opens a personal link valid for 30 minutes; pressing "Start" in the bot is enough. Disconnect in Settings or by sending /stop to the bot.
+
+PLAN LIMITS (number of products)
+Free: 20 products · Pro: 1,000 products · Business: unlimited.
+```
+
+---
+
 ## Neden hep İngilizce konuşuyordu
 
 1. Eski "Ek yönlendirme" metni modele açıkça "varsayılan olarak hep İngilizce cevap ver, sohbeti asla Türkçe açma" diyordu.

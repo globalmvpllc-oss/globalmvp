@@ -67,3 +67,10 @@ export async function completeMultipartUpload(cloud_storage_path: string, upload
   });
   await s3.send(command);
 }
+
+/** Server-side upload of bytes we produced (KolayStok photos, Excel backups). */
+export async function putObject(key: string, body: Uint8Array | Buffer, contentType: string): Promise<void> {
+  const { bucketName } = getBucketConfig();
+  const s3 = createS3Client();
+  await s3.send(new PutObjectCommand({ Bucket: bucketName, Key: key, Body: body, ContentType: contentType }));
+}

@@ -39,6 +39,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!membership) redirect('/onboarding');
   const { companyId } = membership;
 
+  // "Sadece stok" companies live in Avc KolayStok; the invoice screens are
+  // not theirs. (Their accountant still reads the stock there.)
+  const mode = await prisma.company.findUnique({ where: { id: companyId }, select: { usageMode: true } });
+  if (mode?.usageMode === 'stock') redirect('/kolaystok/app');
+
   // An accountant (mali müşavir) sees the books read-only. Decided here, on
   // the server, from the same membership every API route resolves; the
   // server refuses their changes regardless of what the screen shows.

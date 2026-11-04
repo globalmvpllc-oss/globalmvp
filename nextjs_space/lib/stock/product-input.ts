@@ -36,3 +36,10 @@ export const productInputSchema = z.object({
 });
 
 export type ProductInput = z.infer<typeof productInputSchema>;
+
+export const supplierSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  emails: z.array(z.string().trim().toLowerCase().email().max(255)).max(10).default([]),
+  phone: z.string().trim().max(40).nullable().optional(),
+  notes: z.string().trim().max(1000).nullable().optional(),
+});

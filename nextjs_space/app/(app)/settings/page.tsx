@@ -27,6 +27,7 @@ import { useI18n } from '@/components/i18n-provider';
 import { AccountantAccess } from '@/components/accountant-access';
 import type { TranslationKey } from '@/lib/i18n';
 import { TR_VAT_RATES, isTurkishCountry } from '@/lib/tr-tax';
+import { UsageModeCard } from '@/components/kolaystok/usage-mode-card';
 
 
 /** Layouts the invoice renderer knows how to draw. Mirrors validation.ts.
@@ -529,6 +530,8 @@ export default function SettingsPage() {
           <Save className="w-4 h-4 mr-2" /> {saving ? t('common.saving') : t('settings.saveSettings')}
         </Button>
       </div>
+
+      <UsageModeCard />
 
       <AccountantAccess />
     </div>

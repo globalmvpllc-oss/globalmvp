@@ -53,12 +53,17 @@ export default function StaffSignIn({ params }: { params: { code: string } }) {
     }
   };
 
+  // Functional update: fast taps each count, even before the screen redraws.
   const press = (digit: string) => {
-    if (busy || pin.length >= 4) return;
-    const next = pin + digit;
-    setPin(next);
-    if (next.length === 4) submit(next);
+    if (busy) return;
+    setPin((prev) => (prev.length >= 4 ? prev : prev + digit));
   };
+
+  // The fourth digit signs in by itself.
+  useEffect(() => {
+    if (pin.length === 4 && !busy) submit(pin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   if (info === 'missing') {
     return <div className="flex min-h-screen items-center justify-center p-6 text-center text-xl">{t('ks.staff.notFound')}</div>;
@@ -107,7 +112,7 @@ export default function StaffSignIn({ params }: { params: { code: string } }) {
             ))}
             <span />
             <button type="button" disabled={busy} onClick={() => press('0')} className="h-20 rounded-2xl bg-white text-3xl font-bold shadow active:bg-slate-100">0</button>
-            <button type="button" onClick={() => setPin(pin.slice(0, -1))} className="flex h-20 items-center justify-center rounded-2xl text-slate-600" aria-label={t('ks.staff.clear')}>
+            <button type="button" onClick={() => setPin((prev) => prev.slice(0, -1))} className="flex h-20 items-center justify-center rounded-2xl text-slate-600" aria-label={t('ks.staff.clear')}>
               <Delete className="h-8 w-8" />
             </button>
           </div>

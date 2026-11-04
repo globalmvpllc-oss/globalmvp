@@ -94,7 +94,7 @@ export default function OnboardingPage() {
   }, [router, destination, addingAnother]);
 
   const [form, setForm] = useState({
-    name: '', country: 'US', defaultCurrency: 'USD', businessType: 'Freelancer',
+    name: '', country: 'US', defaultCurrency: 'USD', businessType: 'Freelancer', usageMode: 'finance',
     address: '', city: '', postalCode: '', taxNumber: '', taxOffice: '',
   });
 
@@ -143,7 +143,7 @@ export default function OnboardingPage() {
         // Success path otherwise unchanged: the spinner stays up through the
         // navigation so the button cannot be pressed twice mid-redirect.
         router.refresh();
-        router.replace(destination);
+        router.replace(form.usageMode === 'stock' ? '/kolaystok/app' : destination);
         return;
       }
 
@@ -238,6 +238,23 @@ export default function OnboardingPage() {
                     {BUSINESS_TYPES.map((type) => <SelectItem key={type.value} value={type.value}>{t(type.labelKey)}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {/* What this company will use CorpControl for. "Sadece stok"
+                    opens Avc KolayStok and hides the invoice menus. */}
+                <p className="pt-3 text-base font-medium">{t('ks.mode.title')}</p>
+                <div className="grid gap-2" role="radiogroup" aria-label={t('ks.mode.title')}>
+                  {(['finance', 'stock', 'both'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="radio"
+                      aria-checked={form.usageMode === m}
+                      onClick={() => update('usageMode', m)}
+                      className={`h-12 rounded-lg border px-3 text-left text-base ${form.usageMode === m ? 'border-primary bg-primary/10 font-semibold' : ''}`}
+                    >
+                      {t(`ks.mode.${m}`)}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {step === 5 && (

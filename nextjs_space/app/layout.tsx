@@ -164,7 +164,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Providers>
             {children}
             <Toaster />
-            <CookieConsent />
+            {/* Avc KolayStok is a work tool for warehouse staff: no measurement tags
+                there, so no consent banner over the + / − buttons either. */}
+            {!isKolayStok && <CookieConsent />}
             <ChunkLoadErrorHandler />
           </Providers>
           </I18nProvider>

@@ -1,21 +1,12 @@
-import type { Metadata, Viewport } from 'next';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getStockActor } from '@/lib/stock/actor';
 import { can } from '@/lib/stock/rules';
+import { getQuickReasons } from '@/lib/stock/settings';
 import { KsProvider, type KsSession } from '@/components/kolaystok/ks-context';
 import { KsShell } from '@/components/kolaystok/ks-shell';
 
 export const dynamic = 'force-dynamic';
-
-export const metadata: Metadata = {
-  title: 'Avc KolayStok',
-  manifest: '/kolaystok.webmanifest',
-  appleWebApp: { capable: true, title: 'Avc KolayStok', statusBarStyle: 'default' },
-  icons: { apple: '/kolaystok-icon-192.png' },
-};
-
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#0f766e' };
 
 /**
  * Avc KolayStok app shell. Whoever is here was resolved on the server — a
@@ -28,14 +19,17 @@ export default async function KolayStokLayout({ children }: { children: React.Re
   const { actor } = result;
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { name: true, defaultCurrency: true },
+    select: { name: true, defaultCurrency: true, usageMode: true },
   });
+  const quickReasons = await getQuickReasons(actor.companyId);
   const session: KsSession = {
     name: actor.name,
     kind: actor.kind,
     role: actor.role,
     companyName: company?.name ?? '',
     currency: company?.defaultCurrency ?? 'TRY',
+    quickReasons,
+    usageMode: company?.usageMode ?? 'finance',
     permissions: {
       prices: can(actor.role, 'read.prices'),
       move: can(actor.role, 'move'),

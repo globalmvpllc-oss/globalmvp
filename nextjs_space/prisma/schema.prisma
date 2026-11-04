@@ -1051,6 +1051,10 @@ model StockSettings {
   senderEmail      String?
   senderDomainId   String?
   senderVerifiedAt DateTime?
+  /// One-tap "+" / "−" reasons (quickPlusReason, quickMinusReason) are added
+  /// by migration 20261108120000_kolaystok_quick_reasons and read/written
+  /// with plain SQL (lib/stock/settings.ts), so nothing breaks before that
+  /// migration is applied. Add them here once it is.
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)

@@ -190,6 +190,8 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith('/kolaystok/') ||
     pathname.startsWith('/api/stock/') ||
     pathname === '/kolaystok.webmanifest' ||
+    pathname === '/kolaystok-sw.js' ||
+    pathname.startsWith('/kolaystok-icon-') ||
     // Provider webhooks carry no session cookie, so the session gate below
     // would reject every delivery with a 401 and the sender would eventually
     // stop retrying — subscriptions would drift out of sync silently. These

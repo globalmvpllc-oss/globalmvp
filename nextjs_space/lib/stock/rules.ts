@@ -54,6 +54,67 @@ export function stockRoleForMember(memberRole: string): StockRole {
 }
 
 export const STAFF_ROLES = ['manager', 'staff'] as const;
+
+/**
+ * The corrections a finished count writes: counted − current, for every
+ * product that was counted and differs. Uncounted products are left alone.
+ */
+export function countCorrections(
+  lines: Array<{ productId: string; counted: Decimal.Value }>,
+  current: Map<string, Decimal.Value>
+): Array<{ productId: string; delta: Decimal }> {
+  const out: Array<{ productId: string; delta: Decimal }> = [];
+  for (const line of lines) {
+    if (!current.has(line.productId)) continue;
+    const delta = new Decimal(line.counted).minus(new Decimal(current.get(line.productId)!));
+    if (!delta.isZero()) out.push({ productId: line.productId, delta });
+  }
+  return out;
+}
+
+export interface OrderCandidate {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  quantity: Decimal.Value;
+  minStock: Decimal.Value;
+  targetStock?: Decimal.Value | null;
+  vendorId?: string | null;
+  categoryVendorId?: string | null;
+}
+
+/**
+ * Purchase-order draft: critical products grouped by supplier — the product's
+ * own supplier, else its category's. Products with no supplier form a group
+ * with `vendorId: null` (shown, never sendable). Zero-quantity lines dropped.
+ */
+export function groupOrderLines(products: OrderCandidate[]): Array<{
+  vendorId: string | null;
+  lines: Array<{ productId: string; code: string; name: string; unit: string; quantity: number }>;
+}> {
+  const groups = new Map<string, Array<{ productId: string; code: string; name: string; unit: string; quantity: number }>>();
+  for (const p of products) {
+    const qty = orderQuantity(p);
+    if (qty.lte(0)) continue;
+    const key = p.vendorId ?? p.categoryVendorId ?? '';
+    const list = groups.get(key) ?? [];
+    list.push({ productId: p.id, code: p.code, name: p.name, unit: p.unit, quantity: qty.toNumber() });
+    groups.set(key, list);
+  }
+  return [...groups.entries()]
+    .map(([key, lines]) => ({ vendorId: key || null, lines }))
+    .sort((a, b) => (a.vendorId === null ? 1 : b.vendorId === null ? -1 : 0));
+}
+
+/** "Tüm stokları sıfırla" needs the word SIFIRLA typed out (any case). */
+export function isResetWord(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().toLocaleUpperCase('tr-TR') === 'SIFIRLA';
+}
+
+/** Which part of CorpControl a company uses. */
+export const USAGE_MODES = ['finance', 'stock', 'both'] as const;
+export type UsageMode = (typeof USAGE_MODES)[number];
 export const MAX_STAFF_PER_COMPANY = 5;
 
 // ---------------------------------------------------------------------------
@@ -171,7 +232,7 @@ export function normalizeSearch(value: unknown): string {
     .toLocaleLowerCase('tr-TR')
     .replace(/[çğıiöşüâîû]/g, (ch) => TR_MAP[ch] ?? ch)
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '');
 }
 

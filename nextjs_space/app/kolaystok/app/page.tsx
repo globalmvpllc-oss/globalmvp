@@ -202,6 +202,12 @@ export default function KolayStokHome() {
         </Link>
       </div>
 
+      {(level === 'low' || level === 'out') && ks.permissions.orderEmail && (
+        <Link href="/kolaystok/app/orders" className="flex h-14 items-center justify-center rounded-xl bg-slate-900 text-lg font-semibold text-white">
+          {t('ks.order.prepare')}
+        </Link>
+      )}
+
       {failed && <p className="rounded-lg bg-red-50 p-3 text-base text-red-700">{t('ks.loadFailed')}</p>}
 
       <ul className="space-y-2" aria-busy={loading}>
@@ -220,7 +226,7 @@ export default function KolayStokHome() {
                 <button
                   type="button"
                   disabled={busyId === p.id}
-                  onClick={() => move(p, -1, 'other')}
+                  onClick={() => move(p, -1, ks.quickReasons.minus)}
                   className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 text-slate-800 active:bg-slate-200 disabled:opacity-50"
                   aria-label={`${t('ks.minus')}: ${p.name}`}
                 >
@@ -237,7 +243,7 @@ export default function KolayStokHome() {
                 <button
                   type="button"
                   disabled={busyId === p.id}
-                  onClick={() => move(p, 1, 'other')}
+                  onClick={() => move(p, 1, ks.quickReasons.plus)}
                   className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal-700 text-white active:bg-teal-800 disabled:opacity-50"
                   aria-label={`${t('ks.plus')}: ${p.name}`}
                 >

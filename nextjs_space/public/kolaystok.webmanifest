@@ -1,0 +1,17 @@
+{
+  "name": "Avc KolayStok",
+  "short_name": "KolayStok",
+  "description": "Deponuz için kolay stok takibi",
+  "start_url": "/kolaystok/app",
+  "scope": "/kolaystok/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "lang": "tr",
+  "icons": [
+    { "src": "/kolaystok-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/kolaystok-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/kolaystok-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

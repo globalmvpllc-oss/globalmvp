@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
   CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet, Menu, Truck,
-  Landmark, Receipt, FileSignature, Repeat, LifeBuoy,
+  Landmark, Receipt, FileSignature, Repeat, LifeBuoy, Boxes,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -97,6 +97,7 @@ function SidebarNav({
   onNavigate,
   t,
   readOnly,
+  stockLink,
 }: {
   pathname: string | null;
   collapsed: boolean;
@@ -104,9 +105,21 @@ function SidebarNav({
   t: (key: any) => string;
   /** An accountant: settings and billing are not theirs to see. */
   readOnly?: boolean;
+  /** "İkisi" mode: a link to Avc KolayStok. */
+  stockLink?: boolean;
 }) {
   return (
     <>
+      {stockLink && (
+        <Link
+          href="/kolaystok/app"
+          onClick={onNavigate}
+          className="flex items-center gap-3 rounded-lg bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-100"
+        >
+          <Boxes className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {!collapsed && <span>Avc KolayStok</span>}
+        </Link>
+      )}
       {NAV_ITEMS.filter((item: any) => !readOnly || !item.href.startsWith('/settings')).map((item: any) => {
         const Icon = item.icon;
         const active = isActive(item.href, pathname);
@@ -297,7 +310,7 @@ export function AppSidebar({ readOnly = false }: { readOnly?: boolean } = {}) {
             </SheetTitle>
 
             <nav aria-label={t('nav.menu')} className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-              <SidebarNav readOnly={readOnly}
+              <SidebarNav readOnly={readOnly} stockLink={company?.usageMode === 'both'}
                 pathname={pathname}
                 collapsed={false}
                 onNavigate={() => setDrawerOpen(false)}
@@ -344,7 +357,7 @@ export function AppSidebar({ readOnly = false }: { readOnly?: boolean } = {}) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          <SidebarNav readOnly={readOnly} pathname={pathname} collapsed={collapsed} t={t} />
+          <SidebarNav readOnly={readOnly} stockLink={company?.usageMode === 'both'} pathname={pathname} collapsed={collapsed} t={t} />
         </nav>
 
         {/* Footer */}

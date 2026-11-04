@@ -11,6 +11,7 @@ import {
   sendPaymentReminders,
 } from '@/lib/cron/jobs';
 import { sendTrialReminders } from '@/lib/cron/trial-reminders';
+import { runStockNightly } from '@/lib/cron/stock-jobs';
 
 /**
  * The daily job (Vercel Cron, see vercel.json).
@@ -63,6 +64,13 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('[cron] recurring step failed', { code: (error as { code?: string })?.code });
     report.recurring = 'failed';
+  }
+
+  try {
+    report.stock = await runStockNightly(now);
+  } catch (error) {
+    console.error('[cron] stock step failed', { code: (error as { code?: string })?.code });
+    report.stock = 'failed';
   }
 
   try {

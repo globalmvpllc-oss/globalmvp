@@ -9,6 +9,9 @@ export interface KsSession {
   role: 'manager' | 'staff' | 'viewer';
   companyName: string;
   currency: string;
+  /** Reasons recorded for a one-tap + and −. */
+  quickReasons: { plus: string; minus: string };
+  usageMode: string;
   permissions: {
     prices: boolean;
     move: boolean;

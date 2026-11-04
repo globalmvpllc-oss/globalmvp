@@ -156,6 +156,8 @@ export const companySchema = z.object({
   timezone: optionalText(100),
   locale: optionalText(20),
   businessType: optionalText(100),
+  /** finance | stock (Avc KolayStok) | both */
+  usageMode: z.enum(['finance', 'stock', 'both']).optional(),
   address: optionalText(500),
   city: optionalText(100),
   state: optionalText(100),

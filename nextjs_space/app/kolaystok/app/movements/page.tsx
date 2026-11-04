@@ -9,7 +9,7 @@ import { useKs } from '@/components/kolaystok/ks-context';
 /**
  * Movement history: who, when, how much, why. Filter by person (managers),
  * by day range, or "today". Product filtering comes from a product's link
- * (?productId=). PDF and Excel buttons arrive with day 2.
+ * (?productId=). PDF and Excel use the same filter (managers, accountant).
  */
 export default function KsMovements() {
   const { t, locale } = useI18n();
@@ -62,6 +62,21 @@ export default function KsMovements() {
   return (
     <div className="space-y-3">
       <h1 className="text-2xl font-bold">{t('ks.mv.title')}</h1>
+      {ks.permissions.export && (
+        <div className="grid grid-cols-2 gap-2">
+          {(['pdf', 'xlsx'] as const).map((format) => {
+            const qs = query(0);
+            qs.delete('take');
+            qs.delete('skip');
+            qs.set('format', format);
+            return (
+              <a key={format} href={`/api/stock/movements/export?${qs}`} className="flex h-12 items-center justify-center rounded-xl border-2 bg-white text-lg font-medium">
+                {t(format === 'pdf' ? 'listPdf.download' : 'ks.mv.excel')}
+              </a>
+            );
+          })}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setToday(!today)} aria-pressed={today} className={`col-span-2 h-12 rounded-xl text-lg font-medium ${today ? 'bg-teal-700 text-white' : 'border bg-white'}`}>
           {t('ks.mv.today')}

@@ -72,8 +72,11 @@ export interface MoveResult {
 /** One stock change inside an existing transaction. Throws NOT_FOUND. */
 export async function moveStockTx(tx: TxClient, input: MoveInput): Promise<MoveResult> {
   const delta = new Decimal(input.delta);
+  // A removed (inactive) product takes no new stock changes; the system's own
+  // reversals (undo, reset and its undo) still apply to it.
+  const systemReason = input.reason === 'undo' || input.reason === 'reset' || input.reason === 'reset-undo';
   const exists = await tx.stockProduct.findFirst({
-    where: { id: input.productId, companyId: input.companyId },
+    where: { id: input.productId, companyId: input.companyId, ...(systemReason ? {} : { isActive: true }) },
     select: { id: true },
   });
   if (!exists) throw new Error('NOT_FOUND');

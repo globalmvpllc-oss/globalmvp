@@ -257,3 +257,80 @@ export function stockLowAlertEmail(input: StockLowAlertInput): RenderedEmail {
   );
   return { ...rendered, text: `${rendered.text}\n\n${cta}: ${input.url}` };
 }
+
+/** After "reset all stock": what happened, with the Excel backup attached. */
+export function stockResetEmail(input: { locale: Locale; companyName: string; products: number; by: string }): RenderedEmail {
+  const { locale } = input;
+  return compose(fill(locale, 'ks.mail.resetSubject', { company: input.companyName }), [
+    fill(locale, 'ks.mail.resetBody', { company: input.companyName, by: input.by, products: input.products }),
+    translate(locale, 'ks.mail.resetUndo'),
+  ]);
+}
+
+export interface StockOrderLine {
+  code: string;
+  name: string;
+  unit: string;
+  quantity: number;
+}
+
+/** A purchase order to a supplier, prepared by the manager and sent only after they confirm. */
+export function stockOrderEmail(input: {
+  locale: Locale;
+  companyName: string;
+  supplierName: string;
+  lines: StockOrderLine[];
+  note?: string | null;
+}): RenderedEmail {
+  const { locale } = input;
+  const qty = (n: number) => new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US', { maximumFractionDigits: 3 }).format(n);
+  const rows = input.lines
+    .map(
+      (l) =>
+        `<tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${escapeHtml(l.code)}</td><td style="padding:6px 10px;border-bottom:1px solid #eee">${escapeHtml(l.name)}</td><td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(qty(l.quantity))} ${escapeHtml(l.unit)}</td></tr>`
+    )
+    .join('');
+  const table =
+    `<table style="border-collapse:collapse;margin:0 0 16px;font-size:15px"><thead><tr>` +
+    `<th style="text-align:left;padding:6px 10px">${escapeHtml(translate(locale, 'ks.product.code'))}</th>` +
+    `<th style="text-align:left;padding:6px 10px">${escapeHtml(translate(locale, 'ks.product.name'))}</th>` +
+    `<th style="text-align:right;padding:6px 10px">${escapeHtml(translate(locale, 'ks.qty.amount'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const paragraphs = [
+    fill(locale, 'ks.mail.orderGreeting', { supplier: input.supplierName }),
+    fill(locale, 'ks.mail.orderBody', { company: input.companyName }),
+  ];
+  const rendered = compose(fill(locale, 'ks.mail.orderSubject', { company: input.companyName }), paragraphs, table +
+    (input.note ? `<p style="margin:0 0 14px">${escapeHtml(input.note)}</p>` : '') +
+    `<p style="margin:0">${escapeHtml(fill(locale, 'ks.mail.orderThanks', { company: input.companyName }))}</p>`);
+  const textLines = input.lines.map((l) => `- ${l.code}  ${l.name}: ${qty(l.quantity)} ${l.unit}`).join('\n');
+  return {
+    ...rendered,
+    text: `${paragraphs.join('\n\n')}\n\n${textLines}\n\n${input.note ? `${input.note}\n\n` : ''}${fill(locale, 'ks.mail.orderThanks', { company: input.companyName })}`,
+  };
+}
+
+/** The 07:00 summary: critical and out-of-stock products. */
+export function stockDailyEmail(input: {
+  locale: Locale;
+  companyName: string;
+  low: Array<{ code: string; name: string; quantity: number; unit: string }>;
+  out: Array<{ code: string; name: string; unit: string }>;
+  url: string;
+}): RenderedEmail {
+  const { locale } = input;
+  const list = (items: string[]) => `<ul style="margin:0 0 14px;padding-left:20px">${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+  const lowItems = input.low.map((p) => `${p.code} ${p.name}: ${p.quantity} ${p.unit}`);
+  const outItems = input.out.map((p) => `${p.code} ${p.name}`);
+  const cta = translate(locale, 'ks.alert.cta');
+  const rendered = compose(
+    fill(locale, 'ks.mail.dailySubject', { company: input.companyName, low: input.low.length, out: input.out.length }),
+    [fill(locale, 'ks.mail.dailyBody', { low: input.low.length, out: input.out.length })],
+    (input.out.length ? `<p style="margin:0 0 6px;font-weight:bold">${escapeHtml(translate(locale, 'ks.tile.out'))}</p>${list(outItems.slice(0, 100))}` : '') +
+      (input.low.length ? `<p style="margin:0 0 6px;font-weight:bold">${escapeHtml(translate(locale, 'ks.tile.low'))}</p>${list(lowItems.slice(0, 100))}` : '') +
+      linkButton(input.url, cta)
+  );
+  return {
+    ...rendered,
+    text: `${rendered.text}\n\n${translate(locale, 'ks.tile.out')}:\n${outItems.join('\n')}\n\n${translate(locale, 'ks.tile.low')}:\n${lowItems.join('\n')}\n\n${cta}: ${input.url}`,
+  };
+}

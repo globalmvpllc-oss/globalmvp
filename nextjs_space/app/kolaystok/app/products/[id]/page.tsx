@@ -81,10 +81,10 @@ export default function KsProductForm({ params }: { params: { id: string } }) {
   };
 
   const remove = async () => {
-    if (!window.confirm(fill('ks.product.deleteConfirm', { name: form.name }))) return;
+    if (!window.confirm(fill('ks.product.deactivateConfirm', { name: form.name }))) return;
     const res = await fetch(`/api/stock/products/${encodeURIComponent(params.id)}`, { method: 'DELETE' });
     if (res.ok) {
-      toast.success(t('ks.product.deleted'));
+      toast.success(t('ks.product.deactivated'));
       router.push('/kolaystok/app/products');
     } else toast.error(t('ks.saveFailed'));
   };
@@ -144,7 +144,7 @@ export default function KsProductForm({ params }: { params: { id: string } }) {
         </button>
         {!isNew && (
           <button type="button" onClick={remove} className="h-12 w-full rounded-xl border-2 border-red-200 text-lg font-medium text-red-700">
-            {t('ks.product.delete')}
+            {t('ks.product.deactivate')}
           </button>
         )}
       </form>

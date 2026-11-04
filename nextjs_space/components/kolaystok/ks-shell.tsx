@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Home, Package, ClipboardList, History, Truck, Settings, LogOut } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from './ks-context';
@@ -28,6 +28,11 @@ export function KsShell({ children }: { children: ReactNode }) {
   ];
   const visible = tabs.filter((tab) => tab.show);
 
+  // Installable as "Avc KolayStok" on the phone's home screen (PWA).
+  useEffect(() => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/kolaystok-sw.js', { scope: '/kolaystok/' }).catch(() => {});
+  }, []);
+
   const leave = async () => {
     if (ks.kind === 'staff') {
       await fetch('/api/stock/logout', { method: 'POST' }).catch(() => {});
@@ -46,6 +51,9 @@ export function KsShell({ children }: { children: ReactNode }) {
             {ks.companyName} · {ks.name}
           </p>
         </div>
+        {ks.usageMode === 'both' && ks.kind === 'user' && (
+          <Link href="/dashboard" className="flex h-11 items-center rounded-lg border px-3 text-base text-slate-600">CorpControl</Link>
+        )}
         <button
           type="button"
           onClick={leave}
