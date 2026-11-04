@@ -180,3 +180,52 @@ export function calendarReminderEmail(input: CalendarReminderInput): RenderedEma
       translate(locale, 'email.calendar.footer'),
   };
 }
+
+function linkButton(url: string, label: string): string {
+  return `<p style="margin:0 0 18px"><a href="${escapeHtml(url)}" style="display:inline-block;background:#7C3AED;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">${escapeHtml(label)}</a></p>`;
+}
+
+export interface AccountantInviteInput {
+  locale: Locale;
+  companyName: string;
+  inviterName: string;
+  url: string;
+}
+
+/** Invitation for an accountant (mali müşavir): one clear button, 7-day note. */
+export function accountantInviteEmail(input: AccountantInviteInput): RenderedEmail {
+  const { locale } = input;
+  const cta = translate(locale, 'email.acc.cta');
+  const footer = translate(locale, 'email.acc.footer');
+  const rendered = compose(
+    fill(locale, 'email.acc.subject', { company: input.companyName }),
+    [fill(locale, 'email.acc.body', { inviter: input.inviterName, company: input.companyName })],
+    linkButton(input.url, cta) + `<p style="margin:0;font-size:14px;color:#777">${escapeHtml(footer)}</p>`
+  );
+  return { ...rendered, text: `${rendered.text}\n\n${cta}: ${input.url}\n\n${footer}` };
+}
+
+export interface TrialReminderInput {
+  locale: Locale;
+  kind: 'soon' | 'ended';
+  companyName: string;
+  endsAt: Date;
+  url: string;
+}
+
+/** "2 days left" and "ended today" for the free Pro trial. */
+export function trialReminderEmail(input: TrialReminderInput): RenderedEmail {
+  const { locale } = input;
+  const cta = translate(locale, 'email.trial.cta');
+  const rendered = compose(
+    translate(locale, input.kind === 'soon' ? 'email.trial.soonSubject' : 'email.trial.endedSubject'),
+    [
+      fill(locale, input.kind === 'soon' ? 'email.trial.soonBody' : 'email.trial.endedBody', {
+        company: input.companyName,
+        date: formatEmailDate(input.endsAt, locale),
+      }),
+    ],
+    linkButton(input.url, cta)
+  );
+  return { ...rendered, text: `${rendered.text}\n\n${cta}: ${input.url}` };
+}

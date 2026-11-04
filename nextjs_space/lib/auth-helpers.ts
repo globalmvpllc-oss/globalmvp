@@ -1,9 +1,11 @@
 import { getServerSession } from 'next-auth';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { ACTIVE_COMPANY_COOKIE, resolveActiveCompanyId } from '@/lib/active-company';
+import { accountantRefusal } from '@/lib/accountant/rules';
+import { REQUEST_METHOD_HEADER, REQUEST_PATH_HEADER } from '@/lib/accountant/headers';
 
 export async function getSessionUser() {
   const session = await getServerSession(authOptions);
@@ -32,14 +34,31 @@ export async function getSessionUser() {
  * a company the user has no membership for is discarded — see
  * `resolveActiveCompanyId`.
  */
-async function resolveCompanyIdForUser(userId: string): Promise<string | null> {
+async function resolveMembershipForUser(userId: string): Promise<{ companyId: string; role: string } | null> {
   const memberships = await prisma.companyMember.findMany({
     where: { userId, user: { isActive: true } },
-    select: { companyId: true },
+    select: { companyId: true, role: true },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
 
-  return resolveActiveCompanyId(memberships, cookies().get(ACTIVE_COMPANY_COOKIE)?.value);
+  const companyId = resolveActiveCompanyId(memberships, cookies().get(ACTIVE_COMPANY_COOKIE)?.value);
+  if (!companyId) return null;
+  const role = memberships.find((m) => m.companyId === companyId)?.role ?? 'owner';
+  return { companyId, role };
+}
+
+async function resolveCompanyIdForUser(userId: string): Promise<string | null> {
+  return (await resolveMembershipForUser(userId))?.companyId ?? null;
+}
+
+/**
+ * The signed-in user's role in their active company ("owner", "accountant",
+ * …), or null. For layouts and pages that adapt to a read-only member.
+ */
+export async function getActiveMembership(): Promise<{ companyId: string; role: string } | null> {
+  const user = await getSessionUser();
+  if (!user) return null;
+  return resolveMembershipForUser(user.id);
 }
 
 export async function getUserCompanyId(): Promise<string | null> {
@@ -59,19 +78,38 @@ export async function getUserCompanyId(): Promise<string | null> {
  * It is never taken from a request body, query string or header.
  */
 export async function requireUserCompany(): Promise<
-  | { error: NextResponse; user: null; companyId: null }
-  | { error: null; user: { id: string; name?: string | null; email?: string | null }; companyId: string }
+  | { error: NextResponse; user: null; companyId: null; role: null }
+  | { error: null; user: { id: string; name?: string | null; email?: string | null }; companyId: string; role: string }
 > {
   const user = await getSessionUser();
   if (!user) {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), user: null, companyId: null };
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), user: null, companyId: null, role: null };
   }
 
-  const companyId = await resolveCompanyIdForUser(user.id);
-  if (!companyId) {
-    return { error: NextResponse.json({ error: 'No company access' }, { status: 403 }), user: null, companyId: null };
+  const membership = await resolveMembershipForUser(user.id);
+  if (!membership) {
+    return { error: NextResponse.json({ error: 'No company access' }, { status: 403 }), user: null, companyId: null, role: null };
   }
-  return { error: null, user, companyId };
+
+  // Accountants are read-only, enforced here for every company-scoped route:
+  // only GET/HEAD pass, and billing is closed to them entirely. The method and
+  // path come from headers the middleware always overwrites; if they are
+  // missing the check refuses (fails closed).
+  const h = headers();
+  const refusal = accountantRefusal({
+    role: membership.role,
+    method: h.get(REQUEST_METHOD_HEADER),
+    pathname: h.get(REQUEST_PATH_HEADER),
+  });
+  if (refusal) {
+    return {
+      error: NextResponse.json({ error: refusal.error, code: refusal.code }, { status: refusal.status }),
+      user: null,
+      companyId: null,
+      role: null,
+    };
+  }
+  return { error: null, user, companyId: membership.companyId, role: membership.role };
 }
 
 /**

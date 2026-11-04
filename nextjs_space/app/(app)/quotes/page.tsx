@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/currencies';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { QUOTE_STATUSES, quoteStatusBadge } from '@/lib/quote-status';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 /** Quotes (teklifler): one list, one clear next step — "New quote". */
 export default function QuotesPage() {
@@ -43,9 +44,11 @@ export default function QuotesPage() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <ExportMenu dataset="quotes" className="w-full sm:w-auto" />
           <ListPdfButton kind="quotes" params={{ status }} className="w-full sm:w-auto" />
+          <CanEdit>
           <Button asChild className="w-full sm:w-auto">
             <Link href="/quotes/new"><Plus className="mr-2 h-4 w-4" /> {t('quotes.new')}</Link>
           </Button>
+          </CanEdit>
         </div>
       </div>
 

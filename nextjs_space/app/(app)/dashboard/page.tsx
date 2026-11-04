@@ -11,6 +11,7 @@ import { getCompanyInitials, resolveStoredFileUrl } from '@/lib/company-identity
 import { BankingSummaryCard } from '@/components/banking-summary-card';
 import { useI18n } from '@/components/i18n-provider';
 import { fillTranslation, type TranslationKey } from '@/lib/i18n';
+import { useReadOnly } from '@/components/read-only';
 
 interface CurrencyMetrics {
   revenue: string;
@@ -62,6 +63,7 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const { t, locale, intl } = useI18n();
+  const readOnly = useReadOnly();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<any>(null);
@@ -293,7 +295,7 @@ export default function DashboardPage() {
         are: the empty state already offers these actions, and repeating them
         directly below would be two sets of buttons doing the same thing.
       */}
-      {!loadError && !isEmpty ? (
+      {!loadError && !isEmpty && !readOnly ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">{t('dashboard.quickActions')}</CardTitle>

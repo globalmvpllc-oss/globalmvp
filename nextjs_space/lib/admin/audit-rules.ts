@@ -133,6 +133,17 @@ export const AUDIT_ACTIONS = [
   'admin.security.viewed',
   'admin.settings.viewed',
   'admin.access.denied',
+  // Accountant (mali müşavir) access, shown to the company owner in Settings.
+  'accountant.invited',
+  'accountant.invite_revoked',
+  'accountant.joined',
+  'accountant.removed',
+  'accountant.left',
+  'accountant.signin',
+  'accountant.download',
+  // Trial reminder emails (one of each per company), also the send-once marker.
+  'trial.reminder_soon',
+  'trial.reminder_ended',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

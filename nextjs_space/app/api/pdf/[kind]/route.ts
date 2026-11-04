@@ -8,6 +8,7 @@ import { getServerLocale } from '@/lib/i18n/server';
 import { isListPdfKind, listPdfFileName, renderListPdf } from '@/lib/pdf/list-pdf';
 import { loadListDocument } from '@/lib/pdf/list-data';
 import { loadDocumentCompany, pdfResponse } from '@/lib/pdf/response';
+import { recordAccountantDownload } from '@/lib/accountant/audit';
 
 /**
  * List and report PDFs: GET /api/pdf/{kind}?<the screen's filter>
@@ -22,8 +23,9 @@ import { loadDocumentCompany, pdfResponse } from '@/lib/pdf/response';
  */
 export async function GET(request: Request, { params }: { params: { kind: string } }) {
   try {
-    const { error, companyId } = await requireUserCompany();
-    if (error) return error;
+    const auth = await requireUserCompany();
+    if (auth.error) return auth.error;
+    const { companyId } = auth;
 
     if (!isListPdfKind(params.kind)) {
       return NextResponse.json({ error: 'Unknown document' }, { status: 404 });
@@ -47,6 +49,7 @@ export async function GET(request: Request, { params }: { params: { kind: string
       truncatedAt: loaded.truncatedAt,
       generatedAt: now,
     });
+    await recordAccountantDownload(auth, request, { kind: 'list-pdf', id: params.kind });
     return pdfResponse(bytes, listPdfFileName(params.kind, now));
   } catch (error) {
     return handleApiError('pdf:list', error, { fallbackMessage: 'The PDF could not be prepared.' });

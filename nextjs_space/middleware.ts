@@ -4,6 +4,7 @@ import { getToken } from 'next-auth/jwt';
 import { checkRateLimit, clientKey, LOGIN_RULE } from '@/lib/rate-limit';
 import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from '@/lib/i18n';
 import { detectLocale, withLocaleCookie, type LocaleDecision } from '@/lib/i18n/detect';
+import { REQUEST_METHOD_HEADER, REQUEST_PATH_HEADER } from '@/lib/accountant/headers';
 
 /**
  * Custom middleware: returns 401 JSON for unauthenticated API requests,
@@ -123,9 +124,13 @@ export default async function middleware(req: NextRequest) {
    * there is nothing for hydration to disagree about.
    */
   const proceed = (): NextResponse => {
-    if (!detecting) return NextResponse.next();
-
+    // Always overwritten from the real request, so a client cannot send its
+    // own: requireUserCompany reads these to keep accountants read-only.
     const headers = new Headers(req.headers);
+    headers.set(REQUEST_METHOD_HEADER, req.method);
+    headers.set(REQUEST_PATH_HEADER, pathname);
+    if (!detecting) return NextResponse.next({ request: { headers } });
+
     headers.set('cookie', withLocaleCookie(req.headers.get('cookie'), locale.locale));
     return stampLocale(NextResponse.next({ request: { headers } }), locale);
   };
@@ -173,6 +178,10 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith('/auth') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/signup') ||
+    // Accountant invitations: the invitee may have no account yet. The page
+    // and its two public endpoints answer only for a valid invitation token.
+    pathname.startsWith('/invite/') ||
+    pathname.startsWith('/api/accountant/public/') ||
     // Provider webhooks carry no session cookie, so the session gate below
     // would reject every delivery with a 401 and the sender would eventually
     // stop retrying — subscriptions would drift out of sync silently. These

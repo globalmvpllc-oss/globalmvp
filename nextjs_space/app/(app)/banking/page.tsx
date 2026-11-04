@@ -26,6 +26,7 @@ import { formatCalendarDate } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { toast } from 'sonner';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 /**
  * Banking overview.
@@ -262,9 +263,11 @@ export default function BankingPage() {
               ) : null}
             </Link>
           </Button>
+          <CanEdit>
           <Button onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" /> {t('banking.addAccount')}
           </Button>
+          </CanEdit>
         </div>
       </div>
 

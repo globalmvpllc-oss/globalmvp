@@ -15,6 +15,7 @@ import { formatCalendarDate } from '@/lib/calendar-date';
 import { lineItemTotals } from '@/components/line-items-editor';
 import type { TranslationKey } from '@/lib/i18n';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 const FREQUENCY_KEYS: Record<string, TranslationKey> = {
   MONTHLY: 'recurring.monthly',
@@ -66,7 +67,9 @@ export default function RecurringPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <ListPdfButton kind="recurring" className="w-full sm:w-auto" />
+          <CanEdit>
           <Button asChild className="w-full sm:w-auto"><Link href="/recurring/new"><Plus className="mr-2 h-4 w-4" /> {t('recurring.new')}</Link></Button>
+          </CanEdit>
         </div>
       </div>
 

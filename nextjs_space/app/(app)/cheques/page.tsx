@@ -36,6 +36,7 @@ import {
 } from '@/lib/cheque-status';
 import type { ChequeTotals } from '@/lib/cheque-totals';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 /**
  * Cheques and promissory notes — çek ve senet.
@@ -374,9 +375,11 @@ export default function ChequesPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <ListPdfButton kind="cheques" params={{ direction: directionFilter, status: statusFilter }} className="w-full sm:w-auto" />
+          <CanEdit>
           <Button onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> {t('cheques.add')}
           </Button>
+          </CanEdit>
         </div>
       </div>
 

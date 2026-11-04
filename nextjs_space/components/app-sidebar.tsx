@@ -96,15 +96,18 @@ function SidebarNav({
   collapsed,
   onNavigate,
   t,
+  readOnly,
 }: {
   pathname: string | null;
   collapsed: boolean;
   onNavigate?: () => void;
   t: (key: any) => string;
+  /** An accountant: settings and billing are not theirs to see. */
+  readOnly?: boolean;
 }) {
   return (
     <>
-      {NAV_ITEMS.map((item: any) => {
+      {NAV_ITEMS.filter((item: any) => !readOnly || !item.href.startsWith('/settings')).map((item: any) => {
         const Icon = item.icon;
         const active = isActive(item.href, pathname);
         return (
@@ -193,7 +196,7 @@ function SidebarFooterActions({
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { t } = useI18n();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -294,7 +297,7 @@ export function AppSidebar() {
             </SheetTitle>
 
             <nav aria-label={t('nav.menu')} className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-              <SidebarNav
+              <SidebarNav readOnly={readOnly}
                 pathname={pathname}
                 collapsed={false}
                 onNavigate={() => setDrawerOpen(false)}
@@ -341,7 +344,7 @@ export function AppSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          <SidebarNav pathname={pathname} collapsed={collapsed} t={t} />
+          <SidebarNav readOnly={readOnly} pathname={pathname} collapsed={collapsed} t={t} />
         </nav>
 
         {/* Footer */}

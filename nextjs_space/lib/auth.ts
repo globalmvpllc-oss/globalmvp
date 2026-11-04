@@ -107,6 +107,28 @@ export const authOptions: NextAuthOptions = {
     },
   },
   events: {
+    // An accountant's sign-in is written to the audit log of every company
+    // they can read, so each owner sees it under Settings → Accountant access.
+    async signIn({ user }) {
+      if (!user?.id) return;
+      try {
+        const memberships = await prisma.companyMember.findMany({
+          where: { userId: user.id, role: 'accountant' },
+          select: { companyId: true },
+        });
+        if (memberships.length === 0) return;
+        const { recordAccountantEvent } = await import('@/lib/accountant/audit');
+        for (const m of memberships) {
+          await recordAccountantEvent({
+            actor: { id: user.id, email: user.email },
+            action: 'accountant.signin',
+            companyId: m.companyId,
+          });
+        }
+      } catch {
+        // Auditing never blocks a sign-in.
+      }
+    },
     // A Google-authenticated address is verified by definition — the signIn
     // guard above already required Google's own email_verified — so mark it
     // verified when the account is created and when Google is linked to an

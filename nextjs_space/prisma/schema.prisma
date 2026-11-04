@@ -165,6 +165,7 @@ model Company {
   /// "QUO-" otherwise, decided when the quote is numbered.
   quotePrefix         String?
   quoteNextNumber     Int                 @default(1)
+  accountantInvites   AccountantInvite[]
 }
 
 model CompanyMember {
@@ -997,4 +998,25 @@ model RecurringInvoiceItem {
   recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
 
   @@index([recurringInvoiceId])
+}
+
+/// An invitation for an accountant (mali müşavir) to read one company's books.
+/// The token itself is never stored, only its SHA-256 hash; an invitation is
+/// usable once, for seven days, by an account with the invited email address.
+/// Accepting creates a CompanyMember with role "accountant" (read-only).
+model AccountantInvite {
+  id             String    @id @default(cuid())
+  companyId      String
+  email          String
+  tokenHash      String    @unique
+  invitedById    String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedUserId String?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([email])
 }

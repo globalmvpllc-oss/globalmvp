@@ -11,6 +11,8 @@ import { renderStatementPdf } from '@/lib/pdf/statement-pdf';
 import { loadDocumentCompany, pdfResponse } from '@/lib/pdf/response';
 import { getServerLocale } from '@/lib/i18n/server';
 import { vendorMovements } from '@/lib/statement-sources';
+import { isAccountant } from '@/lib/accountant/rules';
+import { recordAccountantDownload } from '@/lib/accountant/audit';
 
 /**
  * Current account statement for one vendor — the running ledger of what you owe
@@ -35,8 +37,9 @@ import { vendorMovements } from '@/lib/statement-sources';
  */
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const { error, companyId } = await requireUserCompany();
-    if (error) return error;
+    const auth = await requireUserCompany();
+    if (auth.error) return auth.error;
+    const { companyId, role } = auth;
 
     const { searchParams } = new URL(request.url);
     const { range, error: rangeError } = parseCalendarRange(searchParams);
@@ -119,7 +122,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     // ?format=pdf: the same statement as a PDF, built here on the server.
     if (searchParams.get('format') === 'pdf') {
-      const denied = await enforcePlanLimit(companyId, 'invoicePdfPerMonth');
+      // An accountant's downloads never use the company's PDF allowance.
+      const denied = isAccountant(role) ? null : await enforcePlanLimit(companyId, 'invoicePdfPerMonth');
       if (denied) return denied;
       const documentCompany = await loadDocumentCompany(companyId);
       const bytes = await renderStatementPdf({
@@ -131,6 +135,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
           .filter(Boolean),
         range: { from: searchParams.get('from'), to: searchParams.get('to') },
       });
+      await recordAccountantDownload(auth, request, { kind: 'vendor-statement-pdf', id: params.id });
       return pdfResponse(bytes, `statement-${vendor.name}.pdf`);
     }
 

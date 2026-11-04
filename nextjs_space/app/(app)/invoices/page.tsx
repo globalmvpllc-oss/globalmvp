@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 export default function InvoicesPage() {
   const company = useCompany();
@@ -173,9 +174,11 @@ export default function InvoicesPage() {
           <BulkPdfButton invoices={invoices} selectedIds={selectedIds} company={company} className="w-full sm:w-auto" />
           <ListPdfButton kind="invoices" params={{ status: statusFilter }} className="w-full sm:w-auto" />
           <ExportMenu dataset="invoices" className="w-full sm:w-auto" />
+          <CanEdit>
           <Button asChild className="w-full sm:w-auto">
             <Link href="/invoices/new"><Plus className="w-4 h-4 mr-2" /> {t('invoices.create')}</Link>
           </Button>
+          </CanEdit>
         </div>
       </div>
 

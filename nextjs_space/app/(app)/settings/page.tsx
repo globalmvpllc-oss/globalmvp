@@ -24,6 +24,7 @@ import {
 import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies';
 import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
 import { useI18n } from '@/components/i18n-provider';
+import { AccountantAccess } from '@/components/accountant-access';
 import type { TranslationKey } from '@/lib/i18n';
 import { TR_VAT_RATES, isTurkishCountry } from '@/lib/tr-tax';
 
@@ -528,6 +529,8 @@ export default function SettingsPage() {
           <Save className="w-4 h-4 mr-2" /> {saving ? t('common.saving') : t('settings.saveSettings')}
         </Button>
       </div>
+
+      <AccountantAccess />
     </div>
   );
 }

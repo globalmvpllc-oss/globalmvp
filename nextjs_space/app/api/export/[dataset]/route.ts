@@ -10,6 +10,8 @@ import { getServerLocale } from '@/lib/i18n/server';
 import { vatPeriod } from '@/lib/vat-report';
 import { buildCsv, buildXlsx } from '@/lib/export/tabular';
 import { buildExportTables, isExportDataset } from '@/lib/export/datasets';
+import { isAccountant } from '@/lib/accountant/rules';
+import { recordAccountantDownload } from '@/lib/accountant/audit';
 
 /**
  * Excel / CSV export: GET /api/export/{dataset}?format=xlsx|csv&from&to
@@ -22,8 +24,9 @@ import { buildExportTables, isExportDataset } from '@/lib/export/datasets';
  */
 export async function GET(request: Request, { params }: { params: { dataset: string } }) {
   try {
-    const { error, companyId } = await requireUserCompany();
-    if (error) return error;
+    const auth = await requireUserCompany();
+    if (auth.error) return auth.error;
+    const { companyId, role } = auth;
 
     if (!isExportDataset(params.dataset)) {
       return NextResponse.json({ error: 'Unknown dataset' }, { status: 404 });
@@ -33,7 +36,9 @@ export async function GET(request: Request, { params }: { params: { dataset: str
 
     const capability = CAPABILITIES.find((c) => c.id === 'dataExport')!;
     const plan = await getCurrentPlan(companyId);
-    if (!planDelivers(plan, capability)) {
+    // Accountants may export on every plan: reading the books is their job,
+    // and the invitation itself is free on every plan.
+    if (!isAccountant(role) && !planDelivers(plan, capability)) {
       return NextResponse.json(
         { error: 'Data export is part of the Pro plan.', code: 'FEATURE_NOT_IN_PLAN', feature: 'dataExport', plan },
         { status: 402 }
@@ -63,6 +68,8 @@ export async function GET(request: Request, { params }: { params: { dataset: str
           ? `${from ?? 'start'}_${to ?? stamp}`
           : stamp;
     const base = `corpcontrol-${params.dataset}-${span}`;
+
+    await recordAccountantDownload(auth, request, { kind: 'export', id: params.dataset });
 
     if (format === 'csv') {
       return new Response(buildCsv(tables[0], locale), {

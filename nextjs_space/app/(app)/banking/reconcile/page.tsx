@@ -26,6 +26,7 @@ import { formatCalendarDate, todayCalendarInput } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { toast } from 'sonner';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 /**
  * The reconciliation workspace.
@@ -423,6 +424,7 @@ function ReconcileWorkspace() {
           <Button variant="outline" asChild className="w-full sm:w-auto">
             <Link href="/banking"><Landmark className="w-4 h-4 mr-2" /> {t('banking.accounts')}</Link>
           </Button>
+          <CanEdit>
           <Button
             variant="outline"
             className="w-full sm:w-auto"
@@ -443,6 +445,7 @@ function ReconcileWorkspace() {
           >
             <Upload className="w-4 h-4 mr-2" /> {t('banking.import')}
           </Button>
+          </CanEdit>
         </div>
       </div>
 

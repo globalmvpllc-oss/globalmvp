@@ -25,6 +25,7 @@ import { readErrorMessage } from '@/lib/api-feedback';
 import { downloadBytes } from '@/lib/bulk-pdf';
 import { DocumentLines } from '@/components/document-lines';
 import { isProformaInvoice } from '@/lib/tr-tax';
+import { CanEdit } from '@/components/read-only';
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -293,6 +294,7 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <CanEdit>
           {invoice?.status !== 'CANCELLED' && (
             <Button className="flex-1 sm:flex-none" onClick={sendByEmail} disabled={emailSending}>
               <Mail className="w-4 h-4 mr-2" /> {emailSending ? t('invoices.emailSending') : t('invoices.emailSend')}
@@ -340,13 +342,16 @@ export default function InvoiceDetailPage() {
               <Button className="flex-1 sm:flex-none" onClick={() => updateStatus('PAID')}><CheckCircle className="w-4 h-4 mr-2" /> {t('invoices.markPaid')}</Button>
             </>
           )}
+          </CanEdit>
           <Button variant="outline" className="flex-1 sm:flex-none" onClick={printInvoice} disabled={pdfLoading}>
             <Printer className="w-4 h-4 mr-2" /> {t('statement.print')}
           </Button>
           <Button variant="outline" className="flex-1 sm:flex-none" onClick={downloadPdf} disabled={pdfLoading}>
             <Download className="w-4 h-4 mr-2" /> {pdfLoading ? t('invoices.generating') : t('listPdf.download')}
           </Button>
+          <CanEdit>
           <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('common.delete')} onClick={handleDelete}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+          </CanEdit>
         </div>
       </div>
 

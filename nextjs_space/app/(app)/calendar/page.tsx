@@ -29,6 +29,7 @@ import { useI18n } from '@/components/i18n-provider';
 import { getChequeStatusBadge } from '@/lib/cheque-status';
 import type { TranslationKey } from '@/lib/i18n';
 import Link from 'next/link';
+import { CanEdit } from '@/components/read-only';
 
 /**
  * Two kinds of entry share this calendar.
@@ -563,9 +564,11 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('nav.calendar')}</h1>
           <p className="text-muted-foreground">{t('calendar.subtitle')}</p>
         </div>
+        <CanEdit>
         <Button onClick={() => openCreate()}>
           <Plus className="w-4 h-4 mr-2" /> {t('calendar.addEvent')}
         </Button>
+        </CanEdit>
       </div>
 
       {loadError ? (

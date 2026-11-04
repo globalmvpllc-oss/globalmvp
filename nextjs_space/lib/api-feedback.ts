@@ -77,6 +77,8 @@ export function pickErrorMessage(
   locale: Locale = DEFAULT_LOCALE
 ): string {
   const record = (body ?? {}) as Record<string, unknown>;
+  // An accountant's refused change reads the same everywhere, in their language.
+  if (record.code === 'READ_ONLY' || record.code === 'NOT_FOR_ACCOUNTANT') return translate(locale, 'acc.readOnly');
   if (isInformative(record.message)) return record.message;
   if (isInformative(record.error)) return record.error;
   return messageForStatus(status, locale);

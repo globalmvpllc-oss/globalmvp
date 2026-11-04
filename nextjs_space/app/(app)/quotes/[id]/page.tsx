@@ -15,6 +15,7 @@ import { canConvertQuote, canTransitionQuote, quoteStatusBadge } from '@/lib/quo
 import { readErrorMessage } from '@/lib/api-feedback';
 import { downloadBytes } from '@/lib/bulk-pdf';
 import { DocumentLines } from '@/components/document-lines';
+import { CanEdit, useReadOnly } from '@/components/read-only';
 
 const EMAIL_ERRORS: Record<string, 'invoices.emailNoAddress' | 'invoices.emailPdfFailed' | 'invoices.emailNotConfigured' | 'invoices.emailTooMany' | 'invoices.emailFailed'> = {
   NO_EMAIL: 'invoices.emailNoAddress',
@@ -30,6 +31,7 @@ const EMAIL_ERRORS: Record<string, 'invoices.emailNoAddress' | 'invoices.emailPd
  */
 export default function QuoteDetailPage() {
   const { t, fill, locale, intl } = useI18n();
+  const readOnly = useReadOnly();
   const params = useParams();
   const router = useRouter();
   const [quote, setQuote] = useState<any>(null);
@@ -143,7 +145,7 @@ export default function QuoteDetailPage() {
           </p>
           {quote.convertedInvoice ? (
             <Button asChild size="lg"><Link href={`/invoices/${quote.convertedInvoice.id}`}><FileCheck2 className="mr-2 h-4 w-4" /> {fill('quotes.openInvoice', { number: quote.convertedInvoice.invoiceNumber })}</Link></Button>
-          ) : quote.status === 'DRAFT' ? (
+          ) : readOnly ? null : quote.status === 'DRAFT' ? (
             <Button size="lg" onClick={sendEmail} disabled={busy !== null}><Mail className="mr-2 h-4 w-4" /> {busy === 'send' ? t('invoices.emailSending') : t('invoices.emailSend')}</Button>
           ) : convertible ? (
             <Button size="lg" onClick={convert} disabled={busy !== null}><FileCheck2 className="mr-2 h-4 w-4" /> {t('quotes.convert')}</Button>
@@ -153,6 +155,7 @@ export default function QuoteDetailPage() {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={downloadPdf} disabled={busy !== null}><Download className="mr-2 h-4 w-4" /> {busy === 'pdf' ? t('invoices.generating') : t('listPdf.download')}</Button>
+        <CanEdit>
         {quote.status !== 'DRAFT' && quote.status !== 'REJECTED' && !quote.convertedInvoice && (
           <Button variant="outline" onClick={sendEmail} disabled={busy !== null}><Mail className="mr-2 h-4 w-4" /> {t('quotes.resend')}</Button>
         )}
@@ -168,6 +171,7 @@ export default function QuoteDetailPage() {
         {!quote.convertedInvoice && (
           <Button variant="ghost" size="icon" aria-label={t('common.delete')} onClick={remove}><Trash2 className="h-4 w-4 text-red-500" /></Button>
         )}
+        </CanEdit>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

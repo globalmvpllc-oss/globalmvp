@@ -28,6 +28,7 @@ import { TR_VAT_RATES } from '@/lib/tr-tax';
 import { vatFromGross } from '@/lib/vat-report';
 import { getChequeStatusBadge } from '@/lib/cheque-status';
 import { ListPdfButton } from '@/components/list-pdf-button';
+import { CanEdit } from '@/components/read-only';
 
 export default function ExpensesPage() {
   const { t, fill, locale, intl, category: categoryLabel } = useI18n();
@@ -248,7 +249,9 @@ export default function ExpensesPage() {
         <ExportMenu dataset="expenses" className="w-full sm:w-auto" />
         <ListPdfButton kind="expenses" className="w-full sm:w-auto" />
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
+          <CanEdit>
           <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('expenses.add')}</Button></DialogTrigger>
+          </CanEdit>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
             <DialogHeader><DialogTitle>{editingId ? t('expenses.editTitle') : t('expenses.recordTitle')}</DialogTitle></DialogHeader>
             <div className="space-y-3">
