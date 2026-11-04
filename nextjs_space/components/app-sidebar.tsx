@@ -17,6 +17,8 @@ import { useI18n } from '@/components/i18n-provider';
 import { LanguageSelector } from '@/components/language-selector';
 import { CompanySwitcher, type SwitchableCompany } from '@/components/company-switcher';
 import { SUPPORT_LINK, LEGAL_LINKS } from '@/lib/app-support-links';
+import { StockPromoItem, useStockPromoHidden } from '@/components/kolaystok/stock-promo';
+import { showStockPromo } from '@/lib/stock/promo';
 
 const NAV_ITEMS = [
   // The label is a translation key, resolved at render time so switching
@@ -98,6 +100,7 @@ function SidebarNav({
   t,
   readOnly,
   stockLink,
+  stockPromo,
 }: {
   pathname: string | null;
   collapsed: boolean;
@@ -107,6 +110,8 @@ function SidebarNav({
   readOnly?: boolean;
   /** "İkisi" mode: a link to Avc KolayStok. */
   stockLink?: boolean;
+  /** "Fatura ve finans" mode: the "Stok · Yeni" row with its intro. */
+  stockPromo?: boolean;
 }) {
   return (
     <>
@@ -120,6 +125,7 @@ function SidebarNav({
           {!collapsed && <span>Avc KolayStok</span>}
         </Link>
       )}
+      {stockPromo && <StockPromoItem collapsed={collapsed} onNavigate={onNavigate} />}
       {NAV_ITEMS.filter((item: any) => !readOnly || !item.href.startsWith('/settings')).map((item: any) => {
         const Icon = item.icon;
         const active = isActive(item.href, pathname);
@@ -213,6 +219,7 @@ export function AppSidebar({ readOnly = false }: { readOnly?: boolean } = {}) {
   const { t } = useI18n();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const promoHidden = useStockPromoHidden();
   /** Drawer state. Only reachable below `md`, where the sidebar is off-canvas. */
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [company, setCompany] = useState<any>(null);
@@ -310,7 +317,7 @@ export function AppSidebar({ readOnly = false }: { readOnly?: boolean } = {}) {
             </SheetTitle>
 
             <nav aria-label={t('nav.menu')} className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-              <SidebarNav readOnly={readOnly} stockLink={company?.usageMode === 'both'}
+              <SidebarNav readOnly={readOnly} stockLink={company?.usageMode === 'both'} stockPromo={Boolean(company) && promoHidden === false && showStockPromo({ usageMode: company?.usageMode, readOnly, hidden: promoHidden })}
                 pathname={pathname}
                 collapsed={false}
                 onNavigate={() => setDrawerOpen(false)}
@@ -357,7 +364,7 @@ export function AppSidebar({ readOnly = false }: { readOnly?: boolean } = {}) {
 
         {/* Nav */}
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          <SidebarNav readOnly={readOnly} stockLink={company?.usageMode === 'both'} pathname={pathname} collapsed={collapsed} t={t} />
+          <SidebarNav readOnly={readOnly} stockLink={company?.usageMode === 'both'} stockPromo={Boolean(company) && promoHidden === false && showStockPromo({ usageMode: company?.usageMode, readOnly, hidden: promoHidden })} pathname={pathname} collapsed={collapsed} t={t} />
         </nav>
 
         {/* Footer */}
