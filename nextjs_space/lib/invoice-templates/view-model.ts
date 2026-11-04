@@ -14,7 +14,9 @@
 import { countryLabel } from '@/lib/countries';
 import { formatCalendarDateLong } from '@/lib/calendar-date';
 import { translate, type TranslationKey } from '@/lib/i18n';
+import { documentTotalsLines, hasLineDiscount, lineNetAmount, rateText } from '@/lib/document-lines';
 import {
+  displayTaxLabel,
   documentLocaleFor,
   showsInformationalNotice,
   isProformaInvoice,
@@ -120,7 +122,10 @@ export interface InvoiceItemView {
   description: string;
   quantity: string;
   unitPrice: string;
+  /** "-₺250.00", or '' for a line without a discount. */
+  discount: string;
   taxRate: string;
+  /** Before VAT, after the line discount (same as the PDF). */
   amount: string;
 }
 
@@ -154,6 +159,10 @@ export interface InvoiceView {
   subtotal: string;
   discount: string | null;
   tax: string | null;
+  /** VAT per rate, in the PDF's order: "KDV %20" → amount. Pre-escaped. */
+  taxLines: Array<{ label: string; value: string }>;
+  /** Whether any line has a discount (shows the discount column). */
+  showDiscount: boolean;
   total: string;
 
   // Settings
@@ -284,13 +293,24 @@ export function buildInvoiceView(
     customerTaxLine: customerTaxParts.join(' • '),
     customerAddressLine: customerAddress,
 
+    // Same layout as the PDF (lib/document-lines): net line amounts, a
+    // discount column only when needed, VAT per rate in the totals.
     items: (invoice?.items ?? []).map((i: any) => ({
       description: esc(i?.description ?? ''),
       quantity: esc(i?.quantity ?? 0),
       unitPrice: esc(fmt(i?.unitPrice)),
-      taxRate: `${esc(i?.taxRate ?? 0)}%`,
-      amount: esc(fmt(i?.amount)),
+      discount: Number(i?.discount ?? 0) > 0 ? esc(`-${fmt(i?.discount)}`) : '',
+      taxRate: esc(rateText(i?.taxRate ?? 0, locale)),
+      amount: esc(fmt(lineNetAmount(i).toFixed(2))),
     })),
+    showDiscount: hasLineDiscount(invoice?.items),
+    taxLines: documentTotalsLines(invoice, { showTax })
+      .filter((line) => line.kind === 'tax')
+      .map((line) => {
+        if (line.kind !== 'tax') return { label: '', value: '' };
+        const label = line.rate ? `${displayTaxLabel(line.label, locale)} ${rateText(line.rate, locale)}` : translate(locale, 'pdf.tax');
+        return { label: esc(label), value: esc(fmt(line.amount)) };
+      }),
 
     subtotal: esc(fmt(invoice?.subtotal)),
     discount: discountValue > 0 ? esc(fmt(discountValue)) : null,

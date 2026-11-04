@@ -184,7 +184,10 @@ export async function buildExportTables(
         rows.push([t('vat.outputTotal'), cur.currency, '', cur.outputBase, cur.outputTax]);
         for (const line of cur.input) rows.push([t('vat.input'), cur.currency, rateText(line.rate), line.base, line.tax]);
         rows.push([t('vat.inputTotal'), cur.currency, '', cur.inputBase, cur.inputTax]);
-        rows.push([t('vat.net'), cur.currency, '', '', cur.net]);
+        // Same wording as the screen and the PDF: positive is VAT to pay,
+        // negative carries forward; the label carries the sign.
+        const carries = cur.net.trim().startsWith('-');
+        rows.push([t(carries ? 'vat.carryForward' : 'vat.payable'), cur.currency, '', '', carries ? cur.net.trim().slice(1) : cur.net]);
       }
       return [{
         name: t('export.sheet.vat'),

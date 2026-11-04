@@ -44,12 +44,14 @@ describe('invoiceShowLogo', () => {
 describe('invoiceShowTax', () => {
   it('hides the tax row when the setting is off', () => {
     const html = generateInvoiceHtml(invoice, { name: 'My Co', invoiceShowTax: false });
+    // The tax row is printed per rate, as on the PDF ("VAT 20%").
+    expect(html).not.toContain('<span>VAT 20%</span>');
     expect(html).not.toContain('<span>Tax</span>');
   });
 
   it('shows the tax row by default', () => {
     const html = generateInvoiceHtml(invoice, { name: 'My Co' });
-    expect(html).toContain('<span>Tax</span>');
+    expect(html).toContain('<span>VAT 20%</span>');
   });
 
   it('does not change the total when the tax row is hidden', () => {

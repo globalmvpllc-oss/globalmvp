@@ -80,18 +80,18 @@ export function renderModern(v: InvoiceView): string {
     </div>
   </div>
   <table>
-    <thead><tr><th>${v.labels.description}</th><th class="text-right">${v.labels.qty}</th><th class="text-right">${v.labels.price}</th><th class="text-right">${v.labels.tax}</th><th class="text-right">${v.labels.amount}</th></tr></thead>
+    <thead><tr><th>${v.labels.description}</th><th class="text-right">${v.labels.qty}</th><th class="text-right">${v.labels.price}</th>${v.showDiscount ? `<th class="text-right">${v.labels.discount}</th>` : ''}<th class="text-right">${v.labels.tax}</th><th class="text-right">${v.labels.amount}</th></tr></thead>
     <tbody>${v.items
       .map(
         (i) =>
-          `<tr><td>${i.description}</td><td class="text-right">${i.quantity}</td><td class="text-right">${i.unitPrice}</td><td class="text-right">${i.taxRate}</td><td class="text-right">${i.amount}</td></tr>`
+          `<tr><td>${i.description}</td><td class="text-right">${i.quantity}</td><td class="text-right">${i.unitPrice}</td>${v.showDiscount ? `<td class="text-right">${i.discount}</td>` : ''}<td class="text-right">${i.taxRate}</td><td class="text-right">${i.amount}</td></tr>`
       )
       .join('')}</tbody>
   </table>
   <div class="summary"><div class="summary-box">
     <div class="summary-row"><span>${v.labels.subtotal}</span><span>${v.subtotal}</span></div>
     ${v.discount ? `<div class="summary-row"><span>${v.labels.discount}</span><span>-${v.discount}</span></div>` : ''}
-    ${v.tax ? `<div class="summary-row"><span>${v.labels.tax}</span><span>${v.tax}</span></div>` : ''}
+    ${v.taxLines.map((line) => `<div class="summary-row"><span>${line.label}</span><span>${line.value}</span></div>`).join('')}
     <div class="grand"><span class="label">${v.labels.totalDue}</span><span class="value">${v.total}</span></div>
   </div></div>
   ${v.notes ? `<div class="panel"><strong>${v.labels.notes}</strong>${v.notes}</div>` : ''}

@@ -5,6 +5,7 @@ import { documentTotalsLines, hasLineDiscount, lineNetAmount } from '@/lib/docum
 import { buildInvoicePdfSpec, buildQuotePdfSpec } from '@/lib/pdf/invoice-pdf';
 import { listContext, reportsBody, vatBody } from '@/lib/pdf/list-pdf';
 import { emptyTotals } from '@/lib/reports-aggregate';
+import { generateInvoiceHtml } from '@/lib/invoice-html';
 
 const root = path.resolve(__dirname, '../..');
 const src = (p: string) => readFileSync(path.join(root, p), 'utf8');
@@ -144,5 +145,33 @@ describe('finance report', () => {
     const try_ = blocks.find((b) => b.heading === 'Özet (TRY)');
     expect(eur.rows[2].cells).toEqual(['Zarar', '€450,00']);
     expect(try_.rows[2].cells).toEqual(['Kâr', '₺1.200,00']);
+  });
+});
+
+describe('print view follows the PDF layout', () => {
+  const printDoc = { ...doc, customer: { name: 'Ayşe', country: 'TR' } };
+
+  it.each(['classic', 'modern', 'minimal'])('%s: net amounts, discount column, VAT per rate', (template) => {
+    const html: string = generateInvoiceHtml(printDoc, { ...company, invoiceTemplate: template });
+    expect(html).toContain('<th class="text-right">İndirim</th>');
+    expect(html).toContain('<td class="text-right">-₺250.00</td>');
+    expect(html).toContain('<td class="text-right">₺4250.00</td>');
+    expect(html).not.toContain('₺5100.00'); // the old VAT-inclusive line amount
+    const order = ['Ara toplam', 'KDV %20', 'KDV %1'].map((w) => html.indexOf(`<span>${w}</span>`));
+    expect(order.every((i) => i > 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('no discount → no discount column', () => {
+    const html: string = generateInvoiceHtml({ ...printDoc, discountTotal: 0, items: [items[0]] }, company);
+    expect(html).not.toContain('>İndirim</th>');
+  });
+});
+
+describe('VAT export wording', () => {
+  it('uses Ödenecek / Devreden KDV, not Fark', () => {
+    const src2 = src('lib/export/datasets.ts');
+    expect(src2).toContain("t(carries ? 'vat.carryForward' : 'vat.payable')");
+    expect(src2).not.toContain("t('vat.net')");
   });
 });
