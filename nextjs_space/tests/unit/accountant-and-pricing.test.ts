@@ -165,6 +165,7 @@ describe('every API route is covered', () => {
     'app/api/accountant/': 'the accountant’s own invitation/leave, session-checked',
     'app/api/company/route.ts': 'POST creates the user’s own company; GET reads the active one; PUT uses requireUserCompany',
     'app/api/companies/route.ts': 'lists the user’s memberships',
+    'app/api/stock/': 'KolayStok: requireStockActor (an account session goes through requireUserCompany; staff use a signed PIN session)',
   };
   const exempt = (file: string) => Object.keys(NOT_COMPANY_SCOPED).some((p) => file.startsWith(p));
   const files = routeFiles(path.join(root, 'app/api'));

@@ -182,6 +182,14 @@ export default async function middleware(req: NextRequest) {
     // and its two public endpoints answer only for a valid invitation token.
     pathname.startsWith('/invite/') ||
     pathname.startsWith('/api/accountant/public/') ||
+    // Avc KolayStok: warehouse staff sign in with a PIN, not a CorpControl
+    // account, so these carry no NextAuth token. Every /api/stock route
+    // authenticates itself (requireStockActor: account session or signed
+    // staff cookie), and /kolaystok/app's layout does the same for pages.
+    pathname === '/kolaystok' ||
+    pathname.startsWith('/kolaystok/') ||
+    pathname.startsWith('/api/stock/') ||
+    pathname === '/kolaystok.webmanifest' ||
     // Provider webhooks carry no session cookie, so the session gate below
     // would reject every delivery with a 401 and the sender would eventually
     // stop retrying — subscriptions would drift out of sync silently. These

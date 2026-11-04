@@ -39,6 +39,7 @@ describe('plan limits', () => {
       expensesPerMonth: 100,
       invoicePdfPerMonth: 20,
       teamMembers: 1,
+      stockProducts: 20,
     });
   });
 
@@ -50,6 +51,7 @@ describe('plan limits', () => {
       expensesPerMonth: 1000,
       invoicePdfPerMonth: 500,
       teamMembers: 1,
+      stockProducts: 1000,
     });
   });
 

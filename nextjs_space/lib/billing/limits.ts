@@ -103,6 +103,9 @@ async function countUsage(companyId: string, resource: LimitedResource): Promise
       // created this month. Stated plainly in the report rather than presented
       // as an exact meter.
       return prisma.invoice.count({ where: { companyId, createdAt: range } });
+    case 'stockProducts':
+      // Not monthly: active KolayStok products at once.
+      return prisma.stockProduct.count({ where: { companyId, isActive: true } });
   }
 }
 

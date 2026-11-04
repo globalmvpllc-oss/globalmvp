@@ -229,3 +229,31 @@ export function trialReminderEmail(input: TrialReminderInput): RenderedEmail {
   );
   return { ...rendered, text: `${rendered.text}\n\n${cta}: ${input.url}` };
 }
+
+export interface StockLowAlertInput {
+  locale: Locale;
+  companyName: string;
+  product: { code: string; name: string; unit: string; quantity: number; minStock: number };
+  url: string;
+}
+
+/** Avc KolayStok: one product has dropped to its minimum. Sent once per dip. */
+export function stockLowAlertEmail(input: StockLowAlertInput): RenderedEmail {
+  const { locale, product } = input;
+  const cta = translate(locale, 'ks.alert.cta');
+  const rendered = compose(
+    fill(locale, 'ks.alert.subject', { name: product.name, code: product.code }),
+    [
+      fill(locale, 'ks.alert.body', {
+        company: input.companyName,
+        name: product.name,
+        code: product.code,
+        quantity: product.quantity,
+        unit: product.unit,
+        min: product.minStock,
+      }),
+    ],
+    linkButton(input.url, cta)
+  );
+  return { ...rendered, text: `${rendered.text}\n\n${cta}: ${input.url}` };
+}

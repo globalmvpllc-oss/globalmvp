@@ -23,6 +23,8 @@ export interface PlanLimits {
   expensesPerMonth: number | null;
   invoicePdfPerMonth: number | null;
   teamMembers: number | null;
+  /** Avc KolayStok products (active). */
+  stockProducts: number | null;
 }
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
@@ -33,6 +35,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     expensesPerMonth: 100,
     invoicePdfPerMonth: 20,
     teamMembers: 1,
+    stockProducts: 20,
   },
   pro: {
     customers: 500,
@@ -41,6 +44,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     expensesPerMonth: 1000,
     invoicePdfPerMonth: 500,
     teamMembers: 1,
+    stockProducts: 1000,
   },
   business: {
     customers: null,
@@ -51,6 +55,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     // Capped, but see TEAM_MEMBERS_NOTE below: nothing can add a second member
     // yet, so this ceiling is not reachable.
     teamMembers: 5,
+    stockProducts: null,
   },
 };
 
@@ -60,7 +65,8 @@ export type LimitedResource =
   | 'invoicesPerMonth'
   | 'incomePerMonth'
   | 'expensesPerMonth'
-  | 'invoicePdfPerMonth';
+  | 'invoicePdfPerMonth'
+  | 'stockProducts';
 
 export function limitFor(plan: Plan, resource: LimitedResource): number | null {
   return PLAN_LIMITS[plan][resource];

@@ -152,3 +152,6 @@ vite.config.ts.timestamp-*
 
 # Database backups: never commit (customer data).
 yedek/
+
+# Customer data (Excel, photos) — never committed
+musteri-veri/

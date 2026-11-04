@@ -13,6 +13,8 @@ import { I18nProvider } from '@/components/i18n-provider';
 import { CookieConsent } from '@/components/cookie-consent';
 import { consentBootstrapScript } from '@/lib/consent';
 import Script from 'next/script';
+import { headers } from 'next/headers';
+import { REQUEST_PATH_HEADER } from '@/lib/accountant/headers';
 
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const jakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-display' });
@@ -117,6 +119,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // Read on the server so the first HTML already carries the right language.
   // Deciding this on the client would render English and swap after hydration.
   const locale = getServerLocale();
+  const isKolayStok = (headers().get(REQUEST_PATH_HEADER) ?? '').startsWith('/kolaystok');
 
   return (
     /**
@@ -170,10 +173,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Webtochat panel (see docs/bot-bilgi.md). `lang` is the visitor's
             language as this site decided it (Turkey → tr, else en), so the
             widget can greet in it once Webtochat reads the parameter. */}
-        <Script
-          src={`https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d&lang=${locale}`}
-          strategy="afterInteractive"
-        />
+        {/* Not on Avc KolayStok screens: warehouse staff use them one-handed on
+            a phone, and the chat bubble would sit over the + / − buttons. */}
+        {!isKolayStok && (
+          <Script
+            src={`https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d&lang=${locale}`}
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );
