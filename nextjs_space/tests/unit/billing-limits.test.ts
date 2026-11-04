@@ -144,13 +144,21 @@ describe('feature gates', () => {
     }
   });
 
-  it('keeps every shipped capability available on every plan', () => {
+  it('keeps every shipped free-tier capability available on every plan', () => {
     // Existing functionality is not taken away from anyone who has it today.
-    for (const capability of CAPABILITIES.filter((c) => c.status === 'available')) {
+    for (const capability of CAPABILITIES.filter((c) => c.status === 'available' && c.requires === 'free')) {
       for (const plan of ['free', 'pro', 'business'] as const) {
         expect(planDelivers(plan, capability)).toBe(true);
       }
     }
+  });
+
+  it('ships data export (Excel/CSV) on Pro and Business only', () => {
+    const exportCapability = CAPABILITIES.find((c) => c.id === 'dataExport')!;
+    expect(exportCapability.status).toBe('available');
+    expect(planDelivers('free', exportCapability)).toBe(false);
+    expect(planDelivers('pro', exportCapability)).toBe(true);
+    expect(planDelivers('business', exportCapability)).toBe(true);
   });
 
   it('lists planned items separately from available ones', () => {

@@ -29,6 +29,7 @@ import {
   displayTaxLabel,
   documentLocaleFor,
   showsInformationalNotice,
+  isProformaInvoice,
   trTaxIdKind,
   type DocumentLocale,
 } from '@/lib/tr-tax';
@@ -88,6 +89,8 @@ export interface CommercialDocumentOptions {
   dates: Array<{ labelKey: TranslationKey; value: unknown }>;
   /** Show paid / balance due lines (invoices only). */
   showPaid?: boolean;
+  /** Print the Turkish "informational" notice (invoices; not quotes). */
+  notice?: boolean;
 }
 
 /** Shared by invoices and quotes: anything with a customer, items and totals. */
@@ -197,7 +200,7 @@ export function buildCommercialDocumentSpec(
   if (nonEmpty(company?.bankTransferInstructions)) {
     blocks.push({ kind: 'text', title: t('pdf.bankDetails'), body: company.bankTransferInstructions });
   }
-  if (showsInformationalNotice(doc, company)) {
+  if (options.notice !== false && showsInformationalNotice(doc, company)) {
     blocks.push({ kind: 'text', body: t('pdf.informationalNotice'), boxed: true, small: true });
   }
 
@@ -224,7 +227,7 @@ export function buildCommercialDocumentSpec(
 
 export function buildInvoicePdfSpec(invoice: any, company: any): BusinessDocumentSpec {
   return buildCommercialDocumentSpec(invoice, company, {
-    titleKey: 'pdf.invoiceTitle',
+    titleKey: isProformaInvoice(invoice, company) ? 'pdf.proformaTitle' : 'pdf.invoiceTitle',
     dates: [
       { labelKey: 'pdf.issueDate', value: invoice?.issueDate },
       { labelKey: 'pdf.dueDate', value: invoice?.dueDate },
@@ -236,6 +239,23 @@ export function buildInvoicePdfSpec(invoice: any, company: any): BusinessDocumen
 /** The invoice as PDF bytes. `invoice` must include `items` and `customer`. */
 export function renderInvoicePdf(invoice: any, company: any, createdAt?: Date): Promise<Uint8Array> {
   return renderBusinessDocumentPdf({ ...buildInvoicePdfSpec(invoice, company), createdAt });
+}
+
+export function buildQuotePdfSpec(quote: any, company: any): BusinessDocumentSpec {
+  return buildCommercialDocumentSpec(quote, company, {
+    titleKey: 'pdf.quoteTitle',
+    dates: [
+      { labelKey: 'pdf.quoteDate', value: quote?.issueDate },
+      { labelKey: 'pdf.validUntil', value: quote?.validUntil },
+    ],
+    showPaid: false,
+    notice: false,
+  });
+}
+
+/** The quote as PDF bytes. `quote` must include `items` and `customer`. */
+export function renderQuotePdf(quote: any, company: any, createdAt?: Date): Promise<Uint8Array> {
+  return renderBusinessDocumentPdf({ ...buildQuotePdfSpec(quote, company), createdAt });
 }
 
 /** A file name that is safe on every OS. */

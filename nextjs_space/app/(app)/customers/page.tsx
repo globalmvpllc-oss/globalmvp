@@ -16,6 +16,7 @@ import { useCompany } from '@/hooks/use-company';
 import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
 import { useI18n } from '@/components/i18n-provider';
+import { ExportMenu } from '@/components/export-menu';
 import type { TranslationKey } from '@/lib/i18n';
 import { isValidTrTaxId, trTaxIdRuleApplies } from '@/lib/tr-tax';
 
@@ -169,9 +170,12 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('customers.title')}</h1>
           <p className="text-muted-foreground">{t('customers.subtitle')}</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" /> {t('customers.add')}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ExportMenu dataset="customers" className="w-full sm:w-auto" />
+          <Button onClick={openCreate} className="w-full sm:w-auto">
+            <Plus className="w-4 h-4 mr-2" /> {t('customers.add')}
+          </Button>
+        </div>
       </div>
 
       <Dialog

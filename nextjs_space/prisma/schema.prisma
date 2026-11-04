@@ -158,6 +158,13 @@ model Company {
   bankAccounts        BankAccount[]
   bankTransactions    BankTransaction[]
   chequeInstruments   ChequeInstrument[]
+  quotes              Quote[]
+  recurringInvoices   RecurringInvoice[]
+
+  /// Quote numbering. A null prefix means "TKL-" for Turkish companies and
+  /// "QUO-" otherwise, decided when the quote is numbered.
+  quotePrefix         String?
+  quoteNextNumber     Int                 @default(1)
 }
 
 model CompanyMember {
@@ -206,6 +213,8 @@ model Customer {
   updatedAt       DateTime            @updatedAt
   company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices        Invoice[]
+  quotes          Quote[]
+  recurringInvoices RecurringInvoice[]
   incomeTransactions IncomeTransaction[]
   events          Event[]
   chequeInstruments ChequeInstrument[]
@@ -261,6 +270,11 @@ model Invoice {
   company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
   items         InvoiceItem[]
+  /// The quote this invoice was created from, if any.
+  sourceQuote   Quote?        @relation("QuoteConvertedInvoice")
+  /// The recurring template that produced it, if any.
+  recurringInvoiceId String?
+  recurringInvoice   RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id], onDelete: SetNull)
   payments      Payment[]
   events        Event[]
   /// Bank lines reconciled against this invoice. Prisma-side only — the column
@@ -356,6 +370,10 @@ model ExpenseTransaction {
   description      String
   category         String?
   amount           Decimal   @db.Decimal(15, 2)
+  /// Input VAT (indirilecek KDV) included in `amount`. Both nullable: an
+  /// expense recorded without them simply does not appear in the VAT report.
+  taxRate          Decimal?  @db.Decimal(7, 4)
+  taxAmount        Decimal?  @db.Decimal(15, 2)
   currency         String    @default("USD")
   date             DateTime  @default(now())
   dueDate          DateTime?
@@ -881,4 +899,102 @@ model ChequeInstrument {
   @@index([vendorId])
   @@index([invoiceId])
   @@index([expenseId])
+}
+
+/// A quote (teklif). Same money model as an invoice; turns into one with a
+/// click, items copied as they are. Status is a String like Invoice.status:
+/// DRAFT | SENT | ACCEPTED | REJECTED | EXPIRED.
+model Quote {
+  id                 String      @id @default(cuid())
+  companyId          String
+  customerId         String
+  quoteNumber        String
+  status             String      @default("DRAFT")
+  issueDate          DateTime    @default(now())
+  validUntil         DateTime
+  currency           String      @default("USD")
+  subtotal           Decimal     @default(0) @db.Decimal(15, 2)
+  taxTotal           Decimal     @default(0) @db.Decimal(15, 2)
+  discountTotal      Decimal     @default(0) @db.Decimal(15, 2)
+  total              Decimal     @default(0) @db.Decimal(15, 2)
+  notes              String?
+  sentAt             DateTime?
+  /// Set once, when the quote is turned into an invoice; unique so a quote
+  /// can never produce two invoices.
+  convertedInvoiceId String?     @unique
+  convertedAt        DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  company            Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer           Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items              QuoteItem[]
+  convertedInvoice   Invoice?    @relation("QuoteConvertedInvoice", fields: [convertedInvoiceId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, quoteNumber])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([customerId])
+  @@index([status, validUntil])
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  description String
+  quantity    Decimal @default(1) @db.Decimal(15, 4)
+  unitPrice   Decimal @default(0) @db.Decimal(15, 2)
+  discount    Decimal @default(0) @db.Decimal(15, 2)
+  taxRate     Decimal @default(0) @db.Decimal(7, 4)
+  taxLabel    String  @default("VAT")
+  amount      Decimal @default(0) @db.Decimal(15, 2)
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+}
+
+/// A recurring invoice template. The daily cron turns a due template into a
+/// DRAFT invoice (or a sent one when autoSend is on — off by default).
+/// frequency: MONTHLY | QUARTERLY | YEARLY. nextRunDate is a calendar date
+/// (UTC midnight); dayOfMonth keeps month-end dates stable (31 → 28 → 31).
+model RecurringInvoice {
+  id               String                 @id @default(cuid())
+  companyId        String
+  customerId       String
+  name             String?
+  frequency        String                 @default("MONTHLY")
+  dayOfMonth       Int
+  nextRunDate      DateTime
+  endDate          DateTime?
+  isActive         Boolean                @default(true)
+  autoSend         Boolean                @default(false)
+  currency         String                 @default("USD")
+  paymentTermsDays Int                    @default(30)
+  notes            String?
+  lastRunAt        DateTime?
+  runCount         Int                    @default(0)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer         Customer               @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items            RecurringInvoiceItem[]
+  invoices         Invoice[]
+
+  @@index([companyId])
+  @@index([isActive, nextRunDate])
+  @@index([customerId])
+}
+
+model RecurringInvoiceItem {
+  id                 String           @id @default(cuid())
+  recurringInvoiceId String
+  description        String
+  quantity           Decimal          @default(1) @db.Decimal(15, 4)
+  unitPrice          Decimal          @default(0) @db.Decimal(15, 2)
+  discount           Decimal          @default(0) @db.Decimal(15, 2)
+  taxRate            Decimal          @default(0) @db.Decimal(7, 4)
+  taxLabel           String           @default("VAT")
+  position           Int              @default(0)
+  recurringInvoice   RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([recurringInvoiceId])
 }

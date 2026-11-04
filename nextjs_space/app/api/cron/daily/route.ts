@@ -3,7 +3,13 @@ export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
 import { isAuthorizedCron } from '@/lib/cron/auth';
-import { markOverdueInvoices, sendCalendarReminders, sendPaymentReminders } from '@/lib/cron/jobs';
+import {
+  expireQuotes,
+  generateRecurringInvoices,
+  markOverdueInvoices,
+  sendCalendarReminders,
+  sendPaymentReminders,
+} from '@/lib/cron/jobs';
 
 /**
  * The daily job (Vercel Cron, see vercel.json).
@@ -11,6 +17,8 @@ import { markOverdueInvoices, sendCalendarReminders, sendPaymentReminders } from
  * 1. Overdue invoices are marked OVERDUE.
  * 2. Payment reminders go to customers of companies that turned them on.
  * 3. Calendar reminders go to users.
+ * 4. Sent quotes past their valid-until date are marked EXPIRED.
+ * 5. Recurring templates that are due produce their invoice.
  *
  * Protected by CRON_SECRET: Vercel sends it as a Bearer token. Without the
  * secret configured, every call is refused. Each step runs on its own, so one
@@ -41,6 +49,19 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('[cron] calendar reminder step failed', { code: (error as { code?: string })?.code });
     report.calendarReminders = 'failed';
+  }
+
+  try {
+    report.expiredQuotes = await expireQuotes(now);
+  } catch (error) {
+    console.error('[cron] quote expiry step failed', { code: (error as { code?: string })?.code });
+    report.expiredQuotes = 'failed';
+  }
+  try {
+    report.recurring = await generateRecurringInvoices(now);
+  } catch (error) {
+    console.error('[cron] recurring step failed', { code: (error as { code?: string })?.code });
+    report.recurring = 'failed';
   }
 
   return NextResponse.json({ ok: true, ...report });

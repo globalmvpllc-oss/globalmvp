@@ -279,6 +279,53 @@ export const invoiceCreateSchema = z.object({
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
 });
 
+/** A quote (teklif). Same line items as an invoice. */
+export const quoteCreateSchema = z.object({
+  customerId: z.string().min(1, 'Customer is required'),
+  issueDate: dateString.optional(),
+  validUntil: dateString,
+  currency: z.enum(VALID_CURRENCIES).default('USD'),
+  notes: z.string().max(5000).optional(),
+  items: z.array(invoiceItemSchema).min(1, 'At least one item is required').max(200),
+});
+
+/** Either a status change, or (while DRAFT) new details. */
+export const quoteUpdateSchema = z.object({
+  status: z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']).optional(),
+  customerId: z.string().optional(),
+  issueDate: dateString.optional(),
+  validUntil: dateString.optional(),
+  currency: z.enum(VALID_CURRENCIES).optional(),
+  notes: z.string().max(5000).optional(),
+  items: z.array(invoiceItemSchema).min(1).max(200).optional(),
+});
+
+export const RECURRING_FREQUENCIES = ['MONTHLY', 'QUARTERLY', 'YEARLY'] as const;
+
+/** A recurring invoice template. */
+export const recurringCreateSchema = z.object({
+  customerId: z.string().min(1, 'Customer is required'),
+  name: z.string().max(200).optional(),
+  frequency: z.enum(RECURRING_FREQUENCIES),
+  startDate: dateString,
+  endDate: dateString.optional().or(z.literal('')),
+  currency: z.enum(VALID_CURRENCIES).default('USD'),
+  paymentTermsDays: z.number().int().min(0).max(365).default(30),
+  autoSend: z.boolean().default(false),
+  notes: z.string().max(5000).optional(),
+  items: z.array(invoiceItemSchema).min(1, 'At least one item is required').max(200),
+});
+
+export const recurringUpdateSchema = z.object({
+  name: z.string().max(200).optional(),
+  isActive: z.boolean().optional(),
+  autoSend: z.boolean().optional(),
+  paymentTermsDays: z.number().int().min(0).max(365).optional(),
+  endDate: dateString.optional().or(z.literal('')).nullable(),
+  notes: z.string().max(5000).optional(),
+  items: z.array(invoiceItemSchema).min(1).max(200).optional(),
+});
+
 /**
  * NOTE: `amountPaid` is deliberately NOT accepted here.
  * It is derived exclusively from Payment records via lib/payment-calc.ts.
@@ -417,10 +464,16 @@ export const incomeUpdateSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
+/** Input VAT on an expense: a rate (0–100) and/or the VAT amount inside `amount`. */
+const expenseTaxRate = z.number().min(0).max(100).finite().nullable().optional();
+const expenseTaxAmount = z.number().min(0).finite().nullable().optional();
+
 export const expenseSchema = z.object({
   description: z.string().min(1, 'Description is required').max(500),
   category: categoryName.optional(),
   amount: z.number().positive('Amount must be > 0').finite(),
+  taxRate: expenseTaxRate,
+  taxAmount: expenseTaxAmount,
   currency: z.enum(VALID_CURRENCIES).default('USD'),
   date: dateString.optional(),
   dueDate: dateString.optional(),
@@ -434,6 +487,8 @@ export const expenseUpdateSchema = z.object({
   description: z.string().min(1).max(500).optional(),
   category: categoryName.optional(),
   amount: z.number().positive().finite().optional(),
+  taxRate: expenseTaxRate,
+  taxAmount: expenseTaxAmount,
   currency: z.enum(VALID_CURRENCIES).optional(),
   date: dateString.optional(),
   dueDate: dateString.optional().nullable(),

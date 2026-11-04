@@ -17,6 +17,7 @@ import { translate, type TranslationKey } from '@/lib/i18n';
 import {
   documentLocaleFor,
   showsInformationalNotice,
+  isProformaInvoice,
   trTaxIdKind,
   type DocumentLocale,
 } from '@/lib/tr-tax';
@@ -212,6 +213,10 @@ export function buildInvoiceView(
   // English keeps the original month format exactly.
   const locale = documentLocaleFor(invoice?.customer, company);
   const labels = invoiceLabels(locale);
+  if (isProformaInvoice(invoice, company)) {
+    labels.invoiceTitle = esc(translate(locale, 'pdf.proformaTitle'));
+    labels.invoice = esc(translate(locale, 'pdf.proforma'));
+  }
   const fmtDate = (d: unknown) =>
     locale === 'tr' ? formatCalendarDateLong(d, 'tr-TR') : formatCalendarDateLong(d);
   const word = (key: TranslationKey) => esc(translate(locale, key));

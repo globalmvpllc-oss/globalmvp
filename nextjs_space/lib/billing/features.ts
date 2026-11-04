@@ -111,11 +111,15 @@ export const CAPABILITIES: readonly Capability[] = [
   { id: 'branding', labelKey: 'feature.branding', requires: 'free', status: 'available' },
   { id: 'currencies', labelKey: 'feature.currencies', requires: 'free', status: 'available' },
   { id: 'billing', labelKey: 'feature.billing', requires: 'free', status: 'available' },
+  { id: 'quotes', labelKey: 'feature.quotes', requires: 'free', status: 'available' },
+  { id: 'recurringInvoices', labelKey: 'feature.recurringInvoices', requires: 'free', status: 'available' },
+  { id: 'vatReport', labelKey: 'feature.vatReport', requires: 'free', status: 'available' },
 
   // Named by the paid plans, not built. The gate exists so that the day these
   // ship they are already restricted; until then they render as "planned".
   { id: 'advancedReports', labelKey: 'feature.advancedReports', requires: 'pro', status: 'planned' },
-  { id: 'dataExport', labelKey: 'feature.dataExport', requires: 'pro', status: 'planned' },
+  // Shipped in Phase 2: Excel/CSV export, enforced in /api/export.
+  { id: 'dataExport', labelKey: 'feature.dataExport', requires: 'pro', status: 'available' },
   { id: 'bulkExport', labelKey: 'feature.bulkExport', requires: 'pro', status: 'planned' },
   { id: 'teamMembers', labelKey: 'feature.teamMembers', requires: 'business', status: 'planned' },
   { id: 'businessControls', labelKey: 'feature.businessControls', requires: 'business', status: 'planned' },

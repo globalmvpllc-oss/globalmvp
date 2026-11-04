@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, TrendingUp, TrendingDown,
   CreditCard, CalendarDays, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Wallet, Menu, Truck,
-  Landmark, Receipt,
+  Landmark, Receipt, FileSignature, Repeat,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ const NAV_ITEMS = [
   // language re-labels the navigation without remounting it.
   { href: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
   { href: '/invoices', labelKey: 'nav.invoices', icon: FileText },
+  { href: '/quotes', labelKey: 'nav.quotes', icon: FileSignature },
+  { href: '/recurring', labelKey: 'nav.recurring', icon: Repeat },
   { href: '/customers', labelKey: 'nav.customers', icon: Users },
   { href: '/vendors', labelKey: 'nav.vendors', icon: Truck },
   { href: '/income', labelKey: 'nav.income', icon: TrendingUp },

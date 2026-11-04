@@ -64,8 +64,9 @@ describe('embedded fonts', () => {
 describe('invoice PDF content (spec)', () => {
   const spec = buildInvoicePdfSpec(trInvoice, trCompany);
 
-  it('is Turkish for a Turkish customer', () => {
-    expect(spec.title).toBe('FATURA');
+  it('is Turkish for a Turkish customer, titled PROFORMA FATURA until it is an e-document', () => {
+    expect(spec.title).toBe('PROFORMA FATURA');
+    expect(buildInvoicePdfSpec({ ...trInvoice, eDocumentUuid: 'ettn-1' }, trCompany).title).toBe('FATURA');
     expect(spec.party.heading).toBe('Sayın');
     expect(spec.meta.map((m) => m.label)).toEqual(['Düzenleme tarihi', 'Son ödeme tarihi']);
     expect(spec.meta[0].value).toBe('4 Kasım 2026');
@@ -107,7 +108,7 @@ describe('invoice PDF content (spec)', () => {
 
   it('an English customer gets English labels', () => {
     const en = buildInvoicePdfSpec({ ...trInvoice, customer: { ...trInvoice.customer, language: 'en' } }, trCompany);
-    expect(en.title).toBe('INVOICE');
+    expect(en.title).toBe('PROFORMA INVOICE');
     expect(en.party.heading).toBe('Bill To');
   });
 
@@ -125,7 +126,7 @@ describe('PDF rendering', () => {
     const { width, height } = doc.getPage(0).getSize();
     expect(Math.round(width)).toBe(595);
     expect(Math.round(height)).toBe(842);
-    expect(doc.getTitle()).toBe('FATURA FTR-0001');
+    expect(doc.getTitle()).toBe('PROFORMA FATURA FTR-0001');
   });
 
   it('flows long invoices onto more pages', async () => {

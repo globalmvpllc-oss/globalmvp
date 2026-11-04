@@ -23,6 +23,7 @@ import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 import { toCalendarInput, formatCalendarDate } from '@/lib/calendar-date';
 import { useI18n } from '@/components/i18n-provider';
+import { ExportMenu } from '@/components/export-menu';
 
 export default function IncomePage() {
   const { t, locale, intl, category: categoryLabel } = useI18n();
@@ -191,10 +192,11 @@ export default function IncomePage() {
       {/* The action drops below the heading rather than beside it on a narrow
           screen, where there is no room for both. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 sm:mr-auto">
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('reports.income')}</h1>
           <p className="text-muted-foreground">{t('income.subtitle')}</p>
         </div>
+        <ExportMenu dataset="income" className="w-full sm:w-auto" />
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
           <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('income.add')}</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">

@@ -23,6 +23,9 @@ import { personalizeEmptyState } from '@/lib/company-identity';
 import { useCompany } from '@/hooks/use-company';
 import { formatCalendarDate, toCalendarInput } from '@/lib/calendar-date';
 import { useI18n } from '@/components/i18n-provider';
+import { ExportMenu } from '@/components/export-menu';
+import { TR_VAT_RATES } from '@/lib/tr-tax';
+import { vatFromGross } from '@/lib/vat-report';
 import { getChequeStatusBadge } from '@/lib/cheque-status';
 
 export default function ExpensesPage() {
@@ -45,7 +48,7 @@ export default function ExpensesPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   /** Row with a request in flight, so its actions can be disabled. */
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [form, setForm] = useState({ description: '', category: '', amount: '', currency: 'USD', date: '', dueDate: '', vendorId: '', status: 'UNPAID', notes: '' });
+  const [form, setForm] = useState({ description: '', category: '', amount: '', currency: 'USD', date: '', dueDate: '', vendorId: '', status: 'UNPAID', notes: '', taxRate: '', taxAmount: '' });
   useEffect(() => { setForm((p: any) => ({ ...p, date: new Date().toISOString().split('T')[0] })); }, []);
 
   const fetchData = async () => {
@@ -77,7 +80,7 @@ export default function ExpensesPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const emptyForm = () => ({ description: '', category: '', amount: '', currency: 'USD', date: new Date().toISOString().split('T')[0], dueDate: '', vendorId: '', status: 'UNPAID', notes: '' });
+  const emptyForm = () => ({ description: '', category: '', amount: '', currency: 'USD', date: new Date().toISOString().split('T')[0], dueDate: '', vendorId: '', status: 'UNPAID', notes: '', taxRate: '', taxAmount: '' });
 
   const openCreate = () => { setEditingId(null); setForm(emptyForm()); setOpen(true); };
 
@@ -88,6 +91,8 @@ export default function ExpensesPage() {
       ...emptyForm(),
       ...record,
       amount: String(record?.amount ?? ''),
+      taxRate: record?.taxRate === null || record?.taxRate === undefined ? '' : String(Number(record.taxRate)),
+      taxAmount: record?.taxAmount === null || record?.taxAmount === undefined ? '' : String(Number(record.taxAmount)),
       date: record?.date ? toCalendarInput(record.date) : '',
       dueDate: record?.dueDate ? toCalendarInput(record.dueDate) : '',
       vendorId: record?.vendorId ?? '',
@@ -109,7 +114,14 @@ export default function ExpensesPage() {
 
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { ...form, amount: Number(form.amount) };
+      const payload: Record<string, unknown> = {
+        ...form,
+        amount: Number(form.amount),
+        // VAT inside the amount (indirilecek KDV). Empty = not recorded;
+        // an empty VAT amount with a rate lets the server work it out.
+        taxRate: form.taxRate === '' ? null : Number(form.taxRate),
+        taxAmount: form.taxAmount === '' ? (form.taxRate === '' ? null : undefined) : Number(form.taxAmount),
+      };
       if (editingId) payload.id = editingId;
 
       const res = await fetch('/api/expenses', {
@@ -228,10 +240,11 @@ export default function ExpensesPage() {
       {/* The action drops below the heading rather than beside it on a narrow
           screen, where there is no room for both. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 sm:mr-auto">
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('reports.expenses')}</h1>
           <p className="text-muted-foreground">{t('expenses.subtitle')}</p>
         </div>
+        <ExportMenu dataset="expenses" className="w-full sm:w-auto" />
         <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>
           <DialogTrigger asChild><Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('expenses.add')}</Button></DialogTrigger>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
@@ -239,13 +252,36 @@ export default function ExpensesPage() {
             <div className="space-y-3">
               <div className="space-y-1"><Label>{t('common.description')} *</Label><Input placeholder={t('expenses.descriptionPlaceholder')} value={form.description} onChange={(e: any) => setForm({ ...form, description: e.target.value })} /></div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1"><Label>{t('common.amount')} *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value })} /></div>
+                <div className="space-y-1"><Label>{t('expenses.amountWithVat')} *</Label><Input type="number" step="0.01" placeholder="0.00" value={form.amount} onChange={(e: any) => setForm({ ...form, amount: e.target.value, taxAmount: '' })} /></div>
                 <div className="space-y-1"><Label>{t('common.currency')}</Label>
                   <Select value={form.currency} onValueChange={(v: string) => setForm({ ...form, currency: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     {/* Currency codes are never translated. */}
                     <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}</SelectContent>
                   </Select>
+                </div>
+              </div>
+              {/* Input VAT (indirilecek KDV), part of the amount above. Optional. */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1"><Label>{t('expenses.vatRate')}</Label>
+                  <Select value={form.taxRate === '' ? 'NONE' : form.taxRate} onValueChange={(v: string) => setForm({ ...form, taxRate: v === 'NONE' ? '' : v, taxAmount: '' })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">{t('expenses.vatNone')}</SelectItem>
+                      {TR_VAT_RATES.map((rate) => <SelectItem key={rate} value={String(rate)}>%{rate}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1"><Label>{t('expenses.vatAmount')}</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder={form.taxRate !== '' && form.amount ? vatFromGross(form.amount, form.taxRate).toFixed(2) : '0.00'}
+                    value={form.taxAmount}
+                    onChange={(e: any) => setForm({ ...form, taxAmount: e.target.value })}
+                  />
+                  <p className="text-sm text-muted-foreground">{t('expenses.vatHint')}</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

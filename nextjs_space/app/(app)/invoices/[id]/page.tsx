@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { downloadBytes } from '@/lib/bulk-pdf';
+import { isProformaInvoice } from '@/lib/tr-tax';
 
 export default function InvoiceDetailPage() {
   const router = useRouter();
@@ -276,6 +277,9 @@ export default function InvoiceDetailPage() {
           <Button variant="ghost" size="icon" className="shrink-0" aria-label={t('invoices.backAria')} onClick={() => router.push('/invoices')}><ArrowLeft className="w-4 h-4" /></Button>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {isProformaInvoice(invoice, company) && (
+                <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('invoices.proformaLabel')}</span>
+              )}
               <h1 className="text-2xl font-display font-bold tracking-tight">{invoice?.invoiceNumber}</h1>
               <Badge className={statusInfo?.color ?? ''}>{t(statusInfo.labelKey)}</Badge>
             </div>

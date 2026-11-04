@@ -124,10 +124,24 @@ export function documentLocaleFor(
  * Every invoice of a Turkish company carries it until it has been issued as an
  * official e-document (Phase 4 sets `eDocumentUuid`).
  */
+/**
+ * Whether an invoice is titled "PROFORMA FATURA" / "PROFORMA INVOICE".
+ *
+ * Same rule as the notice: a Turkish company's invoice that has not been issued
+ * as an official e-document. Non-Turkish companies keep "INVOICE".
+ */
+export function isProformaInvoice(
+  invoice: unknown,
+  company: { country?: unknown } | null | undefined
+): boolean {
+  return showsInformationalNotice(invoice, company);
+}
+
 export function showsInformationalNotice(
-  invoice: { eDocumentUuid?: unknown } | null | undefined,
+  invoice: unknown,
   company: { country?: unknown } | null | undefined
 ): boolean {
   if (!isTurkishCountry(company?.country)) return false;
-  return !(typeof invoice?.eDocumentUuid === 'string' && invoice.eDocumentUuid !== '');
+  const uuid = (invoice as { eDocumentUuid?: unknown } | null | undefined)?.eDocumentUuid;
+  return !(typeof uuid === 'string' && uuid !== '');
 }

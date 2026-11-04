@@ -8,6 +8,7 @@ import { expenseSchema, expenseUpdateSchema, validateBody } from '@/lib/validati
 import { parseCalendarDate } from '@/lib/calendar-date';
 import { parseCalendarRange, RANGE_MAX, boundedTake, listResponse } from '@/lib/calendar-range';
 import { enforcePlanLimit } from '@/lib/billing/limits';
+import { resolveExpenseTax } from '@/lib/expense-tax';
 
 export async function GET(request: Request) {
   try {
@@ -89,9 +90,14 @@ export async function POST(request: Request) {
       if (!vendor) return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
     }
 
+    const tax = resolveExpenseTax(data.amount, data.taxRate, data.taxAmount);
+    if (!tax.ok) return NextResponse.json(tax.response, { status: 400 });
+
     const transaction = await prisma.expenseTransaction.create({
       data: {
         companyId,
+        taxRate: tax.taxRate,
+        taxAmount: tax.taxAmount,
         vendorId: data.vendorId || null,
         description: data.description,
         category: data.category,
@@ -126,9 +132,28 @@ export async function PUT(request: Request) {
       if (!vendor) return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
     }
 
+    // VAT: an explicit change wins; otherwise a stored rate follows a changed amount.
+    const nextAmount = data.amount ?? Number(existing.amount);
+    const rateGiven = data.taxRate !== undefined;
+    const amountGiven = data.taxAmount !== undefined;
+    const tax = resolveExpenseTax(
+      nextAmount,
+      rateGiven ? data.taxRate : existing.taxRate === null ? null : Number(existing.taxRate),
+      amountGiven
+        ? data.taxAmount
+        : rateGiven || (data.amount !== undefined && existing.taxRate !== null)
+          ? undefined
+          : existing.taxAmount === null
+            ? null
+            : Number(existing.taxAmount)
+    );
+    if (!tax.ok) return NextResponse.json(tax.response, { status: 400 });
+
     const transaction = await prisma.expenseTransaction.update({
       where: { id: data.id },
       data: {
+        taxRate: tax.taxRate,
+        taxAmount: tax.taxAmount,
         vendorId: data.vendorId !== undefined ? (data.vendorId || null) : existing.vendorId,
         description: data.description ?? existing.description,
         category: data.category ?? existing.category,

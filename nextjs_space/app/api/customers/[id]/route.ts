@@ -149,7 +149,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     const existing = await prisma.customer.findFirst({
       where: { id: params.id, companyId },
-      select: { id: true, _count: { select: { invoices: true } } },
+      select: { id: true, _count: { select: { invoices: true, quotes: true, recurringInvoices: true } } },
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -160,6 +160,18 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json(
         {
           error: `Customer has ${existing._count.invoices} invoice(s) and cannot be deleted. Delete or reassign the invoices first.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Quotes and recurring templates also cascade from the customer; they are
+    // refused for the same reason invoices are.
+    if (existing._count.quotes > 0 || existing._count.recurringInvoices > 0) {
+      return NextResponse.json(
+        {
+          error: 'Customer has quotes or recurring invoices and cannot be deleted. Delete those first.',
+          code: 'HAS_QUOTES_OR_RECURRING',
         },
         { status: 409 }
       );

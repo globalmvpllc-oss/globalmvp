@@ -11,7 +11,7 @@ import { renderInvoicePdf, invoicePdfFileName } from '@/lib/pdf/invoice-pdf';
 import { loadDocumentCompany } from '@/lib/pdf/response';
 import { sendMail, isMailConfigured } from '@/lib/email/mailer';
 import { invoiceEmail } from '@/lib/email/templates';
-import { documentLocaleFor } from '@/lib/tr-tax';
+import { documentLocaleFor, isProformaInvoice } from '@/lib/tr-tax';
 import { canTransition } from '@/lib/invoice-status';
 
 /** Twenty invoice emails per company per hour is plenty, and stops a loop. */
@@ -96,6 +96,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       amountDue: Number(invoice.total) - Number(invoice.amountPaid),
       currency: invoice.currency,
       dueDate: invoice.dueDate,
+      proforma: isProformaInvoice(invoice, company),
     });
     const result = await sendMail({
       to,

@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { toCalendarInput, formatCalendarDate } from '@/lib/calendar-date';
 import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
 import { useI18n } from '@/components/i18n-provider';
+import { ExportMenu } from '@/components/export-menu';
 
 export default function PaymentsPage() {
   const { t, fill, locale, intl } = useI18n();
@@ -147,7 +148,10 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-display font-bold tracking-tight">{t('nav.payments')}</h1>
           <p className="text-muted-foreground">{t('payments.subtitle')}</p>
         </div>
-        <Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('invoices.recordPayment')}</Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ExportMenu dataset="payments" className="w-full sm:w-auto" />
+          <Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="w-4 h-4 mr-2" /> {t('invoices.recordPayment')}</Button>
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={(next: boolean) => { if (saving) return; setOpen(next); if (!next) setEditingId(null); }}>

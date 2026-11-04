@@ -64,6 +64,8 @@ export interface InvoiceEmailInput {
   amountDue: unknown;
   currency: string;
   dueDate: unknown;
+  /** Turkish company, not yet an official e-document: say "proforma". */
+  proforma?: boolean;
 }
 
 /** The email that carries an invoice PDF. */
@@ -72,11 +74,45 @@ export function invoiceEmail(input: InvoiceEmailInput): RenderedEmail {
   const amount = formatMoney(input.amountDue, input.currency, locale);
   const dueDate = formatEmailDate(input.dueDate, locale);
   return compose(
-    fill(locale, 'email.invoice.subject', { number: input.invoiceNumber, company: input.companyName }),
+    fill(locale, input.proforma ? 'email.invoice.subjectProforma' : 'email.invoice.subject', {
+      number: input.invoiceNumber,
+      company: input.companyName,
+    }),
     [
       fill(locale, 'email.greeting', { name: input.customerName }),
-      fill(locale, 'email.invoice.body', { number: input.invoiceNumber, amount, dueDate }),
+      fill(locale, input.proforma ? 'email.invoice.bodyProforma' : 'email.invoice.body', {
+        number: input.invoiceNumber,
+        amount,
+        dueDate,
+      }),
       translate(locale, 'email.invoice.closing'),
+      `${translate(locale, 'email.signoff')}\n${input.companyName}`,
+      fill(locale, 'email.footer', { company: input.companyName }),
+    ]
+  );
+}
+
+export interface QuoteEmailInput {
+  locale: Locale;
+  companyName: string;
+  customerName: string;
+  quoteNumber: string;
+  total: unknown;
+  currency: string;
+  validUntil: unknown;
+}
+
+/** The email that carries a quote PDF. */
+export function quoteEmail(input: QuoteEmailInput): RenderedEmail {
+  const { locale } = input;
+  const amount = formatMoney(input.total, input.currency, locale);
+  const validUntil = formatEmailDate(input.validUntil, locale);
+  return compose(
+    fill(locale, 'email.quote.subject', { number: input.quoteNumber, company: input.companyName }),
+    [
+      fill(locale, 'email.greeting', { name: input.customerName }),
+      fill(locale, 'email.quote.body', { number: input.quoteNumber, amount, validUntil }),
+      translate(locale, 'email.quote.closing'),
       `${translate(locale, 'email.signoff')}\n${input.companyName}`,
       fill(locale, 'email.footer', { company: input.companyName }),
     ]
@@ -90,10 +126,17 @@ export function paymentReminderEmail(input: InvoiceEmailInput & { kind: Reminder
   const { locale } = input;
   const amount = formatMoney(input.amountDue, input.currency, locale);
   const dueDate = formatEmailDate(input.dueDate, locale);
-  const bodyKey: TranslationKey =
-    input.kind === 'followup' ? 'email.reminder.bodyFollowUp' : 'email.reminder.bodyOverdue';
+  const bodyKey: TranslationKey = input.proforma
+    ? input.kind === 'followup'
+      ? 'email.reminder.bodyFollowUpProforma'
+      : 'email.reminder.bodyOverdueProforma'
+    : input.kind === 'followup'
+      ? 'email.reminder.bodyFollowUp'
+      : 'email.reminder.bodyOverdue';
   return compose(
-    fill(locale, 'email.reminder.subject', { number: input.invoiceNumber }),
+    fill(locale, input.proforma ? 'email.reminder.subjectProforma' : 'email.reminder.subject', {
+      number: input.invoiceNumber,
+    }),
     [
       fill(locale, 'email.greeting', { name: input.customerName }),
       fill(locale, bodyKey, { number: input.invoiceNumber, amount, dueDate }),

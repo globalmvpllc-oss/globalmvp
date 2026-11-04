@@ -87,9 +87,12 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">{t('reports.title')}</h1>
-        <p className="text-muted-foreground">{t('reports.subtitle')}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-bold tracking-tight">{t('reports.title')}</h1>
+          <p className="text-muted-foreground">{t('reports.subtitle')}</p>
+        </div>
+        <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/reports/vat">{t('vat.open')}</Link></Button>
       </div>
 
       {!hasRecords ? (
