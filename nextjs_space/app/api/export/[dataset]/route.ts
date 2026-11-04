@@ -34,16 +34,19 @@ export async function GET(request: Request, { params }: { params: { dataset: str
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') === 'csv' ? 'csv' : 'xlsx';
 
-    const capability = CAPABILITIES.find((c) => c.id === 'dataExport')!;
-    const plan = await getCurrentPlan(companyId);
-    // An accountant (mali müşavir) may export on every plan, Free included:
-    // reading the books is their job and the invitation is free on every plan.
-    // The owner's own export still follows the company's plan.
-    if (!isAccountant(role) && !planDelivers(plan, capability)) {
-      return NextResponse.json(
-        { error: 'Data export is part of the Pro plan.', code: 'FEATURE_NOT_IN_PLAN', feature: 'dataExport', plan },
-        { status: 402 }
-      );
+    // An accountant (mali müşavir) may export on every plan, Free included
+    // (owner decision, 2026-11-04): reading the books is their job and the
+    // invitation is free on every plan. Everyone else follows the company's
+    // plan through the `dataExport` capability, as the pricing page shows.
+    if (!isAccountant(role)) {
+      const capability = CAPABILITIES.find((c) => c.id === 'dataExport')!;
+      const plan = await getCurrentPlan(companyId);
+      if (!planDelivers(plan, capability)) {
+        return NextResponse.json(
+          { error: 'Data export is part of the Pro plan.', code: 'FEATURE_NOT_IN_PLAN', feature: 'dataExport', plan },
+          { status: 402 }
+        );
+      }
     }
 
     const from = searchParams.get('from');

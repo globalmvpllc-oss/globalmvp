@@ -180,7 +180,7 @@ TÜRKİYE İÇİN
 
 MALİ MÜŞAVİR ERİŞİMİ
 - Şirket sahibi Ayarlar'dan mali müşavirini e-postayla davet eder. Davet bağlantısı 7 gün geçerlidir.
-- Müşavir bütün kayıtları, raporları ve KDV raporunu görür; PDF ve Excel/CSV indirir. Hiçbir şeyi değiştiremez, silemez ya da gönderemez. Ödeme ve abonelik ekranlarını görmez.
+- Müşavir bütün kayıtları, raporları ve KDV raporunu görür; PDF ve Excel/CSV indirir. Excel/CSV'yi şirket ücretsiz plandaysa bile indirebilir. Hiçbir şeyi değiştiremez, silemez ya da gönderemez. Ödeme ve abonelik ekranlarını görmez.
 - Müşavir tek hesapla davet edildiği bütün şirketlere girer, şirketler arasında geçiş yapar.
 - Bütün planlarda ücretsizdir; kullanıcı sayısına sayılmaz.
 - Şirket sahibi erişimi tek tıkla kaldırabilir; müşavirin girişlerini ve indirmelerini Ayarlar'da görür.
@@ -192,7 +192,7 @@ Türkiye'deki ziyaretçiler ve Türkiye'de kayıtlı şirketler için TL fiyatla
 - Yıllık ödemede 2 ay bedava.
 Diğer ülkeler için USD fiyatlar: Pro 9,99 USD/ay, Business 24,99 USD/ay.
 - Ücretsiz plan: 3 müşteri, ayda 20 fatura, 100 gelir, 100 gider kaydı, 20 fatura PDF'i.
-- Pro: 500 müşteri, ayda 500 fatura, 1000 gelir, 1000 gider, 500 PDF. Excel/CSV dışa aktarma.
+- Pro: 500 müşteri, ayda 500 fatura, 1000 gelir, 1000 gider, 500 PDF. Excel/CSV dışa aktarma (mali müşavir her planda indirebilir).
 - Business: bunların hepsi sınırsız.
 - Yeni kayıt olan her şirket 7 gün boyunca bütün Pro özelliklerini ücretsiz kullanır, kart gerekmez. Süre bitince ücretsiz plana geçer; veriler silinmez.
 - Teklif, tekrarlayan fatura, KDV raporu ve mali müşavir erişimi bütün planlarda vardır.
@@ -239,7 +239,7 @@ FEATURES
 
 ACCOUNTANT ACCESS
 - The owner invites their accountant by email from Settings. The link works for 7 days.
-- The accountant sees every record and report, including the VAT report, and downloads PDFs and Excel/CSV files. They cannot change, delete or send anything, and do not see billing.
+- The accountant sees every record and report, including the VAT report, and downloads PDFs and Excel/CSV files, Excel/CSV even when the company is on the Free plan. They cannot change, delete or send anything, and do not see billing.
 - One accountant account can open every company that invited it and switch between them.
 - Free on every plan; not counted as a user.
 - The owner can remove access in one click and sees the accountant's sign-ins and downloads in Settings.
@@ -251,7 +251,7 @@ Visitors in Turkey and companies registered in Turkey see lira prices, VAT inclu
 - Paying yearly gives 2 months free.
 Everyone else sees USD prices: Pro 9.99 USD/month, Business 24.99 USD/month.
 - Free: 3 customers, 20 invoices/month, 100 income and 100 expense entries/month, 20 invoice PDFs/month.
-- Pro: 500 customers, 500 invoices/month, 1000 income, 1000 expenses, 500 PDFs/month. Excel/CSV export.
+- Pro: 500 customers, 500 invoices/month, 1000 income, 1000 expenses, 500 PDFs/month. Excel/CSV export (an accountant can export on every plan).
 - Business: unlimited on all of the above.
 - Every new company gets all Pro features free for 7 days, no card needed. Afterwards it moves to the free plan; no data is lost.
 - Quotes, recurring invoices, the VAT report and accountant access are on every plan.

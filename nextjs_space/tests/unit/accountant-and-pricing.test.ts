@@ -261,8 +261,9 @@ describe('plans, PDFs and the audit log', () => {
     }
     expect(src('app/api/pdf/[kind]/route.ts')).toContain('recordAccountantDownload(auth, request');
     const exp = src('app/api/export/[dataset]/route.ts');
-    // An accountant exports on every plan (owner decision, 2026-11-04); the owner follows the plan.
-    expect(exp).toContain('if (!isAccountant(role) && !planDelivers(plan, capability)) {');
+    // The plan gate itself is exercised in export-plan-gate.test.ts (owner 402 on Free,
+    // accountant 200 on Free).
+    expect(exp).toContain('if (!isAccountant(role)) {');
     expect(exp).toContain('recordAccountantDownload(auth, request');
   });
   it('accountants are not seats: nothing counts memberships against a plan', () => {
