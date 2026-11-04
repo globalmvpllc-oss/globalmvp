@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
+import { isAccountOwner, ownerOnly } from '@/lib/stock/owner';
 import { isValidPin, STAFF_ROLES } from '@/lib/stock/rules';
 
 const schema = z.object({
@@ -13,10 +14,13 @@ const schema = z.object({
   pin: z.string().refine(isValidPin, 'PIN must be 4 digits').optional(),
   role: z.enum(STAFF_ROLES).optional(),
   unlock: z.boolean().optional(),
+  /** Sign the person out on every phone (any manager). */
+  signOut: z.literal(true).optional(),
 });
 
 /**
- * PUT — rename, new PIN, role, unlock (manager). A new PIN or role ends the
+ * PUT — rename, unlock, sign out everywhere (any manager); new PIN or role
+ * (account owner only). A new PIN, a new role or "sign out" ends all of the
  * person's open sessions (sessionVersion is bumped).
  */
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
@@ -28,7 +32,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const existing = await prisma.stockStaff.findFirst({ where: { id: params.id, companyId: actor.companyId, isActive: true }, select: { id: true } });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const d = parsed.data;
-    const endsSessions = d.pin !== undefined || d.role !== undefined;
+    if ((d.pin !== undefined || d.role !== undefined) && !isAccountOwner(actor)) return ownerOnly();
+    const endsSessions = d.pin !== undefined || d.role !== undefined || d.signOut === true;
     await prisma.stockStaff.update({
       where: { id: existing.id },
       data: {
@@ -45,11 +50,12 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-/** DELETE — remove a person (manager). Their movements keep their name. */
+/** DELETE — remove a person (account owner only). Their movements keep their name. */
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
     const { actor, error } = await requireStockActor('settings');
     if (error) return error;
+    if (!isAccountOwner(actor)) return ownerOnly();
     const result = await prisma.stockStaff.updateMany({
       where: { id: params.id, companyId: actor.companyId, isActive: true },
       data: { isActive: false, sessionVersion: { increment: 1 } },

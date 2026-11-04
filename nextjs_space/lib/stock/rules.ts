@@ -262,3 +262,15 @@ export function searchTerms(query: unknown): string[] {
     .filter((t) => t.length > 0)
     .slice(0, 5);
 }
+
+// ---------------------------------------------------------------------------
+// Alert limit
+// ---------------------------------------------------------------------------
+
+/** Instant low-stock alerts (mail + Telegram) per company per day; the rest wait for the 07:00 summary. */
+export const DAILY_ALERT_LIMIT = 20;
+
+/** The Turkey (UTC+3) calendar day of a moment, as YYYY-MM-DD. */
+export function stockDayKey(now: Date = new Date()): string {
+  return new Date(now.getTime() + 3 * 3600_000).toISOString().slice(0, 10);
+}

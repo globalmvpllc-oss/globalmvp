@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
+import { isAccountOwner, ownerOnly } from '@/lib/stock/owner';
 import { isValidPin, isLocked, MAX_STAFF_PER_COMPANY, STAFF_ROLES } from '@/lib/stock/rules';
 import { ensureStockSettings } from '@/lib/stock/settings';
 
@@ -34,11 +35,12 @@ const schema = z.object({
   role: z.enum(STAFF_ROLES).default('staff'),
 });
 
-/** POST { name, pin, role } — add a person (manager). At most five per company. */
+/** POST { name, pin, role } — add a person (account owner only). At most five per company. */
 export async function POST(request: Request) {
   try {
     const { actor, error } = await requireStockActor('settings');
     if (error) return error;
+    if (!isAccountOwner(actor)) return ownerOnly();
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: 'Enter a name and a 4-digit PIN.', code: 'INVALID' }, { status: 400 });
     const count = await prisma.stockStaff.count({ where: { companyId: actor.companyId, isActive: true } });

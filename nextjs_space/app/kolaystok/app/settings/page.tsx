@@ -54,7 +54,7 @@ export default function KsSettings() {
   const put = async (url: string, body: unknown, method = 'PUT') => {
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) toast.error(t(data?.code === 'STAFF_LIMIT' ? 'ks.set.limitShort' : 'ks.saveFailed'));
+    if (!res.ok) toast.error(t(data?.code === 'STAFF_LIMIT' ? 'ks.set.limitShort' : data?.code === 'OWNER_ONLY' ? 'ks.set.ownerOnly' : 'ks.saveFailed'));
     else toast.success(t('ks.set.saved'));
     load();
     return res.ok ? data : null;
@@ -122,23 +122,32 @@ export default function KsSettings() {
             <p className="text-base font-medium">{t('ks.set.link')}</p>
             <p className="break-all text-lg font-semibold text-teal-800">{link}</p>
             <p className="text-sm text-slate-600">{t('ks.set.linkHint')}</p>
-            <button type="button" onClick={() => { navigator.clipboard?.writeText(link); toast.success(t('ks.set.copied')); }} className="mt-2 h-11 rounded-xl bg-teal-700 px-4 text-base font-semibold text-white">{t('ks.set.copy')}</button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" onClick={() => { navigator.clipboard?.writeText(link); toast.success(t('ks.set.copied')); }} className="h-11 rounded-xl bg-teal-700 px-4 text-base font-semibold text-white">{t('ks.set.copy')}</button>
+              <button type="button" onClick={async () => { if (window.confirm(t('ks.set.renewConfirm')) && (await put('/api/stock/staff/link', undefined, 'POST'))) toast.success(t('ks.set.renewed')); }} className="h-11 rounded-xl border-2 border-teal-700 px-4 text-base font-semibold text-teal-800">{t('ks.set.renewLink')}</button>
+            </div>
           </div>
         )}
+        {!settings?.canManageStaff && <p className="rounded-xl bg-slate-100 p-3 text-base text-slate-700">{t('ks.set.ownerOnly')}</p>}
         <ul className="divide-y rounded-xl border">
           {staff.map((s) => (
             <li key={s.id} className="space-y-2 p-3">
               <p className="text-lg font-semibold">{s.name} <span className="text-base font-normal text-slate-500">· {t(s.role === 'manager' ? 'ks.set.role.manager' : 'ks.set.role.staff')}</span>{s.locked && <span className="ml-2 rounded bg-red-100 px-2 text-sm text-red-700">{t('ks.set.locked')}</span>}</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => { const p = window.prompt(t('ks.set.newPin')); if (p && /^\d{4}$/.test(p)) put(`/api/stock/staff/${s.id}`, { pin: p }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.newPin')}</button>
-                <button type="button" onClick={() => put(`/api/stock/staff/${s.id}`, { role: s.role === 'manager' ? 'staff' : 'manager' })} className="h-11 rounded-xl border px-3 text-base">{t(s.role === 'manager' ? 'ks.set.role.staff' : 'ks.set.role.manager')}</button>
+                {settings?.canManageStaff && (
+                  <>
+                    <button type="button" onClick={() => { const p = window.prompt(t('ks.set.newPin')); if (p && /^\d{4}$/.test(p)) put(`/api/stock/staff/${s.id}`, { pin: p }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.newPin')}</button>
+                    <button type="button" onClick={() => put(`/api/stock/staff/${s.id}`, { role: s.role === 'manager' ? 'staff' : 'manager' })} className="h-11 rounded-xl border px-3 text-base">{t(s.role === 'manager' ? 'ks.set.role.staff' : 'ks.set.role.manager')}</button>
+                  </>
+                )}
                 {s.locked && <button type="button" onClick={() => put(`/api/stock/staff/${s.id}`, { unlock: true })} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.unlock')}</button>}
-                <button type="button" onClick={() => { if (window.confirm(fill('ks.set.removeConfirm', { name: s.name }))) put(`/api/stock/staff/${s.id}`, undefined, 'DELETE'); }} className="h-11 rounded-xl border border-red-200 px-3 text-base text-red-700">{t('ks.set.remove')}</button>
+                <button type="button" onClick={() => { if (window.confirm(fill('ks.set.signOutConfirm', { name: s.name }))) put(`/api/stock/staff/${s.id}`, { signOut: true }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.signOut')}</button>
+                {settings?.canManageStaff && <button type="button" onClick={() => { if (window.confirm(fill('ks.set.removeConfirm', { name: s.name }))) put(`/api/stock/staff/${s.id}`, undefined, 'DELETE'); }} className="h-11 rounded-xl border border-red-200 px-3 text-base text-red-700">{t('ks.set.remove')}</button>}
               </div>
             </li>
           ))}
         </ul>
-        {staff.length < max && (
+        {settings?.canManageStaff && staff.length < max && (
           <form className="space-y-2" onSubmit={async (e) => { e.preventDefault(); if (await put('/api/stock/staff', { name, pin, role }, 'POST')) { setName(''); setPin(''); setRole('staff'); } }}>
             <h3 className="text-lg font-semibold">{t('ks.set.addPerson')}</h3>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('ks.set.name')} required maxLength={60} className="h-12 w-full rounded-xl border-2 px-3 text-lg" />

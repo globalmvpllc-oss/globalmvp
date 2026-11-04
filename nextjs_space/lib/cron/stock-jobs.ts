@@ -20,6 +20,8 @@ const TIME_BUDGET_MS = 240_000; // the route may run 300 s; leave room to answer
 export async function runStockNightly(now: Date): Promise<{ companies: number; backups: number; summaries: number; failed: number; skipped: number }> {
   const started = Date.now();
   let skipped = 0;
+  // Old alert-limit counters are not needed after a week.
+  await prisma.$executeRaw`DELETE FROM "StockAlertDay" WHERE "day" < (CURRENT_DATE - 7)`.catch(() => {});
   const companies = await prisma.stockProduct.groupBy({ by: ['companyId'], where: { isActive: true } });
   let backups = 0;
   let summaries = 0;

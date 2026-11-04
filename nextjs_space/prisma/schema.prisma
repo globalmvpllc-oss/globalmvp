@@ -178,6 +178,7 @@ model Company {
   stockTelegramChats  StockTelegramChat[]
   stockTelegramCodes  StockTelegramCode[]
   stockBackups        StockBackup[]
+  stockAlertDays      StockAlertDay[]
 }
 
 model CompanyMember {
@@ -1220,6 +1221,17 @@ model StockTelegramCode {
   usedAt    DateTime?
   createdAt DateTime  @default(now())
   company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+/// Instant low-stock alerts sent per company per (Turkey) day; at most 20.
+/// Written with plain SQL (lib/stock/alerts.ts) so it is one atomic step.
+model StockAlertDay {
+  companyId String
+  day       DateTime @db.Date
+  sent      Int      @default(0)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, day])
 }
 
 /// Daily Excel backup of the stock, kept 30 days in S3.

@@ -33,6 +33,7 @@ export async function GET() {
       quickMinusReason: quick.minus,
       telegram: { configured: telegramConfigured(), bot: telegramBotUsername(), chats },
       canChangeMode: actor.kind === 'user',
+      canManageStaff: actor.kind === 'user',
     });
   } catch (error) {
     return handleApiError('stock:settings:GET', error, { fallbackMessage: 'Could not load.' });
