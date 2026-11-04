@@ -174,8 +174,9 @@ export default function KvkkPage() {
         <p>
           Kişisel verileriniz, hizmetin sunulabilmesi için gerekli olan altyapı sağlayıcılarına, yalnızca
           kendi işlevlerini yerine getirebilecekleri ölçüde aktarılır: uygulama barındırma sağlayıcısı,
-          yönetilen PostgreSQL veritabanı sağlayıcısı, dosya depolama için Amazon S3 ve fatura PDF'i
-          talep ettiğinizde belge dönüştürme hizmeti için Abacus AI.
+          yönetilen PostgreSQL veritabanı sağlayıcısı ve dosya depolama için Amazon S3. Fatura ve diğer
+          PDF belgeler uygulamanın kendi sunucusunda üretilir; bunun için üçüncü bir tarafa veri
+          gönderilmez.
         </p>
         <p>
           Reklam ve ölçümleme çerezlerine açık rıza vermeniz hâlinde, bu çerezler aracılığıyla toplanan

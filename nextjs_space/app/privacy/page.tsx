@@ -121,11 +121,6 @@ export default function PrivacyPage() {
           <li>
             <strong>File storage.</strong> Amazon S3 stores files uploaded through the service.
           </li>
-          <li>
-            <strong>Document conversion.</strong> Abacus AI converts invoice documents to PDF when you
-            request one. The content of the invoice being converted is sent to that provider for the
-            duration of the conversion.
-          </li>
         </ul>
         <p>
           We do not share your records with other customers of the service. Each business workspace is
