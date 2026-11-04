@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { formatCalendarDate } from '@/lib/calendar-date';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { downloadBytes } from '@/lib/bulk-pdf';
+import { DocumentLines } from '@/components/document-lines';
 import { isProformaInvoice } from '@/lib/tr-tax';
 
 export default function InvoiceDetailPage() {
@@ -361,40 +362,9 @@ export default function InvoiceDetailPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">{t('invoices.items')}</CardTitle></CardHeader>
         <CardContent>
-          {/* The table scrolls inside this box; the page itself does not. */}
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 font-medium text-muted-foreground">{t('common.description')}</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">{t('invoices.qty')}</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">{t('invoices.unitPrice')}</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">{t('invoices.tax')}</th>
-                  <th className="text-right py-2 font-medium text-muted-foreground">{t('common.amount')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(invoice?.items ?? []).map((item: any) => (
-                  <tr key={item?.id} className="border-b last:border-0">
-                    <td className="py-3">{item?.description ?? ''}</td>
-                    <td className="text-right py-3 font-mono">{item?.quantity ?? 0}</td>
-                    <td className="text-right py-3 font-mono">{formatCurrency(item?.unitPrice ?? 0, invoice?.currency ?? 'USD')}</td>
-                    <td className="text-right py-3 font-mono">{item?.taxRate ?? 0}%</td>
-                    <td className="text-right py-3 font-mono font-medium">{formatCurrency(item?.amount ?? 0, invoice?.currency ?? 'USD')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <div className="w-full space-y-2 sm:w-64">
-              <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.subtotal')}</span><span className="font-mono">{formatCurrency(invoice?.subtotal ?? 0, invoice?.currency ?? 'USD')}</span></div>
-              {(invoice?.discountTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.discount')}</span><span className="font-mono text-red-500">-{formatCurrency(invoice?.discountTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
-              {(invoice?.taxTotal ?? 0) > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t('invoices.tax')}</span><span className="font-mono">{formatCurrency(invoice?.taxTotal ?? 0, invoice?.currency ?? 'USD')}</span></div>}
-              <div className="border-t pt-2 flex justify-between font-medium"><span>{t('common.total')}</span><span className="font-mono">{formatCurrency(invoice?.total ?? 0, invoice?.currency ?? 'USD')}</span></div>
-              {(invoice?.amountPaid ?? 0) > 0 && <div className="flex justify-between text-sm text-green-600"><span>{t('status.paid')}</span><span className="font-mono">{formatCurrency(invoice?.amountPaid ?? 0, invoice?.currency ?? 'USD')}</span></div>}
-            </div>
-          </div>
+          <DocumentLines doc={invoice} currency={invoice?.currency ?? 'USD'}>
+            {(invoice?.amountPaid ?? 0) > 0 && <div className="flex justify-between text-base text-green-600"><span>{t('status.paid')}</span><span className="font-mono">{formatCurrency(invoice?.amountPaid ?? 0, invoice?.currency ?? 'USD')}</span></div>}
+          </DocumentLines>
         </CardContent>
       </Card>
 

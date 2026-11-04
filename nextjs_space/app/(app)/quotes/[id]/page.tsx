@@ -14,6 +14,7 @@ import { formatCalendarDate } from '@/lib/calendar-date';
 import { canConvertQuote, canTransitionQuote, quoteStatusBadge } from '@/lib/quote-status';
 import { readErrorMessage } from '@/lib/api-feedback';
 import { downloadBytes } from '@/lib/bulk-pdf';
+import { DocumentLines } from '@/components/document-lines';
 
 const EMAIL_ERRORS: Record<string, 'invoices.emailNoAddress' | 'invoices.emailPdfFailed' | 'invoices.emailNotConfigured' | 'invoices.emailTooMany' | 'invoices.emailFailed'> = {
   NO_EMAIL: 'invoices.emailNoAddress',
@@ -179,28 +180,7 @@ export default function QuoteDetailPage() {
       <Card>
         <CardHeader><CardTitle className="text-lg">{t('invoices.items')}</CardTitle></CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-base">
-              <thead><tr className="border-b text-sm text-muted-foreground">
-                <th className="py-2 text-left font-medium">{t('common.description')}</th>
-                <th className="py-2 text-right font-medium">{t('invoices.qty')}</th>
-                <th className="py-2 text-right font-medium">{t('invoices.unitPrice')}</th>
-                <th className="py-2 text-right font-medium">{t('invoices.tax')}</th>
-                <th className="py-2 text-right font-medium">{t('common.amount')}</th>
-              </tr></thead>
-              <tbody>
-                {(quote.items ?? []).map((item: any) => (
-                  <tr key={item.id} className="border-b last:border-0">
-                    <td className="py-3">{item.description}</td>
-                    <td className="py-3 text-right font-mono">{Number(item.quantity)}</td>
-                    <td className="py-3 text-right font-mono">{money(item.unitPrice)}</td>
-                    <td className="py-3 text-right font-mono">%{Number(item.taxRate)}</td>
-                    <td className="py-3 text-right font-mono">{money(item.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DocumentLines doc={quote} currency={quote.currency ?? 'USD'} />
         </CardContent>
       </Card>
 

@@ -134,7 +134,10 @@ export default function VatReportPage() {
           );
         })
       )}
-      <p className="text-sm text-muted-foreground">{t('vat.disclaimer')}</p>
+      <div className="space-y-1">
+        <p className="text-base font-medium">{t('vat.notice')}</p>
+        <p className="text-sm text-muted-foreground">{t('vat.disclaimer')}</p>
+      </div>
     </div>
   );
 }

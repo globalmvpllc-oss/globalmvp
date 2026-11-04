@@ -9,7 +9,7 @@
  *
  * Quotes (Phase 2) reuse `buildCommercialDocumentSpec` with their own title.
  */
-import Decimal from 'decimal.js';
+import { documentTotalsLines, hasLineDiscount, lineNetAmount, rateText, taxBreakdown } from '@/lib/document-lines';
 import { countryLabel } from '@/lib/countries';
 
 /** Country name in the document's language ("Türkiye" / "Turkey"). */
@@ -53,34 +53,8 @@ function quantityText(value: unknown, locale: DocumentLocale): string {
   return new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US', { maximumFractionDigits: 4 }).format(n);
 }
 
-function rateText(rate: Decimal, locale: DocumentLocale): string {
-  const n = rate.toNumber();
-  const shown = Number.isInteger(n) ? String(n) : rate.toDecimalPlaces(2).toString();
-  return locale === 'tr' ? `%${shown}` : `${shown}%`;
-}
-
-/**
- * Tax per rate, from the line items with the same formula the invoice total
- * uses (lib/invoice-calc): (qty × price − discount) × rate / 100. Zero-rate
- * lines are left out; the rows are ordered by rate.
- */
-export function taxBreakdown(items: any[]): Array<{ rate: Decimal; base: Decimal; tax: Decimal; label: string }> {
-  const byRate = new Map<string, { rate: Decimal; base: Decimal; tax: Decimal; label: string }>();
-  for (const item of items ?? []) {
-    const rate = new Decimal(String(item?.taxRate ?? 0));
-    if (rate.lte(0)) continue;
-    const base = Decimal.max(
-      new Decimal(String(item?.quantity ?? 0)).mul(new Decimal(String(item?.unitPrice ?? 0))).minus(new Decimal(String(item?.discount ?? 0))),
-      0
-    );
-    const key = rate.toString();
-    const entry = byRate.get(key) ?? { rate, base: new Decimal(0), tax: new Decimal(0), label: String(item?.taxLabel ?? '') };
-    entry.base = entry.base.plus(base);
-    entry.tax = entry.tax.plus(base.mul(rate).div(100));
-    byRate.set(key, entry);
-  }
-  return [...byRate.values()].sort((a, b) => b.rate.comparedTo(a.rate));
-}
+/** Tax per rate; kept exported here for existing callers. */
+export { taxBreakdown };
 
 export interface CommercialDocumentOptions {
   /** e.g. 'pdf.invoiceTitle' or (Phase 2) 'pdf.quoteTitle'. */
@@ -91,6 +65,11 @@ export interface CommercialDocumentOptions {
   showPaid?: boolean;
   /** Print the Turkish "informational" notice (invoices; not quotes). */
   notice?: boolean;
+  /**
+   * Replaces the company's payment instructions (which talk about due dates
+   * and invoice numbers) with this sentence. Quotes use it.
+   */
+  paymentNoteKey?: TranslationKey;
 }
 
 /** Shared by invoices and quotes: anything with a customer, items and totals. */
@@ -136,56 +115,60 @@ export function buildCommercialDocumentSpec(
   if (nonEmpty(customer.taxOffice)) taxParts.push(`${t('pdf.taxOffice')}: ${customer.taxOffice}`);
   if (taxParts.length) partyLines.push(taxParts.join(' • '));
 
-  // Line items.
+  // Line items. "Amount" is the line before VAT, after its discount; the
+  // discount column appears only when some line has one.
   const items: any[] = doc?.items ?? [];
+  const withDiscount = hasLineDiscount(items);
+  const columns = withDiscount
+    ? [
+        { label: t('pdf.description'), width: 38 },
+        { label: t('pdf.qty'), width: 9, align: 'right' as const },
+        { label: t('pdf.price'), width: 15, align: 'right' as const },
+        { label: t('pdf.discount'), width: 13, align: 'right' as const },
+        { label: t('pdf.tax'), width: 9, align: 'right' as const },
+        { label: t('pdf.amount'), width: 16, align: 'right' as const },
+      ]
+    : [
+        { label: t('pdf.description'), width: 46 },
+        { label: t('pdf.qty'), width: 10, align: 'right' as const },
+        { label: t('pdf.price'), width: 16, align: 'right' as const },
+        { label: t('pdf.tax'), width: 10, align: 'right' as const },
+        { label: t('pdf.amount'), width: 18, align: 'right' as const },
+      ];
   const blocks: DocBlock[] = [
     {
       kind: 'table',
-      columns: [
-        { label: t('pdf.description'), width: 46 },
-        { label: t('pdf.qty'), width: 10, align: 'right' },
-        { label: t('pdf.price'), width: 16, align: 'right' },
-        { label: t('pdf.tax'), width: 10, align: 'right' },
-        { label: t('pdf.amount'), width: 18, align: 'right' },
-      ],
+      columns,
       rows: items.map((item) => ({
         cells: [
           String(item?.description ?? ''),
           quantityText(item?.quantity, locale),
           money(item?.unitPrice),
-          rateText(new Decimal(String(item?.taxRate ?? 0)), locale),
-          money(item?.amount),
+          ...(withDiscount ? [Number(item?.discount ?? 0) > 0 ? `-${money(item?.discount)}` : ''] : []),
+          rateText(item?.taxRate ?? 0, locale),
+          money(lineNetAmount(item).toFixed(2)),
         ],
       })),
     },
   ];
 
-  // Totals with the tax broken down per rate.
-  const lines: Array<{ label: string; value: string; strong?: boolean }> = [
-    { label: t('pdf.subtotal'), value: money(doc?.subtotal) },
-  ];
-  const discount = Number(doc?.discountTotal ?? 0);
-  if (discount > 0) lines.push({ label: t('pdf.discount'), value: `-${money(discount)}` });
-  const taxTotal = Number(doc?.taxTotal ?? 0);
-  if (showTax && taxTotal > 0) {
-    const breakdown = taxBreakdown(items);
-    if (breakdown.length <= 1) {
-      const only = breakdown[0];
-      const label = only ? displayTaxLabel(only.label, locale) : t('pdf.tax');
-      lines.push({
-        label: only ? `${label} ${rateText(only.rate, locale)}` : label,
-        value: money(taxTotal),
-      });
-    } else {
-      for (const row of breakdown) {
-        lines.push({
-          label: `${displayTaxLabel(row.label, locale)} ${rateText(row.rate, locale)}`,
-          value: money(row.tax.toDecimalPlaces(2)),
-        });
+  // Totals: subtotal, discount, VAT per rate, grand total.
+  const lines: Array<{ label: string; value: string; strong?: boolean }> = documentTotalsLines(doc, { showTax }).map(
+    (line) => {
+      switch (line.kind) {
+        case 'subtotal':
+          return { label: t('pdf.subtotal'), value: money(line.amount) };
+        case 'discount':
+          return { label: t('pdf.discount'), value: `-${money(line.amount)}` };
+        case 'tax': {
+          const label = line.rate ? displayTaxLabel(line.label, locale) : t('pdf.tax');
+          return { label: line.rate ? `${label} ${rateText(line.rate, locale)}` : label, value: money(line.amount) };
+        }
+        case 'total':
+          return { label: t('pdf.total'), value: money(line.amount), strong: true };
       }
     }
-  }
-  lines.push({ label: t('pdf.total'), value: money(doc?.total), strong: true });
+  );
   const paid = Number(doc?.amountPaid ?? 0);
   if (options.showPaid && paid > 0) {
     lines.push({ label: t('pdf.paid'), value: money(paid) });
@@ -194,7 +177,9 @@ export function buildCommercialDocumentSpec(
   blocks.push({ kind: 'totals', lines });
 
   if (nonEmpty(doc?.notes)) blocks.push({ kind: 'text', title: t('pdf.notes'), body: doc.notes });
-  if (nonEmpty(company?.paymentInstructions)) {
+  if (options.paymentNoteKey) {
+    blocks.push({ kind: 'text', title: t('pdf.paymentInstructions'), body: t(options.paymentNoteKey) });
+  } else if (nonEmpty(company?.paymentInstructions)) {
     blocks.push({ kind: 'text', title: t('pdf.paymentInstructions'), body: company.paymentInstructions });
   }
   if (nonEmpty(company?.bankTransferInstructions)) {
@@ -250,6 +235,7 @@ export function buildQuotePdfSpec(quote: any, company: any): AddressedDocumentSp
     ],
     showPaid: false,
     notice: false,
+    paymentNoteKey: 'pdf.quoteContact',
   });
 }
 

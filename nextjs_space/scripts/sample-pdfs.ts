@@ -174,7 +174,7 @@ const lists: Array<{ file: string; kind: ListPdfKind; body: ListBody; filters?: 
   { file: 'liste-banka-mutabakati', kind: 'bank-transactions', body: bankTransactionsBody(bankTransactions, ctx), filters: [{ label: 'Hesap', value: 'TEST- Örnek Bankası – Vadesiz TL' }] },
   { file: 'liste-banka-hesaplari', kind: 'bank-accounts', body: bankAccountsBody(bankAccounts, ctx) },
   { file: 'rapor-kdv', kind: 'vat', body: vatBody(vat, ctx), filters: [{ label: 'Dönem', value: '01.11.2026 – 30.11.2026' }] },
-  { file: 'rapor-finans', kind: 'reports', body: reportsBody(report, ctx) },
+  { file: 'rapor-finans', kind: 'reports', body: reportsBody(report, ctx, 'TRY') },
 ];
 
 async function main() {

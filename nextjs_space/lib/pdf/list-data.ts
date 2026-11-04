@@ -282,8 +282,11 @@ export async function loadListDocument(
     case 'reports': {
       const r = range();
       if ('error' in r) return bad(String(r.error));
-      const payload = await loadReportsPayload(companyId, r.range);
-      return { ok: true, body: reportsBody(payload, ctx), filters, truncatedAt: null };
+      const [payload, company] = await Promise.all([
+        loadReportsPayload(companyId, r.range),
+        prisma.company.findUnique({ where: { id: companyId }, select: { defaultCurrency: true } }),
+      ]);
+      return { ok: true, body: reportsBody(payload, ctx, company?.defaultCurrency), filters, truncatedAt: null };
     }
   }
 }

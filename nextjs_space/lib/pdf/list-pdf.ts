@@ -527,7 +527,13 @@ export function vatBody(currencies: VatCurrencyReport[], ctx: ListContext): List
     rows.push({ cells: [ctx.t('vat.outputTotal'), '', m(cur.outputBase), m(cur.outputTax)], style: 'strong' });
     for (const line of cur.input) rows.push({ cells: [ctx.t('vat.input'), rate(line.rate), m(line.base), m(line.tax)] });
     rows.push({ cells: [ctx.t('vat.inputTotal'), '', m(cur.inputBase), m(cur.inputTax)], style: 'strong' });
-    rows.push({ cells: [ctx.t('vat.net'), '', '', m(cur.net)], style: 'strong' });
+    // A positive result is VAT to pay; a negative one carries forward. The
+    // label carries the sign, so the amount is printed without it.
+    const net = dec(cur.net);
+    rows.push({
+      cells: [ctx.t(net.isNegative() ? 'vat.carryForward' : 'vat.payable'), '', '', m(net.abs().toFixed(2))],
+      style: 'strong',
+    });
     blocks.push({
       kind: 'table',
       heading: currencies.length > 1 ? cur.currency : undefined,
@@ -541,6 +547,7 @@ export function vatBody(currencies: VatCurrencyReport[], ctx: ListContext): List
     });
   }
   if (blocks.length === 0) blocks.push({ kind: 'text', body: ctx.t('listPdf.empty') });
+  blocks.push({ kind: 'text', body: ctx.t('vat.notice'), boxed: true, small: true });
   return { blocks };
 }
 
@@ -552,10 +559,17 @@ function monthText(key: string, locale: Locale): string {
   );
 }
 
-export function reportsBody(report: ReportsPayload, ctx: ListContext): ListBody {
+/**
+ * The finance report. `primaryCurrency` (the company's own currency) comes
+ * first, the others after it in alphabetical order.
+ */
+export function reportsBody(report: ReportsPayload, ctx: ListContext, primaryCurrency?: string | null): ListBody {
   const blocks: DocBlock[] = [];
   const multi = report.currencies.length > 1;
-  for (const cur of report.currencies) {
+  const ordered = [...report.currencies].sort((a, b) =>
+    a === primaryCurrency ? -1 : b === primaryCurrency ? 1 : a.localeCompare(b)
+  );
+  for (const cur of ordered) {
     const totals = report.byCurrency[cur];
     if (!totals) continue;
     const m = (v: unknown) => ctx.money(v, cur);
@@ -567,7 +581,11 @@ export function reportsBody(report: ReportsPayload, ctx: ListContext): ListBody 
       rows: [
         { cells: [ctx.t('reports.totalIncome'), m(totals.income)] },
         { cells: [ctx.t('reports.totalExpenses'), m(totals.expenses)] },
-        { cells: [ctx.t('listPdf.col.profit'), m(totals.profit)], style: 'strong' },
+        // A negative result is a loss: the label says so and the amount is
+        // printed without its minus sign.
+        dec(totals.profit).isNegative()
+          ? { cells: [ctx.t('listPdf.col.loss'), m(dec(totals.profit).abs().toFixed(2))], style: 'strong' as const }
+          : { cells: [ctx.t('listPdf.col.profit'), m(totals.profit)], style: 'strong' as const },
         { cells: [ctx.t('reports.totalInvoiced'), m(totals.invoiced)] },
         { cells: [ctx.t('reports.collected'), m(totals.collected)] },
         { cells: [ctx.t('listPdf.row.outstanding'), m(totals.outstanding)] },
@@ -583,7 +601,7 @@ export function reportsBody(report: ReportsPayload, ctx: ListContext): ListBody 
           col(ctx, 'listPdf.col.month', 31),
           col(ctx, 'reports.income', 23, 'right'),
           col(ctx, 'reports.expenses', 23, 'right'),
-          col(ctx, 'listPdf.col.profit', 23, 'right'),
+          col(ctx, 'listPdf.col.profitLoss', 23, 'right'),
         ],
         rows: months.map((p) => ({
           cells: [monthText(p.monthKey, ctx.locale), m(p.income), m(p.expenses), m(dec(p.income).minus(dec(p.expenses)).toFixed(2))],
