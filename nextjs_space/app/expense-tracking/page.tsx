@@ -3,6 +3,7 @@ import { Receipt, BellRing, PieChart } from 'lucide-react';
 import { AcquisitionLanding } from '@/components/marketing/acquisition-landing';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 
 /**
  * Search-acquisition landing page for the expense-tracking keyword group.
@@ -23,16 +24,14 @@ import { translate, type TranslationKey } from '@/lib/i18n';
 
 const locale = getServerLocale;
 
-export const metadata: Metadata = {
-  title: translate('en', 'landing.expenses.metaTitle'),
-  description: translate('en', 'landing.expenses.metaDescription'),
-  alternates: { canonical: '/expense-tracking' },
-  openGraph: {
-    title: translate('en', 'landing.expenses.metaTitle'),
-    description: translate('en', 'landing.expenses.metaDescription'),
-    url: '/expense-tracking',
-  },
-};
+// Title and description follow the visitor's language, like the page body.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'landing.expenses.metaTitle',
+    descriptionKey: 'landing.expenses.metaDescription',
+    canonical: '/expense-tracking',
+  });
+}
 
 export default function ExpenseTrackingPage() {
   const active = locale();

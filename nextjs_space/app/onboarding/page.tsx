@@ -190,7 +190,14 @@ export default function OnboardingPage() {
             {step === 2 && (
               <div className="space-y-2">
                 <Label>Country</Label>
-                <Select value={form.country} onValueChange={(v: string) => update('country', v)}>
+                <Select
+                  value={form.country}
+                  onValueChange={(v: string) => {
+                    update('country', v);
+                    // Turkey starts on Turkish lira; the next step can still change it.
+                    if (v === 'TR') update('defaultCurrency', 'TRY');
+                  }}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {COUNTRIES.map((c: any) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}

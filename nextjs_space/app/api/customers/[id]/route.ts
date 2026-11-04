@@ -6,6 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { customerSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { buildCustomerUpdateData } from '@/lib/customer-fields';
+import { checkPartyTaxId } from '@/lib/party-tax';
 import Decimal from 'decimal.js';
 import { isIssuedInvoice } from '@/lib/invoice-status';
 
@@ -117,12 +118,16 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { data, error } = validateBody(customerSchema, body);
     if (error) return NextResponse.json(error, { status: 400 });
 
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { country: true } });
+    const tax = checkPartyTaxId(data.taxId, data.country, company?.country);
+    if (!tax.ok) return NextResponse.json(tax.response, { status: 400 });
+
     // Scoped by companyId as well as id. The ownership check above already
     // ran, but keeping the scope on the write means a row that changed hands
     // between the two statements still cannot be updated.
     const updated = await prisma.customer.updateMany({
       where: { id: params.id, companyId },
-      data: buildCustomerUpdateData(data),
+      data: buildCustomerUpdateData({ ...data, taxId: tax.taxId }),
     });
     if (updated.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

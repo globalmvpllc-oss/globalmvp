@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Send, CheckCircle, Download, Printer, CreditCard, Trash2, Copy } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, Download, Printer, CreditCard, Trash2, Copy, Mail } from 'lucide-react';
 import { formatCurrency } from '@/lib/currencies';
 import { getStatusBadge } from '@/lib/invoice-helpers';
 import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
@@ -34,6 +34,7 @@ export default function InvoiceDetailPage() {
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   /**
    * Held in a ref so the interval can be cleared from anywhere, including on
    * unmount. Previously it was a local that nothing cancelled, so leaving the
@@ -280,6 +281,44 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  /**
+   * Emails the invoice to the customer's stored address with the PDF
+   * attached. The server builds the PDF itself and refuses to send without it.
+   */
+  const EMAIL_ERROR_KEYS: Record<string, 'invoices.emailNoAddress' | 'invoices.emailPdfFailed' | 'invoices.emailNotConfigured' | 'invoices.emailCancelled' | 'invoices.emailTooMany' | 'invoices.emailFailed'> = {
+    NO_EMAIL: 'invoices.emailNoAddress',
+    PDF_FAILED: 'invoices.emailPdfFailed',
+    NOT_CONFIGURED: 'invoices.emailNotConfigured',
+    CANCELLED: 'invoices.emailCancelled',
+    RATE_LIMITED: 'invoices.emailTooMany',
+    SEND_FAILED: 'invoices.emailFailed',
+  };
+
+  const sendByEmail = async () => {
+    const email = invoice?.customer?.email;
+    if (!email) {
+      toast.error(t('invoices.emailNoAddress'));
+      return;
+    }
+    if (!window.confirm(fill('invoices.emailConfirm', { number: invoice?.invoiceNumber ?? '', email }))) return;
+    setEmailSending(true);
+    try {
+      const res = await fetch(`/api/invoices/${params?.id}/send`, { method: 'POST' });
+      if (res.ok) {
+        toast.success(fill('invoices.emailSent', { email }));
+        fetchInvoice();
+        return;
+      }
+      const body = await res.json().catch(() => null);
+      const key = typeof body?.code === 'string' ? EMAIL_ERROR_KEYS[body.code] : undefined;
+      toast.error(key ? t(key) : typeof body?.error === 'string' ? body.error : t('invoices.emailFailed'));
+    } catch {
+      toast.error(t('error.network'));
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm(t('invoices.deleteConfirm'))) return;
     try {
@@ -316,10 +355,20 @@ export default function InvoiceDetailPage() {
               <Badge className={statusInfo?.color ?? ''}>{t(statusInfo.labelKey)}</Badge>
             </div>
             <p className="text-muted-foreground truncate">{invoice?.customer?.name ?? ''}</p>
+            {invoice?.sentAt && (
+              <p className="text-sm text-muted-foreground">
+                {fill('invoices.lastSent', { date: formatCalendarDate(invoice.sentAt, 'MMM d, yyyy', intl) })}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {invoice?.status === 'DRAFT' && <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => updateStatus('SENT')}><Send className="w-4 h-4 mr-2" /> {t('invoices.send')}</Button>}
+          {invoice?.status !== 'CANCELLED' && (
+            <Button className="flex-1 sm:flex-none" onClick={sendByEmail} disabled={emailSending}>
+              <Mail className="w-4 h-4 mr-2" /> {emailSending ? t('invoices.emailSending') : t('invoices.emailSend')}
+            </Button>
+          )}
+          {invoice?.status === 'DRAFT' && <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => updateStatus('SENT')}><Send className="w-4 h-4 mr-2" /> {t('invoices.markSent')}</Button>}
           {['SENT', 'VIEWED', 'PARTIALLY_PAID', 'OVERDUE'].includes(invoice?.status) && (
             <>
               <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>

@@ -42,19 +42,21 @@ export function renderMinimal(v: InvoiceView): string {
 <div class="sheet">
   <div class="lead">
     ${v.logoSrc ? `<img src="${v.logoSrc}" alt="" style="max-height:40px;max-width:160px;object-fit:contain;margin-bottom:16px;display:block" />` : ''}
-    <div class="doc">Invoice</div>
+    <div class="doc">${v.labels.invoice}</div>
     <div class="num">${v.invoiceNumber}</div>
   </div>
   <div class="rule"></div>
   <div class="parties">
     <div class="party">
-      <h3>To</h3>
+      <h3>${v.labels.to}</h3>
       <p class="name">${v.customerName}</p>
       ${v.customerCompany ? `<p>${v.customerCompany}</p>` : ''}
+      ${v.customerAddressLine ? `<p>${v.customerAddressLine}</p>` : ''}
       ${v.customerEmail ? `<p>${v.customerEmail}</p>` : ''}
+      ${v.customerTaxLine ? `<p>${v.customerTaxLine}</p>` : ''}
     </div>
     <div class="party">
-      <h3>From</h3>
+      <h3>${v.labels.from}</h3>
       <p class="name">${v.companyName}</p>
       ${v.legalName ? `<p>${v.legalName}</p>` : ''}
       ${v.addressLine ? `<p>${v.addressLine}</p>` : ''}
@@ -64,14 +66,14 @@ export function renderMinimal(v: InvoiceView): string {
       ${v.taxLine ? `<p>${v.taxLine}</p>` : ''}
     </div>
     <div class="party">
-      <h3>Issued</h3>
+      <h3>${v.labels.issued}</h3>
       <p class="name">${v.issueDate}</p>
-      <h3 style="margin-top:10px">Due</h3>
+      <h3 style="margin-top:10px">${v.labels.due}</h3>
       <p class="name">${v.dueDate}</p>
     </div>
   </div>
   <table>
-    <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Price</th><th class="text-right">Tax</th><th class="text-right">Amount</th></tr></thead>
+    <thead><tr><th>${v.labels.description}</th><th class="text-right">${v.labels.qty}</th><th class="text-right">${v.labels.price}</th><th class="text-right">${v.labels.tax}</th><th class="text-right">${v.labels.amount}</th></tr></thead>
     <tbody>${v.items
       .map(
         (i) =>
@@ -80,15 +82,16 @@ export function renderMinimal(v: InvoiceView): string {
       .join('')}</tbody>
   </table>
   <div class="totals"><div class="totals-inner">
-    <div class="row"><span>Subtotal</span><span>${v.subtotal}</span></div>
-    ${v.discount ? `<div class="row"><span>Discount</span><span>-${v.discount}</span></div>` : ''}
-    ${v.tax ? `<div class="row"><span>Tax</span><span>${v.tax}</span></div>` : ''}
+    <div class="row"><span>${v.labels.subtotal}</span><span>${v.subtotal}</span></div>
+    ${v.discount ? `<div class="row"><span>${v.labels.discount}</span><span>-${v.discount}</span></div>` : ''}
+    ${v.tax ? `<div class="row"><span>${v.labels.tax}</span><span>${v.tax}</span></div>` : ''}
     <div class="accent"></div>
-    <div class="row total"><span>Total</span><span>${v.total}</span></div>
+    <div class="row total"><span>${v.labels.total}</span><span>${v.total}</span></div>
   </div></div>
-  ${v.notes ? `<div class="note"><strong>Notes:</strong> ${v.notes}</div>` : ''}
-  ${v.paymentInstructions ? `<div class="note"><strong>Payment instructions:</strong> ${v.paymentInstructions}</div>` : ''}
-  ${v.bankDetails ? `<div class="note"><strong>Bank transfer details:</strong> ${v.bankDetails}</div>` : ''}
+  ${v.notes ? `<div class="note"><strong>${v.labels.notes}:</strong> ${v.notes}</div>` : ''}
+  ${v.paymentInstructions ? `<div class="note"><strong>${v.labels.paymentInstructions}:</strong> ${v.paymentInstructions}</div>` : ''}
+  ${v.bankDetails ? `<div class="note"><strong>${v.labels.bankDetails}:</strong> ${v.bankDetails}</div>` : ''}
+  ${v.notice ? `<div class="note">${v.notice}</div>` : ''}
   <div class="footer">${v.footerText}</div>
 </div></body></html>`;
 }

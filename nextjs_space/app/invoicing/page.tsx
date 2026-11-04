@@ -3,6 +3,7 @@ import { CalendarClock, CircleDollarSign, Palette } from 'lucide-react';
 import { AcquisitionLanding } from '@/components/marketing/acquisition-landing';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 
 /**
  * Search-acquisition landing page for the invoicing keyword group.
@@ -18,16 +19,14 @@ import { translate, type TranslationKey } from '@/lib/i18n';
 
 const locale = getServerLocale;
 
-export const metadata: Metadata = {
-  title: translate('en', 'landing.invoicing.metaTitle'),
-  description: translate('en', 'landing.invoicing.metaDescription'),
-  alternates: { canonical: '/invoicing' },
-  openGraph: {
-    title: translate('en', 'landing.invoicing.metaTitle'),
-    description: translate('en', 'landing.invoicing.metaDescription'),
-    url: '/invoicing',
-  },
-};
+// Title and description follow the visitor's language, like the page body.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'landing.invoicing.metaTitle',
+    descriptionKey: 'landing.invoicing.metaDescription',
+    canonical: '/invoicing',
+  });
+}
 
 export default function InvoicingPage() {
   const active = locale();

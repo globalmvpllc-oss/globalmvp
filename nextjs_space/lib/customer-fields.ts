@@ -34,6 +34,8 @@ export interface CustomerFieldInput {
   postalCode?: string;
   country?: string;
   taxId?: string;
+  taxOffice?: string;
+  language?: string;
   defaultCurrency?: string;
   notes?: string;
 }
@@ -49,6 +51,8 @@ export interface CustomerUpdateData {
   postalCode: string | null | undefined;
   country: string | null | undefined;
   taxId: string | null | undefined;
+  taxOffice: string | null | undefined;
+  language: string | null | undefined;
   defaultCurrency: string | null | undefined;
   notes: string | null | undefined;
 }
@@ -74,6 +78,8 @@ export function buildCustomerUpdateData(data: CustomerFieldInput): CustomerUpdat
     postalCode: optionalCustomerText(data.postalCode),
     country: optionalCustomerText(data.country),
     taxId: optionalCustomerText(data.taxId),
+    taxOffice: optionalCustomerText(data.taxOffice),
+    language: optionalCustomerText(data.language),
     defaultCurrency: optionalCustomerText(data.defaultCurrency),
     notes: optionalCustomerText(data.notes),
   };

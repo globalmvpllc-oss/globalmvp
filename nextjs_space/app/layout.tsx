@@ -7,6 +7,8 @@ import { ChunkLoadErrorHandler } from '@/components/chunk-load-error-handler';
 import { Providers } from '@/components/providers';
 import { siteConfig, getBaseUrl } from '@/lib/site';
 import { getServerLocale } from '@/lib/i18n/server';
+import { translate } from '@/lib/i18n';
+import { ogLocale } from '@/lib/i18n/metadata';
 import { I18nProvider } from '@/components/i18n-provider';
 import { CookieConsent } from '@/components/cookie-consent';
 import { consentBootstrapScript } from '@/lib/consent';
@@ -16,24 +18,44 @@ const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-sans' });
 const jakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-display' });
 const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 
-export const metadata: Metadata = {
+/**
+ * Site-wide title and description in the visitor's language (the same
+ * NEXT_LOCALE cookie the page body reads). English is unchanged.
+ */
+export function generateMetadata(): Metadata {
+  const locale = getServerLocale();
+  const siteTitle = translate(locale, 'meta.siteTitle');
+  const siteDescription = translate(locale, 'meta.siteDescription');
+  return {
   metadataBase: new URL(getBaseUrl()),
   title: {
-    default: `${siteConfig.name}: ${siteConfig.tagline}`,
+    default: siteTitle,
     template: `%s - ${siteConfig.name}`,
   },
-  description: siteConfig.description,
+  description: siteDescription,
   applicationName: siteConfig.name,
-  keywords: [
-    'invoicing software',
-    'small business finance',
-    'expense tracking',
-    'invoice management',
-    'freelancer invoicing',
-    'business finance dashboard',
-    'multi-currency invoicing',
-    'payment tracking',
-  ],
+  keywords:
+    locale === 'tr'
+      ? [
+          'ön muhasebe programı',
+          'fatura takip programı',
+          'küçük işletme finans',
+          'gider takibi',
+          'çek senet takibi',
+          'cari hesap takibi',
+          'tahsilat takibi',
+          'banka ekstresi eşleştirme',
+        ]
+      : [
+          'invoicing software',
+          'small business finance',
+          'expense tracking',
+          'invoice management',
+          'freelancer invoicing',
+          'business finance dashboard',
+          'multi-currency invoicing',
+          'payment tracking',
+        ],
   alternates: { canonical: '/' },
   robots: {
     index: true,
@@ -47,18 +69,20 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: siteConfig.name,
-    title: `${siteConfig.name}: ${siteConfig.tagline}`,
-    description: siteConfig.description,
+    title: siteTitle,
+    description: siteDescription,
+    locale: ogLocale(locale),
     url: '/',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: `${siteConfig.name} dashboard` }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name}: ${siteConfig.tagline}`,
-    description: siteConfig.description,
+    title: siteTitle,
+    description: siteDescription,
     images: ['/og-image.png'],
   },
-};
+  };
+}
 
 const jsonLd = [
   {

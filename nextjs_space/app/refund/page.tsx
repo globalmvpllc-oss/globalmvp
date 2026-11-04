@@ -1,14 +1,17 @@
 import type { Metadata } from 'next';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
-export const metadata: Metadata = {
-  title: 'Refund Policy',
-  description:
-    'When a CorpControl subscription can be refunded, what cancelling does, and how to cancel.',
-  alternates: { canonical: '/refund' },
-};
+// Title and description follow the visitor's language.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'meta.refundTitle',
+    descriptionKey: 'meta.refundDescription',
+    canonical: '/refund',
+  });
+}
 
 export default function RefundPage() {
   return (

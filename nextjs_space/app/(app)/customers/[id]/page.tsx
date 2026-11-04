@@ -131,6 +131,7 @@ export default function CustomerDetailPage() {
             {customer?.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" /><span suppressHydrationWarning>{customer.phone}</span></div>}
             {customer?.address && <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span>{customer.address}{customer?.city ? `, ${customer.city}` : ''}{customer?.country ? `, ${countryLabel(customer.country)}` : ''}</span></div>}
             {customer?.taxId && <div><span className="text-muted-foreground">{t('vendors.taxId')}: </span>{customer.taxId}</div>}
+            {customer?.taxOffice && <div><span className="text-muted-foreground">{t('customers.taxOffice')}: </span>{customer.taxOffice}</div>}
           </div>
         </CardContent>
       </Card>

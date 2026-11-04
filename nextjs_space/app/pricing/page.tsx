@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,14 +11,14 @@ import { PublicPricing } from '@/components/marketing/public-pricing';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
 
-// Metadata stays in English: it is read by crawlers, which carry no locale
-// cookie, and the canonical URL is one document rather than one per language.
-export const metadata: Metadata = {
-  title: 'Pricing',
-  description:
-    'CorpControl pricing. Start free and manage invoices, expenses and payments for your small business.',
-  alternates: { canonical: '/pricing' },
-};
+// Title and description follow the visitor's language.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'meta.pricingTitle',
+    descriptionKey: 'meta.pricingDescription',
+    canonical: '/pricing',
+  });
+}
 
 
 export default function PricingPage() {

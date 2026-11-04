@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
-export const metadata: Metadata = {
-  title: 'Terms of Service',
-  description: 'The terms that apply when you use CorpControl.',
-  alternates: { canonical: '/terms' },
-};
+// Title and description follow the visitor's language.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'meta.termsTitle',
+    descriptionKey: 'meta.termsDescription',
+    canonical: '/terms',
+  });
+}
 
 export default function TermsPage() {
   return (

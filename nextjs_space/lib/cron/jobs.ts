@@ -1,0 +1,176 @@
+import 'server-only';
+import { prisma } from '@/lib/db';
+import { sendMail } from '@/lib/email/mailer';
+import { calendarReminderEmail, paymentReminderEmail } from '@/lib/email/templates';
+import { documentLocaleFor } from '@/lib/tr-tax';
+import { resolveLocale } from '@/lib/i18n';
+import { getBaseUrl } from '@/lib/site';
+import {
+  OVERDUE_SOURCE_STATUSES,
+  FOLLOW_UP_LAST_DAY,
+  calendarReminderDue,
+  calendarReminderWindow,
+  reminderDue,
+  startOfUtcDay,
+} from './rules';
+
+/**
+ * The three things the daily cron does. Each one is independent and safe to
+ * run twice: every email is "claimed" by stamping its row before it is sent,
+ * with the stamp as part of the WHERE clause, so a second concurrent run finds
+ * nothing to claim. A send that fails releases its claim for the next run.
+ */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BATCH = 200;
+
+/** SENT / VIEWED / PARTIALLY_PAID past their due date and not fully paid → OVERDUE. */
+export async function markOverdueInvoices(now: Date): Promise<number> {
+  const result = await prisma.invoice.updateMany({
+    where: {
+      status: { in: [...OVERDUE_SOURCE_STATUSES] },
+      dueDate: { lt: startOfUtcDay(now) },
+      // Column comparison: still money owing. amountPaid itself is never
+      // touched, so a partly paid invoice keeps exactly what remains.
+      amountPaid: { lt: prisma.invoice.fields.total },
+    },
+    data: { status: 'OVERDUE' },
+  });
+  return result.count;
+}
+
+/** Polite reminders to customers, for companies that switched them on. */
+export async function sendPaymentReminders(now: Date): Promise<{ sent: number; failed: number }> {
+  const today = startOfUtcDay(now).getTime();
+  const candidates = await prisma.invoice.findMany({
+    where: {
+      status: 'OVERDUE',
+      company: { paymentRemindersEnabled: true },
+      customer: { email: { not: null } },
+      dueDate: { gte: new Date(today - FOLLOW_UP_LAST_DAY * DAY_MS), lt: new Date(today) },
+      OR: [{ overdueReminderSentAt: null }, { followUpReminderSentAt: null }],
+    },
+    select: {
+      id: true,
+      status: true,
+      invoiceNumber: true,
+      dueDate: true,
+      total: true,
+      amountPaid: true,
+      currency: true,
+      overdueReminderSentAt: true,
+      followUpReminderSentAt: true,
+      customer: { select: { name: true, email: true, language: true, country: true } },
+      company: { select: { name: true, email: true, country: true } },
+    },
+    take: BATCH,
+    orderBy: { dueDate: 'asc' },
+  });
+
+  let sent = 0;
+  let failed = 0;
+  for (const invoice of candidates) {
+    const kind = reminderDue(invoice, now);
+    const to = invoice.customer?.email;
+    if (!kind || !to) continue;
+
+    const stamp = kind === 'followup' ? 'followUpReminderSentAt' : 'overdueReminderSentAt';
+    const claimed = await prisma.invoice.updateMany({
+      where: { id: invoice.id, status: 'OVERDUE', [stamp]: null },
+      data: { [stamp]: now },
+    });
+    if (claimed.count !== 1) continue;
+
+    const locale = documentLocaleFor(invoice.customer, invoice.company);
+    const email = paymentReminderEmail({
+      kind,
+      locale,
+      companyName: invoice.company.name,
+      customerName: invoice.customer.name,
+      invoiceNumber: invoice.invoiceNumber,
+      amountDue: Number(invoice.total) - Number(invoice.amountPaid),
+      currency: invoice.currency,
+      dueDate: invoice.dueDate,
+    });
+    const result = await sendMail({
+      to,
+      ...email,
+      replyTo: invoice.company.email,
+      senderName: invoice.company.name,
+      idempotencyKey: `reminder-${kind}-${invoice.id}`,
+    });
+    if (result.ok) {
+      sent += 1;
+    } else {
+      failed += 1;
+      await prisma.invoice.updateMany({ where: { id: invoice.id }, data: { [stamp]: null } });
+    }
+  }
+  return { sent, failed };
+}
+
+/** Calendar reminders: the morning of reminderAt, to the person who set it. */
+export async function sendCalendarReminders(now: Date): Promise<{ sent: number; failed: number }> {
+  const window = calendarReminderWindow(now);
+  const events = await prisma.event.findMany({
+    where: { reminderAt: { gte: window.gte, lt: window.lt }, reminderSentAt: null },
+    select: {
+      id: true,
+      title: true,
+      startAt: true,
+      reminderAt: true,
+      reminderSentAt: true,
+      status: true,
+      companyId: true,
+      createdBy: { select: { email: true, name: true, language: true, isActive: true } },
+    },
+    take: BATCH,
+    orderBy: { reminderAt: 'asc' },
+  });
+
+  let sent = 0;
+  let failed = 0;
+  for (const event of events) {
+    if (!calendarReminderDue(event, now)) continue;
+
+    // The person who created it; if that account is gone, the company owners.
+    let recipients: Array<{ email: string; name: string | null; language: string }> = [];
+    if (event.createdBy?.isActive && event.createdBy.email) {
+      recipients = [event.createdBy];
+    } else {
+      const owners = await prisma.companyMember.findMany({
+        where: { companyId: event.companyId, role: 'owner', user: { isActive: true } },
+        select: { user: { select: { email: true, name: true, language: true } } },
+      });
+      recipients = owners.map((o) => o.user).filter((u) => Boolean(u.email));
+    }
+    if (recipients.length === 0) continue;
+
+    const claimed = await prisma.event.updateMany({
+      where: { id: event.id, reminderSentAt: null },
+      data: { reminderSentAt: now },
+    });
+    if (claimed.count !== 1) continue;
+
+    let anyOk = false;
+    for (const user of recipients) {
+      const locale = resolveLocale(user.language);
+      const email = calendarReminderEmail({
+        locale,
+        userName: user.name || user.email,
+        title: event.title,
+        startAt: event.startAt,
+        calendarUrl: `${getBaseUrl()}/calendar`,
+      });
+      const result = await sendMail({ to: user.email, ...email, idempotencyKey: `event-${event.id}-${user.email}` });
+      if (result.ok) anyOk = true;
+    }
+    if (anyOk) {
+      sent += 1;
+    } else {
+      failed += 1;
+      await prisma.event.updateMany({ where: { id: event.id }, data: { reminderSentAt: null } });
+    }
+  }
+  return { sent, failed };
+}

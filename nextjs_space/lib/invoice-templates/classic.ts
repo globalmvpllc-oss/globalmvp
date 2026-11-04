@@ -37,14 +37,14 @@ export function renderClassic(v: InvoiceView): string {
   <div class="header">
     ${v.logoSrc ? `<img src="${v.logoSrc}" alt="" style="max-height:56px;max-width:200px;object-fit:contain;margin-bottom:8px;display:block" />` : ''}
     <div class="company-name">${v.companyName}</div>${v.legalName ? `<div style="font-size:12px;color:#666;margin-top:2px">${v.legalName}</div>` : ''}${v.addressLine ? `<div style="font-size:12px;color:#666;margin-top:4px">${v.addressLine}</div>` : ''}${v.countryLine ? `<div style="font-size:12px;color:#666">${v.countryLine}</div>` : ''}${v.contactLine ? `<div style="font-size:11px;color:#888;margin-top:4px">${v.contactLine}</div>` : ''}${v.website ? `<div style="font-size:11px;color:#888">${v.website}</div>` : ''}${v.taxLine ? `<div style="font-size:11px;color:#888;margin-top:2px">${v.taxLine}</div>` : ''}
-    <div><div class="invoice-title">INVOICE</div><div class="invoice-number">${v.invoiceNumber}</div></div>
+    <div><div class="invoice-title">${v.labels.invoiceTitle}</div><div class="invoice-number">${v.invoiceNumber}</div></div>
   </div>
   <div class="meta">
-    <div class="meta-block"><h3>Bill To</h3><p><strong>${v.customerName}</strong></p>${v.customerCompany ? `<p>${v.customerCompany}</p>` : ''}${v.customerEmail ? `<p>${v.customerEmail}</p>` : ''}</div>
-    <div class="meta-block"><h3>Issue Date</h3><p>${v.issueDate}</p><h3 style="margin-top:8px">Due Date</h3><p>${v.dueDate}</p></div>
+    <div class="meta-block"><h3>${v.labels.billTo}</h3><p><strong>${v.customerName}</strong></p>${v.customerCompany ? `<p>${v.customerCompany}</p>` : ''}${v.customerAddressLine ? `<p>${v.customerAddressLine}</p>` : ''}${v.customerEmail ? `<p>${v.customerEmail}</p>` : ''}${v.customerTaxLine ? `<p>${v.customerTaxLine}</p>` : ''}</div>
+    <div class="meta-block"><h3>${v.labels.issueDate}</h3><p>${v.issueDate}</p><h3 style="margin-top:8px">${v.labels.dueDate}</h3><p>${v.dueDate}</p></div>
   </div>
   <table>
-    <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Price</th><th class="text-right">Tax</th><th class="text-right">Amount</th></tr></thead>
+    <thead><tr><th>${v.labels.description}</th><th class="text-right">${v.labels.qty}</th><th class="text-right">${v.labels.price}</th><th class="text-right">${v.labels.tax}</th><th class="text-right">${v.labels.amount}</th></tr></thead>
     <tbody>${v.items
       .map(
         (i) =>
@@ -53,14 +53,15 @@ export function renderClassic(v: InvoiceView): string {
       .join('')}</tbody>
   </table>
   <div class="totals"><div class="totals-table">
-    <div class="totals-row"><span>Subtotal</span><span>${v.subtotal}</span></div>
-    ${v.discount ? `<div class="totals-row"><span>Discount</span><span>-${v.discount}</span></div>` : ''}
-    ${v.tax ? `<div class="totals-row"><span>Tax</span><span>${v.tax}</span></div>` : ''}
-    <div class="totals-row total"><span>Total</span><span>${v.total}</span></div>
+    <div class="totals-row"><span>${v.labels.subtotal}</span><span>${v.subtotal}</span></div>
+    ${v.discount ? `<div class="totals-row"><span>${v.labels.discount}</span><span>-${v.discount}</span></div>` : ''}
+    ${v.tax ? `<div class="totals-row"><span>${v.labels.tax}</span><span>${v.tax}</span></div>` : ''}
+    <div class="totals-row total"><span>${v.labels.total}</span><span>${v.total}</span></div>
   </div></div>
-  ${v.notes ? `<div class="notes"><strong>Notes:</strong> ${v.notes}</div>` : ''}
-  ${v.paymentInstructions ? `<div class="notes"><strong>Payment instructions:</strong> ${v.paymentInstructions}</div>` : ''}
-  ${v.bankDetails ? `<div class="notes"><strong>Bank transfer details:</strong> ${v.bankDetails}</div>` : ''}
+  ${v.notes ? `<div class="notes"><strong>${v.labels.notes}:</strong> ${v.notes}</div>` : ''}
+  ${v.paymentInstructions ? `<div class="notes"><strong>${v.labels.paymentInstructions}:</strong> ${v.paymentInstructions}</div>` : ''}
+  ${v.bankDetails ? `<div class="notes"><strong>${v.labels.bankDetails}:</strong> ${v.bankDetails}</div>` : ''}
+  ${v.notice ? `<div class="notes" style="margin-top:20px;font-size:11px">${v.notice}</div>` : ''}
   <div class="footer">${v.footerText}</div>
 </div></body></html>`;
 }

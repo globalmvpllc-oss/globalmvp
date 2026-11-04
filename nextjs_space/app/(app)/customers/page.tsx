@@ -17,6 +17,7 @@ import { COUNTRIES } from '@/lib/countries';
 import { CURRENCIES } from '@/lib/currencies';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
+import { isValidTrTaxId, trTaxIdRuleApplies } from '@/lib/tr-tax';
 
 /** Sentinel for "no selection" — Radix Select cannot hold an empty string value. */
 const NONE = '__none__';
@@ -32,6 +33,8 @@ const EMPTY_FORM = {
   postalCode: '',
   country: '',
   taxId: '',
+  taxOffice: '',
+  language: '',
   defaultCurrency: '',
   notes: '',
 };
@@ -107,6 +110,12 @@ export default function CustomersPage() {
       toast.error(t('customers.nameRequired'));
       return;
     }
+    // Same rule the API enforces; checked here first so the message is in the
+    // reader's language.
+    if (form.taxId.trim() && trTaxIdRuleApplies(form.country, company?.country) && !isValidTrTaxId(form.taxId)) {
+      toast.error(t('customers.taxIdInvalid'));
+      return;
+    }
 
     setSaving(true);
     try {
@@ -138,7 +147,7 @@ export default function CustomersPage() {
         setOpen(false);
         await fetchCustomers();
       } else if (res.status === 400) {
-        toast.error(detail ?? t('error.badRequest'));
+        toast.error(body?.code === 'TAX_ID_INVALID' ? t('customers.taxIdInvalid') : detail ?? t('error.badRequest'));
       } else if (res.status === 409) {
         toast.error(detail ?? t('customers.conflict'));
       } else {
@@ -219,7 +228,29 @@ export default function CustomersPage() {
               </div>
               <div className="space-y-1">
                 <Label>{t('common.taxId')}</Label>
-                <Input placeholder={t('common.taxId')} value={form.taxId} onChange={(e: any) => update('taxId', e.target.value)} />
+                <Input
+                  inputMode={trTaxIdRuleApplies(form.country, company?.country) ? 'numeric' : undefined}
+                  placeholder={trTaxIdRuleApplies(form.country, company?.country) ? t('customers.taxIdTr') : t('common.taxId')}
+                  value={form.taxId}
+                  onChange={(e: any) => update('taxId', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{t('customers.taxOffice')}</Label>
+                <Input placeholder={t('customers.taxOffice')} value={form.taxOffice} onChange={(e: any) => update('taxOffice', e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>{t('customers.language')}</Label>
+                <Select value={form.language || NONE} onValueChange={(v: string) => update('language', v === NONE ? '' : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>{t('customers.languageAuto')}</SelectItem>
+                    <SelectItem value="tr">{t('customers.languageTr')}</SelectItem>
+                    <SelectItem value="en">{t('customers.languageEn')}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

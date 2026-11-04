@@ -3,6 +3,7 @@ import { Wallet, LineChart, Sparkles } from 'lucide-react';
 import { AcquisitionLanding } from '@/components/marketing/acquisition-landing';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 
 /**
  * Search-acquisition landing page for the finance keyword group.
@@ -18,16 +19,14 @@ import { translate, type TranslationKey } from '@/lib/i18n';
 
 const locale = getServerLocale;
 
-export const metadata: Metadata = {
-  title: translate('en', 'landing.finance.metaTitle'),
-  description: translate('en', 'landing.finance.metaDescription'),
-  alternates: { canonical: '/finance' },
-  openGraph: {
-    title: translate('en', 'landing.finance.metaTitle'),
-    description: translate('en', 'landing.finance.metaDescription'),
-    url: '/finance',
-  },
-};
+// Title and description follow the visitor's language, like the page body.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'landing.finance.metaTitle',
+    descriptionKey: 'landing.finance.metaDescription',
+    canonical: '/finance',
+  });
+}
 
 export default function FinancePage() {
   const active = locale();

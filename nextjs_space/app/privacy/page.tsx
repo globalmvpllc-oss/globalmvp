@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 import Link from 'next/link';
 import { LegalPage, LegalSection } from '@/components/marketing/legal-page';
 import { companyInfo, companyAddressLine, companyMailto } from '@/lib/site';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description: 'How CorpControl handles the information you and your business put into the service.',
-  alternates: { canonical: '/privacy' },
-};
+// Title and description follow the visitor's language.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'meta.privacyTitle',
+    descriptionKey: 'meta.privacyDescription',
+    canonical: '/privacy',
+  });
+}
 
 export default function PrivacyPage() {
   return (

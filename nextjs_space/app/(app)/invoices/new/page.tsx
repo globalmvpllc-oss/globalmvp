@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { todayCalendarInput, addCalendarDays } from '@/lib/calendar-date';
 import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies';
 import { useI18n } from '@/components/i18n-provider';
+import { TR_VAT_RATES, isTurkishCountry, taxLabelForCountry } from '@/lib/tr-tax';
 
 interface InvoiceItem {
   description: string;
@@ -54,12 +55,25 @@ export default function NewInvoicePage() {
    */
   const [defaultTaxRate, setDefaultTaxRate] = useState(0);
 
+  /**
+   * Turkish companies pick KDV from the four legal rates and store 'KDV' as
+   * the line label; everyone else keeps the free percentage field and 'VAT'.
+   */
+  const [turkish, setTurkish] = useState(false);
+  const [taxLabel, setTaxLabel] = useState('VAT');
+
   useEffect(() => {
     fetch('/api/customers').then((r: any) => r.json()).then((d: any) => setCustomers(Array.isArray(d) ? d : []));
     fetch('/api/company')
       .then((r: any) => (r.ok ? r.json() : null))
       .then((c: any) => {
         if (!c) return;
+
+        const tr = isTurkishCountry(c.country);
+        const label = taxLabelForCountry(c.country);
+        setTurkish(tr);
+        setTaxLabel(label);
+        setItems((prev: InvoiceItem[]) => prev.map((item: InvoiceItem) => ({ ...item, taxLabel: label })));
 
         // Due date follows the company's saved payment terms. These are stored
         // and validated but were never read here, so a business on Net 7 still
@@ -99,7 +113,7 @@ export default function NewInvoicePage() {
   const addItem = () =>
     setItems([
       ...items,
-      { description: '', quantity: 1, unitPrice: 0, discount: 0, taxRate: defaultTaxRate, taxLabel: 'VAT' },
+      { description: '', quantity: 1, unitPrice: 0, discount: 0, taxRate: defaultTaxRate, taxLabel },
     ]);
   const removeItem = (idx: number) => setItems(items.filter((_: any, i: number) => i !== idx));
   const updateItem = (idx: number, field: string, value: any) => {
@@ -211,7 +225,18 @@ export default function NewInvoicePage() {
                 </div>
                 <div className="col-span-6 md:col-span-1 space-y-1">
                   <Label className="text-xs">{t('invoices.taxPercent')}</Label>
-                  <Input type="number" min={0} step={0.01} value={item.taxRate} onChange={(e: any) => updateItem(idx, 'taxRate', Number(e.target.value))} />
+                  {turkish && (TR_VAT_RATES as readonly number[]).includes(Number(item.taxRate)) ? (
+                    <Select value={String(item.taxRate)} onValueChange={(v: string) => updateItem(idx, 'taxRate', Number(v))}>
+                      <SelectTrigger aria-label={t('invoices.taxPercent')}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TR_VAT_RATES.map((rate) => (
+                          <SelectItem key={rate} value={String(rate)}>%{rate}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input type="number" min={0} step={0.01} value={item.taxRate} onChange={(e: any) => updateItem(idx, 'taxRate', Number(e.target.value))} />
+                  )}
                 </div>
                 <div className="col-span-8 md:col-span-2 flex items-center justify-end">
                   <span className="font-mono text-sm font-medium">{calcLineTotal(item).toFixed(2)}</span>

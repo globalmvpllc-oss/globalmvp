@@ -180,6 +180,9 @@ export default async function middleware(req: NextRequest) {
     // signature over the raw body, which is the correct check here; a session
     // would be the wrong one.
     pathname.startsWith('/api/webhooks/') ||
+    // The daily cron carries no session either. It is refused unless it
+    // presents CRON_SECRET as a Bearer token (checked in the route itself).
+    pathname.startsWith('/api/cron/') ||
     PUBLIC_PAGES.has(pathname) ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { localizedPageMetadata } from '@/lib/i18n/metadata';
 import Link from 'next/link';
 import { Mail, LifeBuoy, ShieldQuestion } from 'lucide-react';
 import { SkipLink } from '@/components/marketing/skip-link';
@@ -11,11 +12,14 @@ import { companyInfo, companyMailto, companyMailtoWithSubject, companyTel } from
 
 // Metadata stays in English: it is read by crawlers, which carry no locale
 // cookie, and the canonical URL is one document rather than one per language.
-export const metadata: Metadata = {
-  title: 'Contact',
-  description: 'How to reach the CorpControl team and what each type of enquiry covers.',
-  alternates: { canonical: '/contact' },
-};
+// Title and description follow the visitor's language.
+export function generateMetadata(): Metadata {
+  return localizedPageMetadata({
+    titleKey: 'meta.contactTitle',
+    descriptionKey: 'meta.contactDescription',
+    canonical: '/contact',
+  });
+}
 
 /**
  * The enquiry channels, each one a link that opens a message.

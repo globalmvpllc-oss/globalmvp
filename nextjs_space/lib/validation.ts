@@ -236,6 +236,9 @@ export const companySchema = z.object({
     .nullish()
     .transform((v) => v ?? undefined),
   bankTransferInstructions: optionalText(2000),
+
+  // --- Reminders ------------------------------------------------------------
+  paymentRemindersEnabled: z.boolean().nullish().transform((v) => v ?? undefined),
 });
 
 export const customerSchema = z.object({
@@ -249,6 +252,9 @@ export const customerSchema = z.object({
   postalCode: z.string().max(20).optional(),
   country: z.string().max(3).optional(),
   taxId: z.string().max(100).optional(),
+  taxOffice: z.string().max(100).optional(),
+  /** Language for documents and emails to this customer. '' = automatic. */
+  language: z.enum(['tr', 'en']).optional().or(z.literal('')),
   defaultCurrency: z.enum(VALID_CURRENCIES).optional().or(z.literal('')),
   notes: z.string().max(2000).optional(),
 });
@@ -450,6 +456,7 @@ export const vendorSchema = z.object({
   address: z.string().max(500).optional(),
   country: z.string().max(3).optional(),
   taxId: z.string().max(100).optional(),
+  taxOffice: z.string().max(100).optional(),
   notes: z.string().max(2000).optional(),
 });
 

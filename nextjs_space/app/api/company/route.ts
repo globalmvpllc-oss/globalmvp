@@ -6,6 +6,7 @@ import { getSessionUser, getUserCompanyId, requireUserCompany } from '@/lib/auth
 import { companySchema, validateBody, describeValidationError } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { isAcceptableLogoValue } from '@/lib/logo';
+import { companyCreateDefaults } from '@/lib/tr-tax';
 import { type TxClient } from '@/lib/payment-calc';
 
 export async function POST(request: Request) {
@@ -65,11 +66,18 @@ export async function POST(request: Request) {
           };
         }
 
+        // A Turkish company starts on TRY and 20% KDV unless it chose otherwise.
+        const defaults = companyCreateDefaults({
+          country: data.country,
+          defaultCurrency: data.defaultCurrency,
+          defaultTaxRate: typeof data.defaultTaxRate === 'number' ? data.defaultTaxRate : undefined,
+        });
         const created = await tx.company.create({
           data: {
             name: data.name,
             country: data.country ?? 'US',
-            defaultCurrency: data.defaultCurrency ?? 'USD',
+            defaultCurrency: defaults.defaultCurrency,
+            defaultTaxRate: defaults.defaultTaxRate,
             // These were accepted by the schema and written by PUT, but silently
             // dropped on create, so onboarding data was lost.
             timezone: data.timezone ?? undefined,
@@ -216,6 +224,9 @@ export async function PUT(request: Request) {
         // Payment settings.
         defaultPaymentMethod: data.defaultPaymentMethod,
         bankTransferInstructions: data.bankTransferInstructions,
+
+        // Reminders (off by default; undefined leaves the stored value alone).
+        paymentRemindersEnabled: data.paymentRemindersEnabled,
       },
     });
     return NextResponse.json(company);

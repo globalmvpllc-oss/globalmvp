@@ -127,6 +127,11 @@ model Company {
   defaultPaymentMethod     String?
   bankTransferInstructions String?
 
+  /// Automatic, polite payment reminders to customers for overdue invoices
+  /// (sent by the daily cron). Off by default: nothing is emailed to a
+  /// customer until the business switches it on.
+  paymentRemindersEnabled  Boolean @default(false)
+
   // --- Admin-granted plan ---------------------------------------------------
   // A plan an administrator gives a company without a Polar purchase (founder,
   // beta, support). Deliberately NOT written into Subscription: the Polar
@@ -190,6 +195,11 @@ model Customer {
   postalCode      String?
   country         String?
   taxId           String?
+  /// Vergi dairesi. Shown on the invoice next to the tax number.
+  taxOffice       String?
+  /// Language for documents and emails sent to this customer ('tr' | 'en').
+  /// Null means "decide from the country".
+  language        String?
   defaultCurrency String?
   notes           String?
   createdAt       DateTime            @default(now())
@@ -213,6 +223,8 @@ model Vendor {
   address         String?
   country         String?
   taxId           String?
+  /// Vergi dairesi.
+  taxOffice       String?
   notes           String?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -238,6 +250,12 @@ model Invoice {
   total         Decimal       @default(0) @db.Decimal(15, 2)
   amountPaid    Decimal       @default(0) @db.Decimal(15, 2)
   notes         String?
+  /// Last time the invoice was emailed to the customer from the app.
+  sentAt                 DateTime?
+  /// Claim stamps for the automatic payment reminders, so each one is sent at
+  /// most once per invoice even if the cron runs twice.
+  overdueReminderSentAt  DateTime?
+  followUpReminderSentAt DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -438,6 +456,8 @@ model Event {
   currency    String?
 
   reminderAt  DateTime?
+  /// Set when the reminder email went out, so the daily cron sends it once.
+  reminderSentAt DateTime?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -454,6 +474,8 @@ model Event {
   /// "Show everything scheduled about this invoice / customer."
   @@index([invoiceId])
   @@index([customerId])
+  /// The daily reminder sweep looks events up by reminder time alone.
+  @@index([reminderAt])
 }
 
 

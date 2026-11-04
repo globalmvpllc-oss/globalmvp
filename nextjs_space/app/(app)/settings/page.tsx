@@ -25,6 +25,7 @@ import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies';
 import { PAYMENT_METHODS, paymentMethodLabelKey } from '@/lib/validation';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
+import { TR_VAT_RATES, isTurkishCountry } from '@/lib/tr-tax';
 
 
 /** Layouts the invoice renderer knows how to draw. Mirrors validation.ts.
@@ -398,7 +399,25 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label>{t('settings.defaultTaxRate')}</Label>
-              <Input type="number" min={0} max={100} step={0.01} value={form?.defaultTaxRate ?? ''} onChange={(e: any) => update('defaultTaxRate', e.target.value)} className={fieldClass('defaultTaxRate')} />
+              {/* Turkish companies choose from the legal KDV rates. A stored rate
+                  outside that list keeps the free field, so nothing is lost. */}
+              {isTurkishCountry(form?.country) &&
+              (form?.defaultTaxRate === undefined || form?.defaultTaxRate === null || form?.defaultTaxRate === '' ||
+                (TR_VAT_RATES as readonly number[]).includes(Number(form?.defaultTaxRate))) ? (
+                <>
+                  <Select value={String(Number(form?.defaultTaxRate ?? 0))} onValueChange={(v: string) => update('defaultTaxRate', v)}>
+                    <SelectTrigger className={fieldClass('defaultTaxRate')}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {TR_VAT_RATES.map((rate) => (
+                        <SelectItem key={rate} value={String(rate)}>%{rate}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">{t('settings.vatRateHint')}</p>
+                </>
+              ) : (
+                <Input type="number" min={0} max={100} step={0.01} value={form?.defaultTaxRate ?? ''} onChange={(e: any) => update('defaultTaxRate', e.target.value)} className={fieldClass('defaultTaxRate')} />
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t('settings.invoiceTemplate')}</Label>
@@ -441,6 +460,17 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">{t('settings.showTaxHint')}</p>
             </div>
             <Switch checked={form?.invoiceShowTax ?? true} onCheckedChange={(v: boolean) => update('invoiceShowTax', v)} />
+          </div>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+            <div className="min-w-0">
+              <Label>{t('settings.remindersTitle')}</Label>
+              <p className="text-sm text-muted-foreground">{t('settings.remindersHint')}</p>
+            </div>
+            <Switch
+              aria-label={t('settings.remindersTitle')}
+              checked={form?.paymentRemindersEnabled === true}
+              onCheckedChange={(v: boolean) => update('paymentRemindersEnabled', v)}
+            />
           </div>
 
           <div className="space-y-2">

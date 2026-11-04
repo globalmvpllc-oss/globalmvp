@@ -13,6 +13,75 @@
 
 import { countryLabel } from '@/lib/countries';
 import { formatCalendarDateLong } from '@/lib/calendar-date';
+import { translate, type TranslationKey } from '@/lib/i18n';
+import {
+  documentLocaleFor,
+  showsInformationalNotice,
+  trTaxIdKind,
+  type DocumentLocale,
+} from '@/lib/tr-tax';
+
+/** Every fixed word a template prints. Already escaped. */
+export interface InvoiceLabels {
+  invoiceTitle: string;
+  invoice: string;
+  billTo: string;
+  billedTo: string;
+  to: string;
+  from: string;
+  dates: string;
+  issueDate: string;
+  dueDate: string;
+  issued: string;
+  due: string;
+  description: string;
+  qty: string;
+  price: string;
+  tax: string;
+  amount: string;
+  subtotal: string;
+  discount: string;
+  total: string;
+  totalDue: string;
+  notes: string;
+  paymentInstructions: string;
+  bankDetails: string;
+}
+
+const LABEL_KEYS: Record<keyof InvoiceLabels, TranslationKey> = {
+  invoiceTitle: 'pdf.invoiceTitle',
+  invoice: 'pdf.invoice',
+  billTo: 'pdf.billTo',
+  billedTo: 'pdf.billedTo',
+  to: 'pdf.to',
+  from: 'pdf.from',
+  dates: 'pdf.dates',
+  issueDate: 'pdf.issueDate',
+  dueDate: 'pdf.dueDate',
+  issued: 'pdf.issued',
+  due: 'pdf.due',
+  description: 'pdf.description',
+  qty: 'pdf.qty',
+  price: 'pdf.price',
+  tax: 'pdf.tax',
+  amount: 'pdf.amount',
+  subtotal: 'pdf.subtotal',
+  discount: 'pdf.discount',
+  total: 'pdf.total',
+  totalDue: 'pdf.totalDue',
+  notes: 'pdf.notes',
+  paymentInstructions: 'pdf.paymentInstructions',
+  bankDetails: 'pdf.bankDetails',
+};
+
+/** The fixed words of an invoice in one language. */
+export function invoiceLabels(locale: DocumentLocale): InvoiceLabels {
+  const out = {} as InvoiceLabels;
+  for (const [field, key] of Object.entries(LABEL_KEYS) as Array<[keyof InvoiceLabels, TranslationKey]>) {
+    out[field] = esc(translate(locale, key));
+  }
+  return out;
+}
 
 /** Escapes text before interpolation so invoice content cannot inject markup. */
 export function esc(value: unknown): string {
@@ -74,6 +143,9 @@ export interface InvoiceView {
   customerName: string;
   customerCompany: string;
   customerEmail: string;
+  /** "VKN: … • Vergi dairesi: …" for the customer, or ''. */
+  customerTaxLine: string;
+  customerAddressLine: string;
 
   items: InvoiceItemView[];
 
@@ -89,6 +161,12 @@ export interface InvoiceView {
   footerText: string;
   paymentInstructions: string;
   bankDetails: string;
+
+  // Language
+  locale: DocumentLocale;
+  labels: InvoiceLabels;
+  /** The Turkish "not an official e-document" notice, or ''. */
+  notice: string;
 }
 
 function currencySymbol(currency: string): string {
@@ -129,7 +207,14 @@ export function buildInvoiceView(
   // Formatted in UTC terms: a due date must read the same on the invoice
   // wherever the PDF happens to be generated. toLocaleDateString rendered the
   // previous day at negative UTC offsets.
-  const fmtDate = (d: unknown) => formatCalendarDateLong(d);
+  //
+  // The document's language follows the customer (see documentLocaleFor).
+  // English keeps the original month format exactly.
+  const locale = documentLocaleFor(invoice?.customer, company);
+  const labels = invoiceLabels(locale);
+  const fmtDate = (d: unknown) =>
+    locale === 'tr' ? formatCalendarDateLong(d, 'tr-TR') : formatCalendarDateLong(d);
+  const word = (key: TranslationKey) => esc(translate(locale, key));
 
   const addressParts: string[] = [];
   if (company?.address) {
@@ -144,9 +229,31 @@ export function buildInvoiceView(
 
   let taxLine = '';
   if (company?.taxNumber) {
-    taxLine = `Tax ID: ${esc(company.taxNumber)}`;
-    if (company?.taxOffice) taxLine += ` • ${esc(company.taxOffice)}`;
+    if (locale === 'tr') {
+      taxLine = `${word('pdf.taxId')}: ${esc(company.taxNumber)}`;
+      if (company?.taxOffice) taxLine += ` • ${word('pdf.taxOffice')}: ${esc(company.taxOffice)}`;
+    } else {
+      // Unchanged English line, so existing invoices read exactly as before.
+      taxLine = `Tax ID: ${esc(company.taxNumber)}`;
+      if (company?.taxOffice) taxLine += ` • ${esc(company.taxOffice)}`;
+    }
   }
+
+  // The customer's tax number and tax office (vergi dairesi).
+  const customer = invoice?.customer ?? {};
+  const customerTaxParts: string[] = [];
+  if (customer?.taxId) {
+    const kind = trTaxIdKind(customer.taxId);
+    const label = kind ?? translate(locale, 'pdf.taxId');
+    customerTaxParts.push(`${esc(label)}: ${esc(customer.taxId)}`);
+  }
+  if (customer?.taxOffice) {
+    customerTaxParts.push(`${word('pdf.taxOffice')}: ${esc(customer.taxOffice)}`);
+  }
+  const customerAddress = [customer?.address, customer?.city, customer?.postalCode]
+    .filter((part: unknown) => typeof part === 'string' && part.trim() !== '')
+    .map(esc)
+    .join(', ');
 
   const discountValue = Number(invoice?.discountTotal ?? 0);
   const taxValue = Number(invoice?.taxTotal ?? 0);
@@ -169,6 +276,8 @@ export function buildInvoiceView(
     customerName: esc(invoice?.customer?.name ?? ''),
     customerCompany: invoice?.customer?.companyName ? esc(invoice.customer.companyName) : '',
     customerEmail: invoice?.customer?.email ? esc(invoice.customer.email) : '',
+    customerTaxLine: customerTaxParts.join(' • '),
+    customerAddressLine: customerAddress,
 
     items: (invoice?.items ?? []).map((i: any) => ({
       description: esc(i?.description ?? ''),
@@ -188,5 +297,9 @@ export function buildInvoiceView(
     footerText: esc(company?.invoiceFooter || company?.name || ''),
     paymentInstructions: company?.paymentInstructions ? esc(company.paymentInstructions) : '',
     bankDetails: company?.bankTransferInstructions ? esc(company.bankTransferInstructions) : '',
+
+    locale,
+    labels,
+    notice: showsInformationalNotice(invoice, company) ? word('pdf.informationalNotice') : '',
   };
 }

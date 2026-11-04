@@ -1,4 +1,4 @@
-import { BarChart3, CalendarDays, FileText, Receipt, Users, Wallet } from 'lucide-react';
+import { BarChart3, CalendarDays, FileText, Landmark, Receipt, ScrollText, Truck, Users, Wallet } from 'lucide-react';
 import { Section, SectionHeading } from '@/components/marketing/section';
 import { getServerLocale } from '@/lib/i18n/server';
 import { translate, type TranslationKey } from '@/lib/i18n';
@@ -10,6 +10,10 @@ const FEATURES: Array<{ icon: typeof FileText; title: TranslationKey; body: Tran
   { icon: Wallet, title: 'landing.features.paymentsTitle', body: 'landing.features.paymentsBody' },
   { icon: CalendarDays, title: 'landing.features.calendarTitle', body: 'landing.features.calendarBody' },
   { icon: BarChart3, title: 'landing.features.reportsTitle', body: 'landing.features.reportsBody' },
+  // Shipped features that matter most to Turkish businesses.
+  { icon: ScrollText, title: 'landing.features.chequesTitle', body: 'landing.features.chequesBody' },
+  { icon: Truck, title: 'landing.features.vendorsTitle', body: 'landing.features.vendorsBody' },
+  { icon: Landmark, title: 'landing.features.bankingTitle', body: 'landing.features.bankingBody' },
 ];
 
 export function FeatureGrid() {

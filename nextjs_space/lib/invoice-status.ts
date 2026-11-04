@@ -11,7 +11,9 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   SENT: ['VIEWED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'],
   VIEWED: ['PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'],
   OVERDUE: ['PARTIALLY_PAID', 'PAID', 'CANCELLED'],
-  PARTIALLY_PAID: ['PAID', 'CANCELLED'],
+  // OVERDUE: the nightly sweep moves a partly paid invoice past its due date
+  // here. amountPaid is untouched, so what remains owing is preserved.
+  PARTIALLY_PAID: ['PAID', 'OVERDUE', 'CANCELLED'],
   PAID: [],       // Terminal state
   CANCELLED: [],  // Terminal state
 };
@@ -157,6 +159,10 @@ export function deriveStatusFromPayments(currentStatus: string, amountPaid: numb
   if (currentStatus === 'DRAFT' || currentStatus === 'CANCELLED') return currentStatus as InvoiceStatus;
 
   if (amountPaid >= total && total > 0) return 'PAID';
+  // A part payment on an overdue invoice leaves it overdue: it is still late,
+  // and the nightly sweep would only move it back. The remaining balance is
+  // total - amountPaid either way.
+  if (amountPaid > 0 && currentStatus === 'OVERDUE') return 'OVERDUE';
   if (amountPaid > 0) return 'PARTIALLY_PAID';
 
   // If no payments, keep the current active status

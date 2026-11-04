@@ -6,6 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { vendorSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { boundedTake, listResponse } from '@/lib/calendar-range';
+import { checkPartyTaxId } from '@/lib/party-tax';
 
 export async function GET(request: Request) {
   try {
@@ -37,7 +38,12 @@ export async function POST(request: Request) {
     const parsed = validateBody(vendorSchema, body);
     if (parsed.error) return NextResponse.json(parsed.error, { status: 400 });
 
-    const { name, companyName, email, phone, address, country, taxId, notes } = parsed.data;
+    const { name, companyName, email, phone, address, country, taxOffice, notes } = parsed.data;
+
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { country: true } });
+    const tax = checkPartyTaxId(parsed.data.taxId, country, company?.country);
+    if (!tax.ok) return NextResponse.json(tax.response, { status: 400 });
+    const taxId = tax.taxId;
 
     // Vendor has no unique constraint in the schema (unlike Category), so the
     // duplicate guard is enforced here. Case-insensitive within the company.
@@ -61,7 +67,8 @@ export async function POST(request: Request) {
         phone: phone ?? null,
         address: address ?? null,
         country: country ?? null,
-        taxId: taxId ?? null,
+        taxId: taxId || null,
+        taxOffice: taxOffice || null,
         notes: notes ?? null,
       },
     });

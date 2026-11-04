@@ -6,6 +6,7 @@ import { requireUserCompany } from '@/lib/auth-helpers';
 import { customerSchema, validateBody } from '@/lib/validation';
 import { handleApiError } from '@/lib/api-error';
 import { enforcePlanLimit } from '@/lib/billing/limits';
+import { checkPartyTaxId } from '@/lib/party-tax';
 
 export async function GET(request: Request) {
   try {
@@ -43,6 +44,11 @@ export async function POST(request: Request) {
     const { data, error } = validateBody(customerSchema, body);
     if (error) return NextResponse.json(error, { status: 400 });
 
+    // VKN/TCKN rule for Turkish customers, checked against this company's country.
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { country: true } });
+    const tax = checkPartyTaxId(data.taxId, data.country, company?.country);
+    if (!tax.ok) return NextResponse.json(tax.response, { status: 400 });
+
     const customer = await prisma.customer.create({
       data: {
         companyId,
@@ -55,7 +61,9 @@ export async function POST(request: Request) {
         state: data.state,
         postalCode: data.postalCode,
         country: data.country,
-        taxId: data.taxId,
+        taxId: tax.taxId,
+        taxOffice: data.taxOffice || undefined,
+        language: data.language || undefined,
         defaultCurrency: data.defaultCurrency || undefined,
         notes: data.notes,
       },
