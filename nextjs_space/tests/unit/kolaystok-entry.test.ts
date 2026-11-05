@@ -72,12 +72,12 @@ beforeEach(() => {
 });
 
 describe('the reason decides the direction', () => {
-  it('Mal kabul and İade add; Satış, Fire, Üretim take away; Sayım sets', () => {
+  it('Üretim, Mal kabul and İade add; Satış and Fire take away; Sayım sets', () => {
+    expect(entryDirection('production')).toBe('in');
     expect(entryDirection('receipt')).toBe('in');
     expect(entryDirection('return')).toBe('in');
     expect(entryDirection('sale')).toBe('out');
     expect(entryDirection('waste')).toBe('out');
-    expect(entryDirection('production')).toBe('out');
     expect(entryDirection('count')).toBe('set');
   });
 
@@ -275,5 +275,56 @@ describe('Excel refuses negative numbers', () => {
   it('the message exists in both languages', () => {
     expect(src('lib/i18n/tr.ts')).toContain("'ks.imp.err.negative'");
     expect(src('lib/i18n/en.ts')).toContain("'ks.imp.err.negative'");
+  });
+});
+
+// --- 5 Nov 2026, second round: Üretim adds; layout; labels ---------------------
+import { reasonLabelKey } from '@/lib/stock/rules';
+
+describe('Üretim (+) adds to stock from now on', () => {
+  it('a production entry adds, through the server rules', async () => {
+    const r: any = await enterStock({ companyId: 'c1', productId: 'p1', quantity: 40, reason: 'production', actor });
+    expect(r.quantityAfter).toBe(140);
+    expect(db.movements[0]).toMatchObject({ delta: '40', reason: 'production' });
+  });
+
+  it('the increasing and decreasing reasons are exactly as agreed, with no "used in production" reason', () => {
+    expect([...INCREASE_REASONS]).toEqual(['production', 'receipt', 'return']);
+    expect([...DECREASE_REASONS]).toEqual(['sale', 'waste']);
+    expect([...MANUAL_REASONS]).toEqual(['production', 'receipt', 'return', 'sale', 'waste', 'count']);
+  });
+
+  it('a stored quick − of "production" (from before) falls back to Satış; quick + may be Üretim', () => {
+    expect(sanitizeQuickReasons({ plus: 'production', minus: 'production' })).toEqual({ plus: 'production', minus: 'sale' });
+  });
+});
+
+describe('labels carry the sign; old "Üretim (−)" movements keep their meaning', () => {
+  it('names in both languages', () => {
+    const tr = src('lib/i18n/tr.ts');
+    for (const label of ["'Üretim (+)'", "'Mal kabul (+)'", "'İade (+)'", "'Satış (−)'", "'Fire (−)'", "'Sayım düzeltmesi (=)'", "'Üretim (eski kayıt, −)'"]) expect(tr).toContain(label);
+    const en = src('lib/i18n/en.ts');
+    for (const label of ["'Production (+)'", "'Sale (−)'", "'Count correction (=)'", "'Production (old entry, −)'"]) expect(en).toContain(label);
+  });
+
+  it('an old negative production movement is labelled as the old kind', () => {
+    expect(reasonLabelKey('production', -156)).toBe('ks.reason.production-old');
+    expect(reasonLabelKey('production', '-156.000')).toBe('ks.reason.production-old');
+    expect(reasonLabelKey('production', 40)).toBe('ks.reason.production');
+    expect(reasonLabelKey('sale', -3)).toBe('ks.reason.sale');
+  });
+
+  it('history, Excel and PDF use the same label helper', () => {
+    expect(src('app/kolaystok/app/movements/page.tsx')).toContain('reasonLabelKey(m.reason, m.delta)');
+    expect(src('app/api/stock/movements/export/route.ts')).toContain('reasonLabelKey(m.reason, m.delta)');
+  });
+
+  it('the sheet: + column green, − column red, = full width at the bottom', () => {
+    const home = src('app/kolaystok/app/page.tsx');
+    expect(home).toContain('INCREASE_REASONS.map');
+    expect(home).toContain('DECREASE_REASONS.map');
+    expect(home).toMatch(/bg-emerald-50/);
+    expect(home).toMatch(/bg-red-50/);
+    expect(home).toContain('col-span-2 h-14');
   });
 });

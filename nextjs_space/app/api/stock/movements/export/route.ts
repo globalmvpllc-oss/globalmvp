@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+import { reasonLabelKey } from '@/lib/stock/rules';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
       m.product.name,
       `${Number(m.delta) > 0 ? '+' : ''}${qty(m.delta)} ${m.product.unit}`,
       qty(m.quantityAfter),
-      t(`ks.reason.${m.reason}` as TranslationKey) + (m.undoneAt ? ` (${t('ks.mv.undone')})` : ''),
+      t(reasonLabelKey(m.reason, m.delta) as TranslationKey) + (m.undoneAt ? ` (${t('ks.mv.undone')})` : ''),
       m.actorName,
       m.note ?? '',
     ]);

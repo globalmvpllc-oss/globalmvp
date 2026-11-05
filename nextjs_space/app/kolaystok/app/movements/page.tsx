@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { reasonLabelKey } from '@/lib/stock/rules';
 import { useSearchParams } from 'next/navigation';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
@@ -105,7 +106,7 @@ export default function KsMovements() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <ProductLabel name={m.productName} size={m.productSize} code={m.productCode} extra={`${when(m.createdAt)} · ${m.actorName}`} />
-                  <p className="text-sm">{t(`ks.reason.${m.reason}` as TranslationKey)}{m.note ? ` — ${m.note}` : ''}{m.undone ? ` (${t('ks.mv.undone')})` : ''}</p>
+                  <p className="text-sm">{t(reasonLabelKey(m.reason, m.delta) as TranslationKey)}{m.note ? ` — ${m.note}` : ''}{m.undone ? ` (${t('ks.mv.undone')})` : ''}</p>
                 </div>
                 <p className={`shrink-0 text-2xl font-bold tabular-nums ${m.delta < 0 ? 'text-red-700' : 'text-emerald-700'}`}>
                   {m.delta > 0 ? '+' : ''}{m.delta}

@@ -12,7 +12,7 @@ import { ogLocale } from '@/lib/i18n/metadata';
 import { I18nProvider } from '@/components/i18n-provider';
 import { CookieConsent } from '@/components/cookie-consent';
 import { consentBootstrapScript } from '@/lib/consent';
-import Script from 'next/script';
+import { ChatWidget } from '@/components/chat-widget';
 import { headers } from 'next/headers';
 import { REQUEST_PATH_HEADER } from '@/lib/accountant/headers';
 
@@ -175,14 +175,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Webtochat panel (see docs/bot-bilgi.md). `lang` is the visitor's
             language as this site decided it (Turkey → tr, else en), so the
             widget can greet in it once Webtochat reads the parameter. */}
-        {/* Not on Avc KolayStok screens: warehouse staff use them one-handed on
-            a phone, and the chat bubble would sit over the + / − buttons. */}
-        {!isKolayStok && (
-          <Script
-            src={`https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d&lang=${locale}`}
-            strategy="afterInteractive"
-          />
-        )}
+        {/* Public pages only (lib/chat-widget.ts): never in the signed-in app or
+            on any KolayStok screen, where it would sit over the buttons. */}
+        <ChatWidget src={`https://ai-chatbot-widget-saa-s-chi.vercel.app/api/widget.js?id=4c749a04-af81-4b07-9756-c0f4b928983d&lang=${locale}`} />
       </body>
     </html>
   );

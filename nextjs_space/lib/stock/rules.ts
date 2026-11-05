@@ -170,19 +170,29 @@ export const MOVEMENT_REASONS = [
 ] as const;
 export type MovementReason = (typeof MOVEMENT_REASONS)[number];
 
-/** Reasons that add to stock. */
-export const INCREASE_REASONS: readonly MovementReason[] = ['receipt', 'return'];
+/** Reasons that add to stock (a factory's production goes into the warehouse). */
+export const INCREASE_REASONS: readonly MovementReason[] = ['production', 'receipt', 'return'];
 /** Reasons that take from stock. */
-export const DECREASE_REASONS: readonly MovementReason[] = ['sale', 'waste', 'production'];
+export const DECREASE_REASONS: readonly MovementReason[] = ['sale', 'waste'];
 
 /**
  * Reasons a person picks by hand (the rest are written by the system). The
  * reason alone decides the direction, so the amount is always positive:
- * receipt / return add, sale / waste / production take away, count sets the
+ * production / receipt / return add, sale / waste take away, count sets the
  * stock to the counted amount. ("other" stays readable on old movements but
  * can no longer be picked: it has no direction.)
  */
-export const MANUAL_REASONS: readonly MovementReason[] = ['sale', 'waste', 'production', 'receipt', 'return', 'count'];
+export const MANUAL_REASONS: readonly MovementReason[] = ['production', 'receipt', 'return', 'sale', 'waste', 'count'];
+
+/**
+ * The label key for a movement's reason. Until 5 Nov 2026 "Üretim" took stock
+ * away; those few old movements keep their meaning on screen and in exports
+ * ("Üretim (eski kayıt, −)") instead of being shown as the new "Üretim (+)".
+ * The records themselves are never changed.
+ */
+export function reasonLabelKey(reason: string, delta: number | string | { toString(): string }): string {
+  return reason === 'production' && Number(delta.toString()) < 0 ? 'ks.reason.production-old' : `ks.reason.${reason}`;
+}
 
 export function isManualReason(value: unknown): value is MovementReason {
   return typeof value === 'string' && (MANUAL_REASONS as readonly string[]).includes(value);

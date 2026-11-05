@@ -10,7 +10,7 @@ import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
 import { ProductLabel } from '@/components/kolaystok/product-label';
-import { MANUAL_REASONS, entryDirection, planEntry } from '@/lib/stock/rules';
+import { INCREASE_REASONS, DECREASE_REASONS, entryDirection, planEntry } from '@/lib/stock/rules';
 
 /**
  * Avc KolayStok — home. Built for one hand on a phone:
@@ -361,7 +361,6 @@ function QuantitySheet({
   const plan = amount.trim() === '' ? null : planEntry(product.quantity, value, reason);
   const valid = Boolean(plan?.ok);
   const isCount = entryDirection(reason) === 'set';
-  const sign = (r: string) => ({ in: '+', out: '−', set: '=' } as const)[entryDirection(r) ?? 'set'];
 
   return (
     <div className="fixed inset-0 z-40 flex items-end bg-black/40" role="dialog" aria-modal="true" aria-label={t('ks.qty.title')} onClick={onClose}>
@@ -382,18 +381,42 @@ function QuantitySheet({
         </div>
 
         <p className="mb-1 text-base font-medium">{t('ks.qty.reason')}</p>
+        {/* + on the left in green, − on the right in red, = across the bottom. */}
         <div className="mb-3 grid grid-cols-2 gap-2">
-          {MANUAL_REASONS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setReason(r)}
-              aria-pressed={reason === r}
-              className={`h-12 rounded-xl text-base font-medium ${reason === r ? 'bg-teal-700 text-white' : 'bg-slate-100'}`}
-            >
-              {t(`ks.reason.${r}` as TranslationKey)} ({sign(r)})
-            </button>
-          ))}
+          <div className="grid content-start gap-2">
+            {INCREASE_REASONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setReason(r)}
+                aria-pressed={reason === r}
+                className={`h-14 rounded-xl border-2 text-lg font-semibold ${reason === r ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}
+              >
+                {t(`ks.reason.${r}` as TranslationKey)}
+              </button>
+            ))}
+          </div>
+          <div className="grid content-start gap-2">
+            {DECREASE_REASONS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setReason(r)}
+                aria-pressed={reason === r}
+                className={`h-14 rounded-xl border-2 text-lg font-semibold ${reason === r ? 'border-red-700 bg-red-700 text-white' : 'border-red-200 bg-red-50 text-red-900'}`}
+              >
+                {t(`ks.reason.${r}` as TranslationKey)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setReason('count')}
+            aria-pressed={reason === 'count'}
+            className={`col-span-2 h-14 rounded-xl border-2 text-lg font-semibold ${reason === 'count' ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 bg-slate-100 text-slate-900'}`}
+          >
+            {t('ks.reason.count')}
+          </button>
         </div>
 
         <label className="mb-1 block">
