@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
 import { groupOrderLines } from '@/lib/stock/rules';
+import { vendorEmails } from '@/lib/stock/contacts';
 
 /**
  * GET — the purchase-order draft: critical products (at or below the
@@ -37,7 +38,7 @@ export async function GET() {
     return NextResponse.json({
       groups: groups.map((g) => {
         const v = g.vendorId ? vendorOf.get(g.vendorId) : null;
-        const emails = v ? (v.orderEmails.length ? v.orderEmails : v.email ? [v.email] : []) : [];
+        const emails = vendorEmails(v);
         // Photo flag and current stock for the screen; quantity stays the suggested order quantity.
         const lines = g.lines.map((l) => ({ ...l, hasPhoto: Boolean(productOf.get(l.productId)?.photoKey), stock: Number(productOf.get(l.productId)?.quantity ?? 0) }));
         return { vendorId: g.vendorId, vendorName: v?.name ?? null, emails, lines };

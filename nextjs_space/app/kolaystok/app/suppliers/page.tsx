@@ -67,6 +67,7 @@ export default function KsSuppliers() {
           <Link href="/kolaystok/app/orders" className="flex h-12 items-center rounded-xl bg-slate-900 px-4 text-base font-semibold text-white">{t('ks.order.prepare')}</Link>
         )}
       </div>
+      <p className="text-base text-slate-600">{t('ks.sup.intro')}</p>
 
       {!editing ? (
         <button type="button" onClick={() => { setForm(EMPTY); setEditing(true); }} className="h-14 w-full rounded-xl bg-teal-700 text-lg font-semibold text-white">

@@ -11,9 +11,14 @@ import { ProductLabel } from '@/components/kolaystok/product-label';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
 import { ProductPicker, type PickerProduct } from '@/components/kolaystok/product-picker';
 import { QUOTE_DEFAULT_VALID_DAYS, exceedsStock, quoteTotals } from '@/lib/stock/rules';
+import { isEmailAddress, quoteBlocker } from '@/lib/stock/contacts';
+import type { TranslationKey } from '@/lib/i18n';
 
 /**
- * "Satış teklifi hazırla": pick or quickly add a customer, add products
+ * "Satış teklifi hazırla": type to find a customer (matches open in a list;
+ * the chosen one shows in a card below, with "Değiştir"; an unknown email
+ * address can become a new customer with one tap; a customer without email
+ * gets one in the card), add products
  * (photo, size, stock; price from the product's sale price, editable; a
  * warning — never a block — when the quantity is above the stock), choose
  * "KDV %20 ekle", validity and a note, preview the email and the PDF, and only
@@ -34,6 +39,8 @@ export default function KsQuoteNew() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [adding, setAdding] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState('');
   const [newCustomer, setNewCustomer] = useState({ name: '', companyName: '', email: '', phone: '' });
   const [lines, setLines] = useState<Line[]>([]);
   const [addVat, setAddVat] = useState(false);
@@ -51,18 +58,20 @@ export default function KsQuoteNew() {
   }, []);
 
   useEffect(() => {
-    if (customer) return;
     const timer = setTimeout(() => {
       fetch(`/api/stock/customers?q=${encodeURIComponent(customerQuery.trim())}`).then((r) => (r.ok ? r.json() : { customers: [] })).then((d) => setCustomers(d.customers)).catch(() => {});
     }, 200);
     return () => clearTimeout(timer);
-  }, [customerQuery, customer]);
+  }, [customerQuery]);
 
   const addedIds = useMemo(() => new Set(lines.map((l) => l.product.id)), [lines]);
   const valid = lines.filter((l) => num(l.quantity) > 0 && Number.isFinite(num(l.price)) && num(l.price) >= 0);
   const totals = quoteTotals(valid.map((l) => ({ quantity: num(l.quantity), unitPrice: num(l.price) })), addVat);
   const days = Math.round(num(validDays));
-  const ready = Boolean(customer?.email) && valid.length > 0 && valid.length === lines.length && days >= 1 && days <= 365;
+  const blocker = quoteBlocker({ customer, lines: lines.map((l) => ({ quantity: num(l.quantity), price: l.price.trim() === '' ? Number.NaN : num(l.price) })), validDays: days });
+  const ready = blocker === null;
+  const typed = customerQuery.trim();
+  const typedIsNewEmail = isEmailAddress(typed) && !customers.some((c) => (c.email ?? '').toLowerCase() === typed.toLowerCase());
 
   if (!ks.permissions.quotes) return <p className="p-6 text-lg">{t('ks.forbidden')}</p>;
 
@@ -73,6 +82,42 @@ export default function KsQuoteNew() {
     validDays: days,
     note: note.trim() || null,
   });
+
+  const choose = (c: Customer) => {
+    setCustomer(c);
+    setCustomerQuery('');
+    setListOpen(false);
+    setCustomerEmail('');
+  };
+
+  /** One tap: the typed email address becomes a new customer and is chosen. */
+  const createFromEmail = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch('/api/stock/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: typed, email: typed }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(t(data?.code === 'INVALID' ? 'ks.quote.customerInvalid' : res.status === 402 || res.status === 403 ? 'ks.quote.customerLimit' : 'ks.saveFailed')); return; }
+      choose(data.customer);
+      toast.success(t('ks.quote.customerCreated'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveCustomerEmail = async () => {
+    if (!customer || !isEmailAddress(customerEmail)) { toast.error(t('ks.order.emailInvalid')); return; }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/stock/customers/${encodeURIComponent(customer.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: customerEmail.trim() }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(t('ks.order.emailInvalid')); return; }
+      setCustomer(data.customer);
+      setCustomerEmail('');
+      toast.success(t('ks.order.emailSaved'));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const saveCustomer = async () => {
     setBusy(true);
@@ -172,23 +217,14 @@ export default function KsQuoteNew() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">{t('ks.quote.prepare')}</h1>
 
-      {/* 1. Customer */}
+      {/* 1. Customer: type, pick from the list, see the choice in a card below. */}
       <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold">1. {t('ks.quote.customer')}</h2>
-        {customer ? (
-          <div className="flex items-start justify-between gap-3 rounded-xl bg-teal-50 p-3">
-            <div className="min-w-0">
-              <p className="text-lg font-semibold">{customer.name}</p>
-              {customer.companyName && <p className="text-base">{customer.companyName}</p>}
-              <p className="break-all text-base text-slate-600">{customer.email || t('ks.quote.noEmail')}</p>
-            </div>
-            <button type="button" onClick={() => setCustomer(null)} className="h-11 shrink-0 rounded-xl border bg-white px-3 text-base">{t('ks.quote.change')}</button>
-          </div>
-        ) : adding ? (
+        {adding ? (
           <div className="space-y-2">
             {(['name', 'companyName', 'email', 'phone'] as const).map((k) => (
               <label key={k} className="block">
-                <span className="mb-1 block text-base font-medium">{t(`ks.quote.field.${k}` as any)}</span>
+                <span className="mb-1 block text-base font-medium">{t(`ks.quote.field.${k}` as TranslationKey)}</span>
                 <input
                   value={newCustomer[k]}
                   onChange={(e) => setNewCustomer({ ...newCustomer, [k]: e.target.value })}
@@ -205,27 +241,70 @@ export default function KsQuoteNew() {
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <input
-              type="search"
-              value={customerQuery}
-              onChange={(e) => setCustomerQuery(e.target.value)}
-              placeholder={t('ks.quote.searchCustomer')}
-              aria-label={t('ks.quote.searchCustomer')}
-              className="h-14 w-full rounded-xl border-2 px-3 text-lg outline-none focus:border-teal-600"
-            />
-            <ul className="space-y-1">
-              {customers.map((c) => (
-                <li key={c.id}>
-                  <button type="button" onClick={() => setCustomer(c)} className="w-full rounded-xl border px-3 py-3 text-left active:bg-slate-50">
-                    <span className="block text-lg font-semibold">{c.name}{c.companyName ? ` · ${c.companyName}` : ''}</span>
-                    <span className="block break-all text-sm text-slate-500">{c.email || t('ks.quote.noEmail')}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button type="button" onClick={() => setAdding(true)} className="h-14 w-full rounded-xl border-2 border-dashed border-teal-700 text-lg font-semibold text-teal-800">+ {t('ks.quote.newCustomer')}</button>
-          </div>
+          <>
+            <div className="relative">
+              <input
+                type="search"
+                role="combobox"
+                aria-expanded={listOpen && typed !== ''}
+                aria-controls="ks-customer-list"
+                aria-autocomplete="list"
+                value={customerQuery}
+                onChange={(e) => { setCustomerQuery(e.target.value); setListOpen(true); }}
+                onFocus={() => setListOpen(true)}
+                onBlur={() => setTimeout(() => setListOpen(false), 200)}
+                placeholder={t(customer ? 'ks.quote.searchOther' : 'ks.quote.searchCustomer')}
+                aria-label={t('ks.quote.searchCustomer')}
+                autoComplete="off"
+                className="h-14 w-full rounded-xl border-2 px-3 text-lg outline-none focus:border-teal-600"
+              />
+              {listOpen && typed !== '' && (
+                <ul id="ks-customer-list" role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-xl border-2 border-teal-600 bg-white shadow-lg">
+                  {customers.map((c) => (
+                    <li key={c.id} role="option" aria-selected={customer?.id === c.id}>
+                      <button type="button" onClick={() => choose(c)} className="w-full border-b px-3 py-3 text-left active:bg-teal-50">
+                        <span className="block text-lg font-semibold">{c.name}{c.companyName ? ` · ${c.companyName}` : ''}</span>
+                        <span className="block break-all text-sm text-slate-500">{c.email || t('ks.quote.noEmailShort')}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {typedIsNewEmail && (
+                    <li role="option" aria-selected={false}>
+                      <button type="button" disabled={busy} onClick={createFromEmail} className="w-full px-3 py-3 text-left text-lg font-semibold text-teal-800 active:bg-teal-50">
+                        + {fill('ks.quote.createFromEmail', { email: typed })}
+                      </button>
+                    </li>
+                  )}
+                  {customers.length === 0 && !typedIsNewEmail && <li className="px-3 py-3 text-base text-slate-500">{t('ks.quote.noMatch')}</li>}
+                </ul>
+              )}
+            </div>
+
+            {customer ? (
+              <div className="space-y-2 rounded-xl border-2 border-teal-600 bg-teal-50 p-3" aria-live="polite">
+                <p className="text-sm font-semibold uppercase tracking-wide text-teal-800">{t('ks.quote.chosen')}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xl font-bold">{customer.name}</p>
+                    {customer.companyName && <p className="text-base">{customer.companyName}</p>}
+                    {customer.email && <p className="break-all text-base text-slate-700">{customer.email}</p>}
+                  </div>
+                  <button type="button" onClick={() => { setCustomer(null); setListOpen(true); }} className="h-11 shrink-0 rounded-xl border bg-white px-3 text-base">{t('ks.quote.change')}</button>
+                </div>
+                {!customer.email && (
+                  <div className="space-y-2">
+                    <label className="block">
+                      <span className="mb-1 block text-base font-medium text-amber-900">{t('ks.quote.addCustomerEmail')}</span>
+                      <input type="email" inputMode="email" autoComplete="off" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="musteri@ornek.com" className="h-12 w-full rounded-xl border-2 bg-white px-3 text-lg" />
+                    </label>
+                    <button type="button" disabled={busy || !isEmailAddress(customerEmail)} onClick={saveCustomerEmail} className="h-12 w-full rounded-xl bg-teal-700 text-base font-semibold text-white disabled:opacity-40">{t('ks.qty.save')}</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button type="button" onClick={() => setAdding(true)} className="h-14 w-full rounded-xl border-2 border-dashed border-teal-700 text-lg font-semibold text-teal-800">+ {t('ks.quote.newCustomer')}</button>
+            )}
+          </>
         )}
       </section>
 
@@ -304,7 +383,7 @@ export default function KsQuoteNew() {
         </dl>
       </section>
 
-      {!customer?.email && customer && <p className="text-base font-medium text-red-700">{t('ks.quote.noEmail')}</p>}
+      {blocker && <p className="text-lg font-semibold text-amber-800" role="status">{fill(blocker.key as TranslationKey, blocker.params ?? {})}</p>}
       <button type="button" onClick={showPreview} disabled={!ready || busy} className="h-16 w-full rounded-xl bg-slate-900 text-xl font-bold text-white disabled:opacity-40">{t('ks.quote.preview')}</button>
       {dialog.element}
     </div>

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
 import { supplierSchema } from '@/lib/stock/product-input';
+import { vendorEmails } from '@/lib/stock/contacts';
 
 /**
  * GET /api/stock/suppliers — the company's suppliers (CorpControl vendors),
@@ -24,7 +25,7 @@ export async function GET() {
     return NextResponse.json({
       suppliers: rows.map((v) =>
         full
-          ? { id: v.id, name: v.name, emails: v.orderEmails.length ? v.orderEmails : v.email ? [v.email] : [], phone: v.phone, notes: v.notes }
+          ? { id: v.id, name: v.name, emails: vendorEmails(v), phone: v.phone, notes: v.notes }
           : { id: v.id, name: v.name }
       ),
     });

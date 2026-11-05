@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
+import { vendorEmails } from '@/lib/stock/contacts';
 
 const schema = z.object({ productId: z.string().min(1), vendorId: z.string().min(1) });
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     if (!vendor) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const updated = await prisma.stockProduct.updateMany({ where: { id: parsed.data.productId, companyId: actor.companyId, isActive: true }, data: { vendorId: vendor.id } });
     if (updated.count !== 1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json({ vendorId: vendor.id, vendorName: vendor.name, emails: vendor.orderEmails.length ? vendor.orderEmails : vendor.email ? [vendor.email] : [] });
+    return NextResponse.json({ vendorId: vendor.id, vendorName: vendor.name, emails: vendorEmails(vendor) });
   } catch (error) {
     return handleApiError('stock:orders:vendor', error, { fallbackMessage: 'Could not save.' });
   }

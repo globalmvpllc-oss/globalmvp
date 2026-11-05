@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { stockOrderEmail } from '@/lib/email/templates';
 import { stockLocale } from './alerts';
+import { vendorEmails } from './contacts';
 
 /**
  * Purchase-order emails. Never sent by the system on its own: the manager
@@ -49,7 +50,7 @@ export async function buildOrderEmail(companyId: string, input: z.infer<typeof o
     }),
   ]);
   if (!vendor) return { error: 'VENDOR_NOT_FOUND' as const };
-  const to = vendor.orderEmails.length ? vendor.orderEmails : vendor.email ? [vendor.email] : [];
+  const to = vendorEmails(vendor);
   if (to.length === 0) return { error: 'NO_EMAIL' as const };
   const byId = new Map(products.map((p) => [p.id, p]));
   const lines = input.lines

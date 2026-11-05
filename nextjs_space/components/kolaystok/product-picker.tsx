@@ -80,7 +80,12 @@ export function ProductPicker({ addedIds, onAdd }: { addedIds: Set<string>; onAd
                 </div>
                 <button
                   type="button"
-                  onClick={() => onAdd(p)}
+                  onClick={() => {
+                    onAdd(p);
+                    // Ready for the next product: the search box empties.
+                    setQ('');
+                    setResults([]);
+                  }}
                   disabled={added}
                   className={`flex h-14 shrink-0 items-center gap-1 rounded-xl px-4 text-lg font-bold ${added ? 'bg-emerald-50 text-emerald-800' : 'bg-teal-700 text-white active:bg-teal-800'}`}
                   aria-label={`${added ? t('ks.picker.added') : t('ks.picker.add')}: ${p.name}${p.size ? ` ${p.size}` : ''}`}
