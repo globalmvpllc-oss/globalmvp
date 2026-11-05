@@ -941,6 +941,10 @@ model Quote {
   /// can never produce two invoices.
   convertedInvoiceId String?     @unique
   convertedAt        DateTime?
+  /// "kolaystok" for quotes prepared in Avc KolayStok (migration 20261110120000).
+  source             String?
+  /// Set once when an accepted KolayStok quote took its products out of stock.
+  stockDeductedAt    DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
   company            Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -965,9 +969,13 @@ model QuoteItem {
   taxRate     Decimal @default(0) @db.Decimal(7, 4)
   taxLabel    String  @default("KDV")
   amount      Decimal @default(0) @db.Decimal(15, 2)
+  /// The stock product this line came from (KolayStok quotes): photo and stock deduction.
+  stockProductId String?
   quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  stockProduct StockProduct? @relation(fields: [stockProductId], references: [id], onDelete: SetNull)
 
   @@index([quoteId])
+  @@index([stockProductId])
 }
 
 /// A recurring invoice template. The daily cron turns a due template into a
@@ -1055,6 +1063,8 @@ model StockSettings {
   /// One-tap "+" / "−" reasons (migration 20261108120000_kolaystok_quick_reasons).
   quickPlusReason  String    @default("receipt")
   quickMinusReason String    @default("sale")
+  /// Last choice of "KDV %20 ekle" on a sales quote (migration 20261110120000).
+  quoteAddVat      Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1125,6 +1135,7 @@ model StockProduct {
   vendor        Vendor?         @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   movements     StockMovement[]
   countLines    StockCountLine[]
+  quoteItems    QuoteItem[]
 
   @@unique([companyId, code])
   @@index([companyId, searchKey])

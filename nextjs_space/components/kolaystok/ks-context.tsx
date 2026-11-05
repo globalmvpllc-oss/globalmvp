@@ -20,6 +20,8 @@ export interface KsSession {
     suppliers: boolean;
     settings: boolean;
     orderEmail: boolean;
+    /** Sales quotes: owner and PIN managers only (prices). */
+    quotes: boolean;
     export: boolean;
     reset: boolean;
   };

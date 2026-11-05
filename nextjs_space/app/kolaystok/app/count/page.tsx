@@ -29,6 +29,8 @@ export default function KsCount() {
   const [index, setIndex] = useState(0);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
+  /** A count is being opened: "Yükleniyor…" and the number field stays locked until it is ready. */
+  const [opening, setOpening] = useState(false);
   const [finished, setFinished] = useState<{ counted: number; changed: number } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const dialog = useKsDialog();
@@ -51,9 +53,15 @@ export default function KsCount() {
   useEffect(() => { loadLists(); }, [loadLists]);
 
   const openCount = async (id: string) => {
-    const res = await fetch(`/api/stock/counts/${id}`);
-    if (!res.ok) { toast.error(t('ks.loadFailed')); return; }
-    const data = await res.json();
+    setOpening(true);
+    let data: any;
+    try {
+      const res = await fetch(`/api/stock/counts/${id}`);
+      if (!res.ok) { toast.error(t('ks.loadFailed')); return; }
+      data = await res.json();
+    } finally {
+      setOpening(false);
+    }
     setCountId(id);
     setProducts(data.products);
     const start = Math.min(data.position ?? 0, Math.max(data.products.length - 1, 0));
@@ -64,9 +72,14 @@ export default function KsCount() {
   };
 
   const start = async (categoryId: string | null) => {
-    const res = await fetch('/api/stock/counts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId }) });
-    if (!res.ok) { toast.error(t('ks.saveFailed')); return; }
-    openCount((await res.json()).id);
+    setOpening(true);
+    try {
+      const res = await fetch('/api/stock/counts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryId }) });
+      if (!res.ok) { toast.error(t('ks.saveFailed')); setOpening(false); return; }
+      await openCount((await res.json()).id);
+    } catch {
+      setOpening(false);
+    }
   };
 
   useEffect(() => { input.current?.focus(); }, [index, countId]);
@@ -133,6 +146,10 @@ export default function KsCount() {
     setCountId(null);
     loadLists();
   };
+
+  if (opening) {
+    return <p className="py-10 text-center text-xl font-semibold text-slate-600" role="status" aria-live="polite">{t('ks.count.loading')}</p>;
+  }
 
   if (finished) {
     return (
@@ -212,6 +229,7 @@ export default function KsCount() {
             ref={input}
             inputMode="decimal"
             enterKeyHint="next"
+            disabled={opening}
             value={value}
             onChange={(e) => setValue(e.target.value.replace(/[^0-9.,]/g, ''))}
             className="h-20 w-full rounded-2xl border-2 px-4 text-center text-4xl font-bold tabular-nums outline-none focus:border-teal-600"

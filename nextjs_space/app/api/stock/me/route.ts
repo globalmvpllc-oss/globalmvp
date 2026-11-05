@@ -36,6 +36,7 @@ export async function GET() {
         suppliers: can(actor.role, 'suppliers.write'),
         settings: can(actor.role, 'settings'),
         orderEmail: can(actor.role, 'order.email'),
+        quotes: can(actor.role, 'sales.quote'),
         export: can(actor.role, 'export'),
         reset: can(actor.role, 'reset') && actor.kind === 'user',
       },

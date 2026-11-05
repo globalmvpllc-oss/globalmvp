@@ -31,12 +31,13 @@ export type StockPermission =
   | 'suppliers.write'
   | 'settings' // staff & PINs, alert recipients, Telegram, sender, usage mode
   | 'order.email' // prepare and send purchase-order emails
+  | 'sales.quote' // prepare, send and mark sales quotes (prices: manager only)
   | 'export' // Excel of the stock, backups
   | 'reset'; // reset all stock (also needs the account password)
 
 const GRANTS: Record<StockRole, ReadonlySet<StockPermission>> = {
   manager: new Set<StockPermission>([
-    'read', 'read.prices', 'move', 'count', 'products.write', 'suppliers.write', 'settings', 'order.email', 'export', 'reset',
+    'read', 'read.prices', 'move', 'count', 'products.write', 'suppliers.write', 'settings', 'order.email', 'sales.quote', 'export', 'reset',
   ]),
   staff: new Set<StockPermission>(['read', 'move', 'count']),
   viewer: new Set<StockPermission>(['read', 'read.prices', 'export']),
@@ -249,6 +250,61 @@ export function planEntry(current: Decimal.Value, quantity: unknown, reason: unk
   // A count (Sayım düzeltmesi) asks like the count screen: difference > 50 or > half the stock.
   const large = direction === 'set' ? countNeedsConfirmation(q, c) : isLargeEntry(q, c);
   return { ok: true, direction, delta, after, large, negative: after.lt(0) };
+}
+
+// ---------------------------------------------------------------------------
+// Sales quotes (KolayStok)
+// ---------------------------------------------------------------------------
+
+/** VAT added on top when "KDV %20 ekle" is ticked; prices are always entered without VAT. */
+export const QUOTE_VAT_RATE = 20;
+export const QUOTE_DEFAULT_VALID_DAYS = 15;
+
+export interface QuoteLineInput {
+  quantity: Decimal.Value;
+  unitPrice: Decimal.Value;
+}
+
+/**
+ * Quote totals. Each line is quantity × unit price rounded to kuruş; the VAT
+ * (20 %) is worked out once on the subtotal, so subtotal + VAT = total exactly.
+ */
+export function quoteTotals(lines: QuoteLineInput[], addVat: boolean): { amounts: Decimal[]; subtotal: Decimal; tax: Decimal; total: Decimal } {
+  const amounts = lines.map((l) => new Decimal(l.quantity).mul(new Decimal(l.unitPrice)).toDecimalPlaces(2));
+  const subtotal = amounts.reduce((sum, a) => sum.plus(a), new Decimal(0));
+  const tax = addVat ? subtotal.mul(QUOTE_VAT_RATE).div(100).toDecimalPlaces(2) : new Decimal(0);
+  return { amounts, subtotal, tax, total: subtotal.plus(tax) };
+}
+
+/** A quote line asks for more than is in stock: shown as a warning, never a block. */
+export function exceedsStock(quantity: Decimal.Value, stock: Decimal.Value): boolean {
+  return new Decimal(quantity).gt(new Decimal(stock));
+}
+
+/** "Valid until": today + days, at the end of that day in UTC. 1–365 days. */
+export function quoteValidUntil(days: number, now: Date = new Date()): Date {
+  const d = Math.min(Math.max(Math.round(days) || QUOTE_DEFAULT_VALID_DAYS, 1), 365);
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, 23, 59, 59));
+}
+
+/**
+ * Accepting a quote takes its products out of stock as "Satış (−)". The
+ * stock that would go below zero is listed, so the screen can ask first.
+ */
+export function quoteDeductions(
+  lines: Array<{ stockProductId: string | null; quantity: Decimal.Value }>,
+  stock: Map<string, Decimal.Value>
+): { moves: Array<{ productId: string; quantity: Decimal }>; negative: Array<{ productId: string; after: Decimal }> } {
+  const totals = new Map<string, Decimal>();
+  for (const l of lines) {
+    if (!l.stockProductId || !stock.has(l.stockProductId)) continue;
+    totals.set(l.stockProductId, (totals.get(l.stockProductId) ?? new Decimal(0)).plus(new Decimal(l.quantity)));
+  }
+  const moves = [...totals.entries()].filter(([, q]) => q.gt(0)).map(([productId, quantity]) => ({ productId, quantity }));
+  const negative = moves
+    .map((m) => ({ productId: m.productId, after: new Decimal(stock.get(m.productId)!).minus(m.quantity) }))
+    .filter((n) => n.after.lt(0));
+  return { moves, negative };
 }
 
 /** In a stock count, a difference above this many units asks "Doğru mu?". */

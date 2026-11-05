@@ -20,7 +20,7 @@ export async function GET() {
     const products = await prisma.stockProduct.findMany({
       where: { companyId: actor.companyId, id: { in: ids.map((r) => r.id) } },
       select: {
-        id: true, code: true, name: true, size: true, unit: true, quantity: true, minStock: true, targetStock: true, vendorId: true,
+        id: true, code: true, name: true, size: true, unit: true, quantity: true, minStock: true, targetStock: true, vendorId: true, photoKey: true,
         category: { select: { vendorId: true } },
       },
       orderBy: { name: 'asc' },
@@ -33,11 +33,14 @@ export async function GET() {
       select: { id: true, name: true, email: true, orderEmails: true },
     });
     const vendorOf = new Map(vendors.map((v) => [v.id, v]));
+    const productOf = new Map(products.map((p) => [p.id, p]));
     return NextResponse.json({
       groups: groups.map((g) => {
         const v = g.vendorId ? vendorOf.get(g.vendorId) : null;
         const emails = v ? (v.orderEmails.length ? v.orderEmails : v.email ? [v.email] : []) : [];
-        return { vendorId: g.vendorId, vendorName: v?.name ?? null, emails, lines: g.lines };
+        // Photo flag and current stock for the screen; quantity stays the suggested order quantity.
+        const lines = g.lines.map((l) => ({ ...l, hasPhoto: Boolean(productOf.get(l.productId)?.photoKey), stock: Number(productOf.get(l.productId)?.quantity ?? 0) }));
+        return { vendorId: g.vendorId, vendorName: v?.name ?? null, emails, lines };
       }),
     });
   } catch (error) {

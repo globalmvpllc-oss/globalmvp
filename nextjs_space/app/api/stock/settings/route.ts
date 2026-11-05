@@ -14,6 +14,9 @@ export async function GET() {
   try {
     const { actor, error } = await requireStockActor('settings');
     if (error) return error;
+    // A company that never opened KolayStok settings had no row, so no staff
+    // link (and no "renew" button) appeared. Create it on first open.
+    await ensureStockSettings(actor.companyId);
     const [settings, company, quick, chats] = await Promise.all([
       prisma.stockSettings.findUnique({
         where: { companyId: actor.companyId },

@@ -32,6 +32,8 @@ export interface DocColumn {
 
 export interface DocRow {
   cells: string[];
+  /** A small picture drawn in the first cell (e.g. a product photo); that cell's text is ignored. */
+  image?: DocLogo | null;
   /** Smaller grey second line under the first cell (e.g. a description). */
   detail?: string;
   style?: 'strong' | 'muted';
@@ -286,7 +288,9 @@ function drawHeader(w: Writer, spec: BusinessDocumentSpec, logo: PDFImage | null
   w.y -= 12;
 }
 
-function drawTable(w: Writer, block: Extract<DocBlock, { kind: 'table' }>) {
+const ROW_IMAGE = 34;
+
+function drawTable(w: Writer, block: Extract<DocBlock, { kind: 'table' }>, images: Map<DocRow, PDFImage> = new Map()) {
   const total = block.columns.reduce((s, c) => s + c.width, 0) || 1;
   const widths = block.columns.map((c) => (c.width / total) * w.width);
   const xs: number[] = [];
@@ -336,9 +340,16 @@ function drawTable(w: Writer, block: Extract<DocBlock, { kind: 'table' }>) {
     const color = row.style === 'muted' ? MUTED : INK;
     const cellLines = row.cells.map((cell, i) => w.wrap(cell, size, widths[i] - 2 * pad, bold));
     const detailLines = row.detail ? w.wrap(row.detail, 8, widths[0] - 2 * pad) : [];
-    const height = Math.max(...cellLines.map((l) => l.length)) * line + detailLines.length * 10.5 + 8;
+    const picture = images.get(row) ?? null;
+    const height = Math.max(Math.max(...cellLines.map((l) => l.length)) * line + detailLines.length * 10.5 + 8, picture ? ROW_IMAGE + 8 : 0);
 
     if (w.ensure(height + 4)) drawHead();
+    if (picture) {
+      const box = Math.min(ROW_IMAGE, widths[0] - 2 * pad);
+      const scale = Math.min(box / picture.width, box / picture.height);
+      w.page.drawImage(picture, { x: xs[0] + pad, y: w.y - 4 - picture.height * scale, width: picture.width * scale, height: picture.height * scale });
+      cellLines[0] = [];
+    }
 
     cellLines.forEach((lines, i) => {
       lines.forEach((text, j) => {
@@ -453,10 +464,24 @@ export async function renderBusinessDocumentPdf(spec: BusinessDocumentSpec): Pro
     }
   }
 
+  // Row pictures (product photos): embedded once; an unreadable one is left out.
+  const rowImages = new Map<DocRow, PDFImage>();
+  for (const block of spec.blocks) {
+    if (block.kind !== 'table') continue;
+    for (const row of block.rows) {
+      if (!row.image) continue;
+      try {
+        rowImages.set(row, row.image.type === 'png' ? await doc.embedPng(row.image.bytes) : await doc.embedJpg(row.image.bytes));
+      } catch {
+        /* no picture for this row */
+      }
+    }
+  }
+
   const writer = new Writer(doc, fonts, hexToRgb(spec.brandColor));
   drawHeader(writer, spec, logo);
   for (const block of spec.blocks) {
-    if (block.kind === 'table') drawTable(writer, block);
+    if (block.kind === 'table') drawTable(writer, block, rowImages);
     else if (block.kind === 'totals') drawTotals(writer, block);
     else drawText(writer, block);
   }
