@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
-import { putObject } from '@/lib/s3';
+import { putPrivateFile, stockPath, isStorageNotConfigured } from '@/lib/storage';
 import { sendMail } from '@/lib/email/mailer';
 import { stockResetEmail } from '@/lib/email/templates';
 import { checkRateLimit, LOGIN_RULE } from '@/lib/rate-limit';
@@ -58,8 +58,13 @@ export async function POST(request: Request) {
     // Backup first. If the backup cannot be stored, nothing is reset.
     const { bytes, locale, companyName, rows } = await companyStockWorkbook(actor.companyId, 'all', true);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupKey = `kolaystok/${actor.companyId}/sifirlama-${stamp}.xlsx`;
-    await putObject(backupKey, bytes, XLSX_TYPE);
+    let backupKey: string;
+    try {
+      backupKey = await putPrivateFile(stockPath(actor.companyId, `sifirlama-${stamp}.xlsx`), bytes, XLSX_TYPE);
+    } catch (storageError) {
+      if (!isStorageNotConfigured(storageError)) throw storageError;
+      return NextResponse.json({ error: 'The backup could not be stored, so nothing was reset.', code: 'BACKUP_UNAVAILABLE' }, { status: 503 });
+    }
 
     const result = await resetAllStock(actor, backupKey);
 

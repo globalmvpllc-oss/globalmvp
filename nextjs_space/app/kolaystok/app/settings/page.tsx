@@ -75,7 +75,7 @@ export default function KsSettings() {
     const res = await fetch('/api/stock/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: resetPassword, confirm: resetWord }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast.error(t(data?.code === 'WRONG_PASSWORD' ? 'ks.reset.wrongPassword' : data?.code === 'CONFIRM_WORD' ? 'ks.reset.typeWord' : 'ks.saveFailed'));
+      toast.error(t(data?.code === 'WRONG_PASSWORD' ? 'ks.reset.wrongPassword' : data?.code === 'CONFIRM_WORD' ? 'ks.reset.typeWord' : data?.code === 'BACKUP_UNAVAILABLE' ? 'ks.reset.backupUnavailable' : 'ks.saveFailed'));
       return;
     }
     toast.success(fill('ks.reset.done', { n: data.changed }));

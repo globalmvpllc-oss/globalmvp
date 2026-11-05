@@ -1,15 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { companySchema, describeValidationError, INVOICE_TEMPLATES, PAYMENT_METHODS } from '@/lib/validation';
-import {
-  checkUpload,
-  describeStorageFailure,
-  extensionOf,
-  LOGO_CONTENT_TYPES,
-  LOGO_FORMATS_LABEL,
-  MAX_UPLOAD_BYTES,
-  MAX_UPLOAD_MB,
-} from '@/lib/upload-constraints';
-import { StorageConfigError, isStorageConfigError } from '@/lib/aws-config';
 
 /**
  * Settings save and logo upload.
@@ -200,81 +190,5 @@ describe('validation errors name the field', () => {
     if (!result.success) {
       expect(describeValidationError(result.error).error).not.toBe('Failed to save settings');
     }
-  });
-});
-
-describe('logo upload checks', () => {
-  const file = (name: string, type: string, size: number) => ({ name, type, size });
-
-  it('accepts the supported logo formats', () => {
-    for (const [name, type] of [['logo.png', 'image/png'], ['logo.jpg', 'image/jpeg'], ['logo.webp', 'image/webp']]) {
-      const result = checkUpload(file(name, type, 50_000), LOGO_CONTENT_TYPES, LOGO_FORMATS_LABEL);
-      expect(result.ok).toBe(true);
-    }
-  });
-
-  it('rejects an unsupported file type by name', () => {
-    const result = checkUpload(file('logo.gif', 'image/gif', 5000), LOGO_CONTENT_TYPES, LOGO_FORMATS_LABEL);
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain('PNG, JPG, JPEG or WebP');
-  });
-
-  it('rejects a file over the size limit and states the limit', () => {
-    const result = checkUpload(file('big.png', 'image/png', MAX_UPLOAD_BYTES + 1), LOGO_CONTENT_TYPES);
-    expect(result.ok).toBe(false);
-    expect(result.message).toContain(`${MAX_UPLOAD_MB} MB`);
-  });
-
-  it('rejects an empty file', () => {
-    const result = checkUpload(file('empty.png', 'image/png', 0), LOGO_CONTENT_TYPES);
-    expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/empty/i);
-  });
-
-  it('catches a file renamed to disguise its type', () => {
-    const result = checkUpload(file('payload.exe', 'image/png', 1000), LOGO_CONTENT_TYPES);
-    expect(result.ok).toBe(false);
-    expect(result.message).toMatch(/extension/i);
-  });
-
-  it('tolerates a content type carrying parameters', () => {
-    const result = checkUpload(file('logo.png', 'image/png; charset=binary', 1000), LOGO_CONTENT_TYPES);
-    expect(result.ok).toBe(true);
-  });
-
-  it('extracts extensions, including from a file with none', () => {
-    expect(extensionOf('logo.PNG')).toBe('png');
-    expect(extensionOf('archive.tar.gz')).toBe('gz');
-    expect(extensionOf('noextension')).toBe('');
-  });
-});
-
-describe('storage failures are explained rather than swallowed', () => {
-  it('distinguishes the statuses S3 returns', () => {
-    expect(describeStorageFailure(403)).toMatch(/rejected|expired/i);
-    expect(describeStorageFailure(404)).toMatch(/could not be found/i);
-    expect(describeStorageFailure(413)).toMatch(new RegExp(`${MAX_UPLOAD_MB} MB`));
-    expect(describeStorageFailure(500)).toMatch(/unavailable/i);
-    expect(describeStorageFailure(418)).toMatch(/could not be completed/i);
-  });
-
-  it('never returns an empty message', () => {
-    for (const status of [400, 403, 404, 413, 500, 502, 503]) {
-      expect(describeStorageFailure(status).length).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe('missing storage configuration is identifiable', () => {
-  it('names what is missing', () => {
-    const error = new StorageConfigError(['AWS_BUCKET_NAME', 'AWS_REGION']);
-    expect(error.missing).toEqual(['AWS_BUCKET_NAME', 'AWS_REGION']);
-    expect(error.message).toContain('AWS_BUCKET_NAME');
-  });
-
-  it('is recognisable so the route can answer 503 instead of a generic 500', () => {
-    expect(isStorageConfigError(new StorageConfigError(['AWS_REGION']))).toBe(true);
-    expect(isStorageConfigError(new Error('something else'))).toBe(false);
-    expect(isStorageConfigError(null)).toBe(false);
   });
 });

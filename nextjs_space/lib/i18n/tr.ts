@@ -1978,6 +1978,7 @@ export const tr: Dictionary = {
   'ks.reset.button': 'Tüm stokları sıfırla',
   'ks.reset.done': 'Stoklar sıfırlandı ({n} ürün). Yedek mail ile gönderildi.',
   'ks.reset.wrongPassword': 'Şifre yanlış.',
+  'ks.reset.backupUnavailable': 'Yedek kaydedilemedi, bu yüzden hiçbir şey sıfırlanmadı. Lütfen daha sonra tekrar deneyin.',
   'ks.reset.typeWord': 'Onay için SIFIRLA yazın.',
   'ks.reset.undoUntil': 'Son sıfırlamayı geri al ({time} kadar)',
   'ks.reset.undoConfirm': 'Stoklar son sıfırlamadan önceki haline dönsün mü?',

@@ -161,16 +161,11 @@ export async function PUT(request: Request) {
     }
     const data = parsed.data;
 
-    // A logo must be an object this company uploaded. The presigned upload
-    // endpoint always writes to `.../uploads/{companyId}/...`, so requiring that
-    // segment stops one company from pointing its logo at another company's
-    // object, or at an arbitrary external URL.
-    // A logo is either an image data URL produced in the browser, or — for
-    // logos saved before the move off S3 — a key under this company's own
-    // upload prefix. Anything else is refused: an arbitrary URL, an SVG (which
-    // is a document and can carry script), or a data URL of another type.
+    // A logo is an image data URL produced in the browser. Anything else is
+    // refused: an arbitrary URL, an SVG (which is a document and can carry
+    // script), or a data URL of another type.
     if (data.logoUrl) {
-      if (!isAcceptableLogoValue(data.logoUrl, companyId)) {
+      if (!isAcceptableLogoValue(data.logoUrl)) {
         return NextResponse.json(
           {
             error: 'That logo could not be accepted. Upload a PNG, JPG, JPEG or WebP image.',

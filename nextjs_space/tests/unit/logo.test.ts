@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   checkLogoFile,
   isSafeImageDataUrl,
-  isLegacyStorageKey,
   isAcceptableLogoValue,
   dataUrlByteLength,
   fitWithin,
@@ -111,33 +110,23 @@ describe('data URL safety', () => {
   });
 });
 
-describe('company isolation', () => {
-  it('accepts a legacy storage key belonging to this company', () => {
-    const key = 'prod/uploads/cmp_mine/abc-logo.png';
-    expect(isLegacyStorageKey(key, 'cmp_mine')).toBe(true);
-    expect(isAcceptableLogoValue(key, 'cmp_mine')).toBe(true);
+describe('only image data URLs are accepted as a logo', () => {
+  it('refuses an old storage key, for any company', () => {
+    expect(isAcceptableLogoValue('prod/uploads/cmp_mine/abc-logo.png')).toBe(false);
+    expect(isAcceptableLogoValue('prod/uploads/cmp_theirs/abc-logo.png')).toBe(false);
   });
 
-  it('refuses another company\u2019s storage key', () => {
-    const key = 'prod/uploads/cmp_theirs/abc-logo.png';
-    expect(isLegacyStorageKey(key, 'cmp_mine')).toBe(false);
-    expect(isAcceptableLogoValue(key, 'cmp_mine')).toBe(false);
+  it('refuses a bare path or an external URL', () => {
+    expect(isAcceptableLogoValue('../../etc/passwd')).toBe(false);
+    expect(isAcceptableLogoValue('https://evil.example.com/x.png')).toBe(false);
   });
 
-  it('refuses a bare path that is not under an upload prefix', () => {
-    expect(isAcceptableLogoValue('../../etc/passwd', 'cmp_mine')).toBe(false);
-    expect(isAcceptableLogoValue('https://evil.example.com/x.png', 'cmp_mine')).toBe(false);
+  it('accepts a safe image data URL', () => {
+    expect(isAcceptableLogoValue(`data:image/webp;base64,${b64}`)).toBe(true);
   });
 
-  it('accepts a data URL regardless of company, since it carries no reference', () => {
-    // A data URL is the image itself; there is nothing to point at.
-    const inline = `data:image/webp;base64,${b64}`;
-    expect(isAcceptableLogoValue(inline, 'cmp_mine')).toBe(true);
-    expect(isAcceptableLogoValue(inline, 'cmp_other')).toBe(true);
-  });
-
-  it('still refuses an unsafe data URL for any company', () => {
-    expect(isAcceptableLogoValue(`data:image/svg+xml;base64,${b64}`, 'cmp_mine')).toBe(false);
+  it('still refuses an unsafe data URL', () => {
+    expect(isAcceptableLogoValue(`data:image/svg+xml;base64,${b64}`)).toBe(false);
   });
 });
 
@@ -187,7 +176,7 @@ describe('a company with no logo keeps working', () => {
     // The settings form clears the logo with an empty string, which the API maps
     // to null; neither should be mistaken for a bad value.
     expect(isSafeImageDataUrl('')).toBe(false);
-    expect(isAcceptableLogoValue('', 'cmp_mine')).toBe(false);
+    expect(isAcceptableLogoValue('')).toBe(false);
     // The route only validates when a value is present, so an empty string
     // reaches the update as "clear this" rather than being rejected.
   });

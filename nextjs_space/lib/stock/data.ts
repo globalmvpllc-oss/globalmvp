@@ -1,7 +1,7 @@
 import 'server-only';
 import Decimal from 'decimal.js';
 import { prisma } from '@/lib/db';
-import { putObject, deleteFile } from '@/lib/s3';
+import { putPrivateFile, deletePrivateFile, stockPath } from '@/lib/storage';
 import type { TxClient } from '@/lib/invoice-number';
 import { stockWorkbook, type StockRow } from './excel';
 import { stockLocale } from './alerts';
@@ -51,9 +51,8 @@ export const BACKUP_DAYS = 30;
 /** The nightly backup: one workbook per company per day in S3; older than 30 days removed. */
 export async function backupCompanyStock(companyId: string, now: Date): Promise<string> {
   const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const key = `kolaystok/${companyId}/yedek-${day.toISOString().slice(0, 10)}.xlsx`;
   const { bytes } = await companyStockWorkbook(companyId, 'all', true);
-  await putObject(key, bytes, XLSX_TYPE);
+  const key = await putPrivateFile(stockPath(companyId, `yedek-${day.toISOString().slice(0, 10)}.xlsx`), bytes, XLSX_TYPE);
   await prisma.stockBackup.upsert({
     where: { companyId_day: { companyId, day } },
     create: { companyId, day, s3Key: key },
@@ -62,7 +61,7 @@ export async function backupCompanyStock(companyId: string, now: Date): Promise<
   const cutoff = new Date(day.getTime() - BACKUP_DAYS * 86_400_000);
   const old = await prisma.stockBackup.findMany({ where: { companyId, day: { lt: cutoff } }, select: { id: true, s3Key: true } });
   for (const b of old) {
-    await deleteFile(b.s3Key).catch(() => {});
+    await deletePrivateFile(b.s3Key).catch(() => {});
     await prisma.stockBackup.delete({ where: { id: b.id } }).catch(() => {});
   }
   return key;

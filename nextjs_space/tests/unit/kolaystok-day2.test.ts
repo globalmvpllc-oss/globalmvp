@@ -77,7 +77,7 @@ const db = vi.hoisted(() => {
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ prisma: { ...db.tx, $transaction: async (fn: any) => fn(db.tx) } }));
-vi.mock('@/lib/s3', () => ({ putObject: async () => {}, deleteFile: async () => {}, getFileUrl: async () => 'https://s3/x' }));
+vi.mock('@/lib/storage', () => ({ putPrivateFile: async (p: string) => p, deletePrivateFile: async () => {}, stockPath: (...p: string[]) => p.join('/'), isStorageNotConfigured: () => false }));
 vi.mock('@/lib/stock/telegram', () => ({
   sendTelegram: async (chatId: string, text: string) => { db.state.sent.push({ chatId, text }); return true; },
   telegramConfigured: () => true,
@@ -166,7 +166,8 @@ describe('reset all stock and undo', () => {
     const route = src('app/api/stock/reset/route.ts');
     expect(route).toContain("actor.kind !== 'user'");
     expect(route).toContain('bcrypt.compare(body.password, user.hashedPassword)');
-    expect(route.indexOf('putObject(backupKey')).toBeLessThan(route.indexOf('resetAllStock(actor'));
+    expect(route.indexOf('putPrivateFile(')).toBeGreaterThan(-1);
+    expect(route.indexOf('putPrivateFile(')).toBeLessThan(route.indexOf('resetAllStock(actor'));
     expect(route).toContain('attachments: [{');
   });
   it('sets every product of this company to 0, as "reset" movements, and nothing of another company', async () => {

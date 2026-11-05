@@ -7,8 +7,7 @@
  * in a sidebar. The browser now shrinks the image and stores it as a data URL
  * in Company.logoUrl, which is a TEXT column and already wide enough.
  *
- * S3 stays in the codebase for attachments and receipts, where real object
- * storage genuinely earns its keep.
+ * Files that do need object storage use Vercel Blob (lib/storage.ts).
  */
 
 /** Formats accepted from the user. SVG is excluded — see isSafeImageDataUrl. */
@@ -81,19 +80,9 @@ export function isSafeImageDataUrl(value: string): boolean {
   return SAFE_DATA_URL_PATTERN.test(value);
 }
 
-/**
- * Whether a value is a storage key produced by the old presigned upload flow.
- *
- * Logos saved before this change are still keys under the company's own upload
- * prefix. They keep working; only new uploads become data URLs.
- */
-export function isLegacyStorageKey(value: string, companyId: string): boolean {
-  return !value.startsWith('data:') && value.includes(`uploads/${companyId}/`);
-}
-
-/** Whether a stored logo value is acceptable for this company. */
-export function isAcceptableLogoValue(value: string, companyId: string): boolean {
-  return isSafeImageDataUrl(value) || isLegacyStorageKey(value, companyId);
+/** Whether a stored logo value is acceptable: a safe image data URL only. */
+export function isAcceptableLogoValue(value: string): boolean {
+  return isSafeImageDataUrl(value);
 }
 
 /** Approximate decoded size of a base64 data URL, for reporting to the user. */

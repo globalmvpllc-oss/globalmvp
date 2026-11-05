@@ -103,35 +103,12 @@ export default function SettingsPage() {
   }, []);
 
   /**
-   * Resolves the stored logo into something an <img> can display.
-   *
-   * New logos are data URLs and are already displayable. Logos saved before the
-   * move off S3 are storage keys and still need a signed read URL, so both are
-   * handled rather than breaking existing companies.
+   * Logos are stored as image data URLs, which an <img> displays directly.
+   * Anything else (there are none in the database) is simply not shown.
    */
   useEffect(() => {
     const stored = form?.logoUrl;
-    if (!stored) { setLogoPreview(null); return; }
-    if (typeof stored === 'string' && stored.startsWith('data:')) {
-      setLogoPreview(stored);
-      return;
-    }
-
-    let active = true;
-    fetch(`/api/upload/view?path=${encodeURIComponent(stored)}`)
-      .then(async (r: any) => {
-        if (r.ok) return r.json();
-        const err = await r.json().catch(() => null);
-        if (r.status === 404) {
-          toast.error(t('settings.logoMissing'));
-        } else if (err?.error) {
-          toast.error(fill('settings.logoLoadFailed', { detail: err.error }));
-        }
-        return null;
-      })
-      .then((d: any) => { if (active && d?.url) setLogoPreview(d.url); })
-      .catch(() => {});
-    return () => { active = false; };
+    setLogoPreview(typeof stored === 'string' && stored.startsWith('data:') ? stored : null);
   }, [form?.logoUrl]);
 
   /**

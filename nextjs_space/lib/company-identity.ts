@@ -55,23 +55,10 @@ export function personalizeEmptyState(
 }
 
 /**
- * Resolves a signed, time-limited URL for a stored file key.
- *
- * Uploads are private, so the stored value is a storage key rather than
- * something an <img> can load directly. Returns null when there is no key or
- * the file cannot be read, letting callers fall back to initials.
+ * The displayable logo for a stored value. Logos are image data URLs kept in
+ * Company.logoUrl; anything else returns null so callers fall back to
+ * initials. Async only so existing callers keep working unchanged.
  */
 export async function resolveStoredFileUrl(key?: string | null): Promise<string | null> {
-  if (!key) return null;
-  // Logos are stored inline as data URLs and are already renderable. Only
-  // legacy S3 keys need a signed URL fetched for them.
-  if (key.startsWith('data:')) return key;
-  try {
-    const res = await fetch(`/api/upload/view?path=${encodeURIComponent(key)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return typeof data?.url === 'string' ? data.url : null;
-  } catch {
-    return null;
-  }
+  return key && key.startsWith('data:image/') ? key : null;
 }

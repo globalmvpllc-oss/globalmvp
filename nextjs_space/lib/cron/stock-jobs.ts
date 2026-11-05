@@ -10,7 +10,8 @@ import { backupCompanyStock } from '@/lib/stock/data';
 
 /**
  * Avc KolayStok in the daily job (04:00 UTC = 07:00 Turkey):
- *   - an Excel backup of each company's stock, kept 30 days in S3;
+ *   - an Excel backup of each company's stock, kept 30 days in the private
+ *     Blob store (a failed backup does not hold back the summary below);
  *   - the morning summary of critical and out-of-stock products, by mail and
  *     Telegram — only when there is something to report.
  * One company failing does not stop the others.
@@ -33,8 +34,13 @@ export async function runStockNightly(now: Date): Promise<{ companies: number; b
       continue;
     }
     try {
-      await backupCompanyStock(companyId, now);
-      backups += 1;
+      try {
+        await backupCompanyStock(companyId, now);
+        backups += 1;
+      } catch (backupError) {
+        failed += 1;
+        console.error('[cron] stock backup failed for a company', { name: (backupError as Error)?.name });
+      }
 
       const rows = await prisma.$queryRaw<Array<{ code: string; name: string; unit: string; quantity: string }>>`
         SELECT code, name, unit, quantity::text AS quantity FROM "StockProduct"

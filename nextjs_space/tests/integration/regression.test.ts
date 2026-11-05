@@ -166,7 +166,7 @@ describe('Multi-Tenant Security (Section 1)', () => {
       ['GET', '/api/dashboard'], ['GET', '/api/invoices'], ['GET', '/api/customers'],
       ['GET', '/api/payments'], ['GET', '/api/income'], ['GET', '/api/expenses'],
       ['GET', '/api/categories'], ['GET', '/api/vendors'],
-      ['GET', '/api/invoices/any-id/pdf'], ['POST', '/api/upload/presigned'],
+      ['GET', '/api/invoices/any-id/pdf'],
     ];
     for (const [method, path] of endpoints) {
       it(`${method} ${path} returns 403`, async () => {
@@ -184,7 +184,7 @@ describe('Authentication (Section 2)', () => {
   const unauthEndpoints: [string, string][] = [
     ['GET', '/api/dashboard'], ['GET', '/api/invoices'], ['GET', '/api/customers'],
     ['GET', '/api/payments'], ['GET', '/api/invoices/any-id/pdf'],
-    ['POST', '/api/upload/presigned'], ['GET', '/api/income'], ['GET', '/api/expenses'],
+    ['GET', '/api/income'], ['GET', '/api/expenses'],
     ['GET', '/api/categories'], ['GET', '/api/vendors'],
   ];
   for (const [method, path] of unauthEndpoints) {
@@ -484,30 +484,21 @@ describe('PDF Security (Section 9)', () => {
 // ====================================================================
 // Section 10: Upload Security
 // ====================================================================
-describe('Upload Security (Section 10)', () => {
-  it('unauthenticated upload → 401', async () => {
-    const res = await api('/api/upload/presigned', { method: 'POST', body: JSON.stringify({ fileName: 'test.pdf', contentType: 'application/pdf' }) });
+describe('File Security (Section 10)', () => {
+  it('the old S3 upload endpoint is gone', async () => {
+    const res = await api('/api/upload/presigned', { method: 'POST', cookies: cookiesA, body: JSON.stringify({ fileName: 'test.pdf', contentType: 'application/pdf' }) });
+    expect(res.status).toBe(404);
+  });
+  it('unauthenticated stock photo → 401', async () => {
+    const res = await api('/api/stock/photo/any-id');
     expect(res.status).toBe(401);
   });
-  it('no-company upload → 403', async () => {
-    const res = await api('/api/upload/presigned', { method: 'POST', cookies: cookiesNoCompany, body: JSON.stringify({ fileName: 'test.pdf', contentType: 'application/pdf' }) });
-    expect(res.status).toBe(403);
-  });
-  it('valid upload returns company-scoped path', async () => {
-    const res = await api('/api/upload/presigned', { method: 'POST', cookies: cookiesA, body: JSON.stringify({ fileName: 'test.pdf', contentType: 'application/pdf' }) });
-    expect(res.status).toBeLessThan(300);
-    const data = await res.json();
-    expect(data.cloud_storage_path).toBeDefined();
-    const parts = data.cloud_storage_path.split('/');
-    expect(parts.length).toBeGreaterThanOrEqual(3);
-  });
-  it('filenames are sanitized', async () => {
-    const res = await api('/api/upload/presigned', { method: 'POST', cookies: cookiesA, body: JSON.stringify({ fileName: '../../../etc/passwd', contentType: 'application/pdf' }) });
-    expect(res.status).toBeLessThan(300);
-    const data = await res.json();
-    expect(data.cloud_storage_path).not.toContain('../');
+  it('unauthenticated stock backup download → 401', async () => {
+    const res = await api('/api/stock/backups/any-id');
+    expect(res.status).toBe(401);
   });
 });
+
 
 // ====================================================================
 // Section 11: Onboarding Guard

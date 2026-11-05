@@ -2025,6 +2025,7 @@ export const en = {
   'ks.reset.button': 'Reset all stock',
   'ks.reset.done': 'Stock reset ({n} products). Backup emailed.',
   'ks.reset.wrongPassword': 'Wrong password.',
+  'ks.reset.backupUnavailable': 'The backup could not be saved, so nothing was reset. Please try again later.',
   'ks.reset.typeWord': 'Type SIFIRLA to confirm.',
   'ks.reset.undoUntil': 'Undo the last reset (until {time})',
   'ks.reset.undoConfirm': 'Put back the stock as it was before the last reset?',
