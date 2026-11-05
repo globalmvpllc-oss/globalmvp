@@ -1910,6 +1910,7 @@ export const en = {
   'ks.quote.status.REJECTED': 'Rejected',
   'ks.quote.status.EXPIRED': 'Expired',
   'ks.quote.deducted': 'Products taken out of stock.',
+  'ks.quote.confirmNegative': 'Stock will go below zero ({list}). Continue?',
   'ks.quote.downloadPdf': 'Download PDF',
   'ks.quote.resend': 'Send again',
   'ks.quote.markAccepted': 'Accepted',

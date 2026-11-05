@@ -1864,6 +1864,7 @@ export const tr: Dictionary = {
   'ks.quote.status.REJECTED': 'Reddedildi',
   'ks.quote.status.EXPIRED': 'Süresi doldu',
   'ks.quote.deducted': 'Ürünler stoktan düşüldü.',
+  'ks.quote.confirmNegative': 'Stok eksiye düşecek ({list}). Devam edilsin mi?',
   'ks.quote.downloadPdf': 'PDF indir',
   'ks.quote.resend': 'Tekrar gönder',
   'ks.quote.markAccepted': 'Kabul edildi',

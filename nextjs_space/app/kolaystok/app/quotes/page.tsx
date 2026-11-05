@@ -75,8 +75,8 @@ export default function KsQuotes() {
       if (res.status === 409) {
         const d = await res.json().catch(() => null);
         if (d?.code !== 'CONFIRM') { toast.error(t('ks.saveFailed')); return; }
-        const list = (d.negative as Array<{ code: string; name: string; after: number }>).map((n) => `${n.code} (−${qtyText(Math.abs(n.after))})`).join(', ');
-        if (!(await dialog.confirm(fill('ks.qty.confirmNegative', { qty: list }), { tone: 'danger', yes: 'ks.qty.yes' }))) return;
+        const list = (d.negative as Array<{ code: string; name: string; after: number }>).map((n) => `${n.code}: −${qtyText(Math.abs(n.after))}`).join(', ');
+        if (!(await dialog.confirm(fill('ks.quote.confirmNegative', { list }), { tone: 'danger', yes: 'ks.qty.yes' }))) return;
         res = await post(true);
       }
       if (!res.ok) { toast.error(t('ks.saveFailed')); return; }

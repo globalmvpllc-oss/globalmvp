@@ -281,10 +281,14 @@ export function exceedsStock(quantity: Decimal.Value, stock: Decimal.Value): boo
   return new Decimal(quantity).gt(new Decimal(stock));
 }
 
-/** "Valid until": today + days, at the end of that day in UTC. 1–365 days. */
+/**
+ * "Valid until": today + days, stored at noon UTC so the date reads the same
+ * everywhere from UTC−11 to UTC+11 (end of day UTC showed the next day in
+ * Turkey). 1–365 days.
+ */
 export function quoteValidUntil(days: number, now: Date = new Date()): Date {
   const d = Math.min(Math.max(Math.round(days) || QUOTE_DEFAULT_VALID_DAYS, 1), 365);
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, 23, 59, 59));
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + d, 12, 0, 0));
 }
 
 /**

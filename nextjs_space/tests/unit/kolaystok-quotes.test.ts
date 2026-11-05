@@ -117,12 +117,14 @@ describe('quote totals', () => {
     expect(exceedsStock(3, 3)).toBe(false);
   });
 
-  it('valid for 15 days by default, 1–365 allowed', () => {
+  it('valid for 15 days by default, 1–365 allowed, the same date in Turkey and in UTC', () => {
     const now = new Date('2026-11-05T10:00:00Z');
     expect(QUOTE_DEFAULT_VALID_DAYS).toBe(15);
     expect(quoteValidUntil(15, now).toISOString().slice(0, 10)).toBe('2026-11-20');
     expect(quoteValidUntil(0, now).toISOString().slice(0, 10)).toBe('2026-11-20');
     expect(quoteValidUntil(9999, now).toISOString().slice(0, 10)).toBe('2027-11-05');
+    const tr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(quoteValidUntil(15, now));
+    expect(tr).toBe('2026-11-20');
   });
 
   it('deductions add up the same product and list what goes below zero', () => {
@@ -203,6 +205,12 @@ describe('only the owner and PIN managers: staff get 403 everywhere', () => {
     }
     expect(state.products[0].quantity).toBe(100);
     expect(state.quotes[0].status).toBe('SENT');
+  });
+
+  it('the below-zero question on acceptance lists code and amount once', () => {
+    const page = src('app/kolaystok/app/quotes/page.tsx');
+    expect(page).toContain("fill('ks.quote.confirmNegative', { list })");
+    expect(src('lib/i18n/tr.ts')).toContain("'ks.quote.confirmNegative': 'Stok eksiye düşecek ({list}). Devam edilsin mi?'");
   });
 
   it('the menu shows the quote items only with the permission', () => {
