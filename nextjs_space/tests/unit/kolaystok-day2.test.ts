@@ -290,7 +290,9 @@ describe('one-tap reasons, usage mode, PWA', () => {
     expect(MANUAL_REASONS).toContain('receipt');
     const home = src('app/kolaystok/app/page.tsx');
     expect(home).toContain('move(p, 1, ks.quickReasons.plus)');
-    expect(home).toContain('move(p, -1, ks.quickReasons.minus)');
+    // − sends a positive 1 with the minus reason: the reason decides the direction.
+    expect(home).toContain('move(p, 1, ks.quickReasons.minus)');
+    expect(home).not.toContain('move(p, -1');
     expect(src('prisma/schema.prisma')).toContain('quickPlusReason  String    @default("receipt")');
   });
   it('removing a product only deactivates it; no real delete anywhere in KolayStok', () => {

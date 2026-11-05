@@ -170,11 +170,81 @@ export const MOVEMENT_REASONS = [
 ] as const;
 export type MovementReason = (typeof MOVEMENT_REASONS)[number];
 
-/** Reasons a person picks by hand (the rest are written by the system). */
-export const MANUAL_REASONS: readonly MovementReason[] = ['sale', 'production', 'waste', 'return', 'receipt', 'count', 'other'];
+/** Reasons that add to stock. */
+export const INCREASE_REASONS: readonly MovementReason[] = ['receipt', 'return'];
+/** Reasons that take from stock. */
+export const DECREASE_REASONS: readonly MovementReason[] = ['sale', 'waste', 'production'];
+
+/**
+ * Reasons a person picks by hand (the rest are written by the system). The
+ * reason alone decides the direction, so the amount is always positive:
+ * receipt / return add, sale / waste / production take away, count sets the
+ * stock to the counted amount. ("other" stays readable on old movements but
+ * can no longer be picked: it has no direction.)
+ */
+export const MANUAL_REASONS: readonly MovementReason[] = ['sale', 'waste', 'production', 'receipt', 'return', 'count'];
 
 export function isManualReason(value: unknown): value is MovementReason {
   return typeof value === 'string' && (MANUAL_REASONS as readonly string[]).includes(value);
+}
+
+export function isIncreaseReason(value: unknown): value is MovementReason {
+  return typeof value === 'string' && (INCREASE_REASONS as readonly string[]).includes(value);
+}
+
+export function isDecreaseReason(value: unknown): value is MovementReason {
+  return typeof value === 'string' && (DECREASE_REASONS as readonly string[]).includes(value);
+}
+
+export type EntryDirection = 'in' | 'out' | 'set';
+
+/** What a hand-picked reason does to the stock; null for any other reason. */
+export function entryDirection(reason: unknown): EntryDirection | null {
+  if (isIncreaseReason(reason)) return 'in';
+  if (isDecreaseReason(reason)) return 'out';
+  if (reason === 'count') return 'set';
+  return null;
+}
+
+/** Above this amount, or above 3 × the current stock, the person confirms first. */
+export const LARGE_ENTRY_QUANTITY = 500;
+export const LARGE_ENTRY_FACTOR = 3;
+export const MAX_ENTRY_QUANTITY = 1e9;
+
+/** "Emin misiniz?" — more than 500, or more than 3 × a positive current stock. */
+export function isLargeEntry(quantity: Decimal.Value, current: Decimal.Value): boolean {
+  const q = new Decimal(quantity);
+  const c = new Decimal(current);
+  return q.gt(LARGE_ENTRY_QUANTITY) || (c.gt(0) && q.gt(c.mul(LARGE_ENTRY_FACTOR)));
+}
+
+export type EntryPlan =
+  | { ok: true; direction: EntryDirection; delta: Decimal; after: Decimal; large: boolean; negative: boolean }
+  | { ok: false; code: 'INVALID_REASON' | 'INVALID_QUANTITY' };
+
+/**
+ * A hand entry: a positive amount and a reason → the change to the stock.
+ * The amount must be above zero (a count may be zero: "none left"), finite and
+ * below the ceiling. `large` and `negative` say which confirmations are needed.
+ */
+export function planEntry(current: Decimal.Value, quantity: unknown, reason: unknown): EntryPlan {
+  const direction = entryDirection(reason);
+  if (!direction) return { ok: false, code: 'INVALID_REASON' };
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity >= MAX_ENTRY_QUANTITY) return { ok: false, code: 'INVALID_QUANTITY' };
+  if (direction === 'set' ? quantity < 0 : quantity <= 0) return { ok: false, code: 'INVALID_QUANTITY' };
+  const q = new Decimal(quantity);
+  const c = new Decimal(current);
+  const delta = direction === 'in' ? q : direction === 'out' ? q.negated() : q.minus(c);
+  const after = c.plus(delta);
+  return { ok: true, direction, delta, after, large: isLargeEntry(q, c), negative: after.lt(0) };
+}
+
+/** Quick + / − reasons, kept to the right direction (stored values from before are corrected). */
+export function sanitizeQuickReasons(stored: { plus?: string | null; minus?: string | null }): { plus: MovementReason; minus: MovementReason } {
+  return {
+    plus: isIncreaseReason(stored.plus) ? stored.plus : 'receipt',
+    minus: isDecreaseReason(stored.minus) ? stored.minus : 'sale',
+  };
 }
 
 export type StockLevel = 'ok' | 'low' | 'out';

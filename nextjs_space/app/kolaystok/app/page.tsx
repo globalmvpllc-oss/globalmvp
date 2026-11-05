@@ -10,14 +10,16 @@ import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
 import { ProductLabel } from '@/components/kolaystok/product-label';
-import { MANUAL_REASONS } from '@/lib/stock/rules';
+import { MANUAL_REASONS, entryDirection, planEntry } from '@/lib/stock/rules';
 
 /**
  * Avc KolayStok — home. Built for one hand on a phone:
  * a big search box (1–2 letters is enough), category chips, three tiles,
  * and a list where every row has big − and + buttons. One tap = one unit.
  * Tapping the number opens "how many, and why". Every change offers "Undo"
- * for 10 seconds.
+ * for 10 seconds. The amount is always positive and the reason decides the
+ * direction; a large amount or a drop below zero asks first (the server
+ * enforces the same and answers 409 CONFIRM if the stock moved meanwhile).
  */
 interface Product {
   id: string;
@@ -56,7 +58,21 @@ export default function KolayStokHome() {
   const [failed, setFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [question, setQuestion] = useState<{ text: string; tone: 'warn' | 'danger'; resolve: (yes: boolean) => void } | null>(null);
   const requestId = useRef(0);
+
+  const ask = (text: string, tone: 'warn' | 'danger') => new Promise<boolean>((resolve) => setQuestion({ text, tone, resolve }));
+  const answer = (yes: boolean) => {
+    question?.resolve(yes);
+    setQuestion(null);
+  };
+
+  /** "Emin misiniz? X adet" and/or "Stok eksiye düşecek (−X)" — true only if every question got a yes. */
+  const confirmEntry = async (product: Product, quantity: number, large: boolean, negative: boolean, after: number) => {
+    if (large && !(await ask(fill('ks.qty.confirmLarge', { qty: `${fmt(quantity, locale)} ${product.unit}` }), 'warn'))) return false;
+    if (negative && !(await ask(fill('ks.qty.confirmNegative', { qty: fmt(Math.abs(after), locale) }), 'danger'))) return false;
+    return true;
+  };
 
   const loadSummary = useCallback(() => {
     fetch('/api/stock/summary').then((r) => (r.ok ? r.json() : null)).then((d) => d && setSummary(d)).catch(() => {});
@@ -107,14 +123,33 @@ export default function KolayStokHome() {
       )
     );
 
-  const move = async (product: Product, delta: number, reason: string, note?: string) => {
+  const move = async (product: Product, quantity: number, reason: string, note?: string, confirmed = false): Promise<void> => {
+    const plan = planEntry(product.quantity, quantity, reason);
+    if (!plan.ok) {
+      toast.error(t('ks.saveFailed'));
+      return;
+    }
+    if (!confirmed && (plan.large || plan.negative)) {
+      if (!(await confirmEntry(product, quantity, plan.large, plan.negative, plan.after.toNumber()))) return;
+      confirmed = true;
+    }
     setBusyId(product.id);
+    let retry = false;
     try {
       const res = await fetch('/api/stock/movements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, delta, reason, note: note || null }),
+        body: JSON.stringify({ productId: product.id, quantity, reason, note: note || null, confirmed }),
       });
+      if (res.status === 409) {
+        // The stock changed since this screen loaded: ask again with the server's numbers.
+        const d = await res.json().catch(() => null);
+        if (d?.code === 'CONFIRM') {
+          applyQuantity(product.id, Number(d.current));
+          retry = await confirmEntry(product, quantity, Boolean(d.large), Boolean(d.negative), Number(d.after));
+        } else toast.error(t('ks.saveFailed'));
+        return;
+      }
       if (!res.ok) {
         toast.error(t(res.status === 403 ? 'ks.forbidden' : 'ks.saveFailed'));
         return;
@@ -122,6 +157,10 @@ export default function KolayStokHome() {
       const data = await res.json();
       applyQuantity(product.id, data.quantity);
       loadSummary();
+      if (data.unchanged) {
+        toast(fill('ks.qty.unchanged', { qty: `${fmt(data.quantity, locale)} ${product.unit}` }));
+        return;
+      }
       toast.success(fill('ks.saved', { name: product.name, quantity: fmt(data.quantity, locale) }), {
         duration: 10_000,
         action: {
@@ -144,6 +183,7 @@ export default function KolayStokHome() {
     } finally {
       setBusyId(null);
     }
+    if (retry) await move(product, quantity, reason, note, true);
   };
 
   const tile = (key: 'low' | 'out', label: TranslationKey, value: number | undefined, tone: string) => (
@@ -229,7 +269,7 @@ export default function KolayStokHome() {
                 <button
                   type="button"
                   disabled={busyId === p.id}
-                  onClick={() => move(p, -1, ks.quickReasons.minus)}
+                  onClick={() => move(p, 1, ks.quickReasons.minus)}
                   className="flex h-16 items-center justify-center rounded-xl bg-slate-100 text-slate-800 active:bg-slate-200 disabled:opacity-50"
                   aria-label={`${t('ks.minus')}: ${p.name}${p.size ? ` ${p.size}` : ''}`}
                 >
@@ -271,18 +311,39 @@ export default function KolayStokHome() {
         <QuantitySheet
           product={editing}
           onClose={() => setEditing(null)}
-          onSave={async (delta, reason, note) => {
+          onSave={async (quantity, reason, note) => {
             const p = editing;
             setEditing(null);
-            await move(p, delta, reason, note);
+            await move(p, quantity, reason, note);
           }}
         />
+      )}
+
+      {question && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50" role="alertdialog" aria-modal="true" aria-label={question.text}>
+          <div className="w-full rounded-t-2xl bg-white p-5 pb-8">
+            <p className={`mb-5 text-2xl font-bold ${question.tone === 'danger' ? 'text-red-700' : 'text-slate-900'}`}>{question.text}</p>
+            <div className="grid gap-3">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => answer(true)}
+                className={`h-16 rounded-xl text-xl font-bold text-white ${question.tone === 'danger' ? 'bg-red-700' : 'bg-teal-700'}`}
+              >
+                {t('ks.qty.yes')}
+              </button>
+              <button type="button" onClick={() => answer(false)} className="h-16 rounded-xl bg-slate-100 text-xl font-semibold">
+                {t('ks.qty.cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-/** "How many, and why" — a bottom sheet with a big number field and reason buttons. */
+/** "How many, and why" — a bottom sheet: the reason first, then a big number field. */
 function QuantitySheet({
   product,
   onClose,
@@ -290,15 +351,17 @@ function QuantitySheet({
 }: {
   product: Product;
   onClose: () => void;
-  onSave: (delta: number, reason: string, note: string) => void;
+  onSave: (quantity: number, reason: string, note: string) => void;
 }) {
-  const { t, locale } = useI18n();
-  const [direction, setDirection] = useState<'in' | 'out'>('out');
+  const { t, fill, locale } = useI18n();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState<string>('sale');
   const [note, setNote] = useState('');
   const value = Number(amount.replace(',', '.'));
-  const valid = Number.isFinite(value) && value > 0;
+  const plan = amount.trim() === '' ? null : planEntry(product.quantity, value, reason);
+  const valid = Boolean(plan?.ok);
+  const isCount = entryDirection(reason) === 'set';
+  const sign = (r: string) => ({ in: '+', out: '−', set: '=' } as const)[entryDirection(r) ?? 'set'];
 
   return (
     <div className="fixed inset-0 z-40 flex items-end bg-black/40" role="dialog" aria-modal="true" aria-label={t('ks.qty.title')} onClick={onClose}>
@@ -310,41 +373,13 @@ function QuantitySheet({
               name={product.name}
               size={product.size}
               code={product.code}
-              extra={`${new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US').format(product.quantity)} ${product.unit}`}
+              extra={`${fmt(product.quantity, locale)} ${product.unit}`}
             />
           </div>
           <button type="button" onClick={onClose} className="h-11 w-11 rounded-full bg-slate-100" aria-label={t('ks.qty.cancel')}>
             <X className="mx-auto h-6 w-6" />
           </button>
         </div>
-
-        <div className="mb-3 grid grid-cols-2 gap-2">
-          {(['out', 'in'] as const).map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => {
-                setDirection(d);
-                setReason(d === 'in' ? 'receipt' : 'sale');
-              }}
-              aria-pressed={direction === d}
-              className={`h-14 rounded-xl text-lg font-semibold ${direction === d ? (d === 'in' ? 'bg-teal-700 text-white' : 'bg-slate-800 text-white') : 'bg-slate-100'}`}
-            >
-              {t(d === 'in' ? 'ks.qty.in' : 'ks.qty.out')}
-            </button>
-          ))}
-        </div>
-
-        <label className="mb-3 block">
-          <span className="mb-1 block text-base font-medium">{t('ks.qty.amount')}</span>
-          <input
-            autoFocus
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
-            className="h-16 w-full rounded-xl border-2 px-4 text-3xl font-bold tabular-nums outline-none focus:border-teal-600"
-          />
-        </label>
 
         <p className="mb-1 text-base font-medium">{t('ks.qty.reason')}</p>
         <div className="mb-3 grid grid-cols-2 gap-2">
@@ -356,10 +391,28 @@ function QuantitySheet({
               aria-pressed={reason === r}
               className={`h-12 rounded-xl text-base font-medium ${reason === r ? 'bg-teal-700 text-white' : 'bg-slate-100'}`}
             >
-              {t(`ks.reason.${r}` as TranslationKey)}
+              {t(`ks.reason.${r}` as TranslationKey)} ({sign(r)})
             </button>
           ))}
         </div>
+
+        <label className="mb-1 block">
+          <span className="mb-1 block text-base font-medium">{t(isCount ? 'ks.qty.countAmount' : 'ks.qty.amount')}</span>
+          <input
+            autoFocus
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
+            className="h-16 w-full rounded-xl border-2 px-4 text-3xl font-bold tabular-nums outline-none focus:border-teal-600"
+          />
+        </label>
+        <p className={`mb-3 min-h-[1.75rem] text-lg font-semibold ${plan?.ok && plan.negative ? 'text-red-700' : 'text-slate-700'}`} aria-live="polite">
+          {plan?.ok
+            ? fill('ks.qty.after', { qty: `${fmt(plan.after.toNumber(), locale)} ${product.unit}` })
+            : amount.trim() !== ''
+              ? t('ks.qty.positiveOnly')
+              : ''}
+        </p>
 
         <label className="mb-4 block">
           <span className="mb-1 block text-base font-medium">{t('ks.qty.note')}</span>
@@ -369,7 +422,7 @@ function QuantitySheet({
         <button
           type="button"
           disabled={!valid}
-          onClick={() => onSave(direction === 'in' ? value : -value, reason, note)}
+          onClick={() => onSave(value, reason, note)}
           className="h-16 w-full rounded-xl bg-teal-700 text-xl font-bold text-white disabled:opacity-40"
         >
           {t('ks.qty.save')}

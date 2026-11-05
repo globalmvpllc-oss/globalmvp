@@ -1,6 +1,7 @@
 import 'server-only';
 import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/db';
+import { sanitizeQuickReasons } from './rules';
 
 /** Lowercase letters and digits, never "app" (a route segment). */
 export function newStaffCode(): string {
@@ -33,9 +34,9 @@ export const DEFAULT_QUICK_REASONS = { plus: 'receipt', minus: 'sale' } as const
 
 /**
  * Reasons for one-tap + / −: "Mal kabul" and "Satış" unless the manager
- * chose others.
+ * chose others. A stored value pointing the wrong way is corrected.
  */
 export async function getQuickReasons(companyId: string): Promise<{ plus: string; minus: string }> {
   const s = await prisma.stockSettings.findUnique({ where: { companyId }, select: { quickPlusReason: true, quickMinusReason: true } });
-  return s ? { plus: s.quickPlusReason, minus: s.quickMinusReason } : { ...DEFAULT_QUICK_REASONS };
+  return sanitizeQuickReasons({ plus: s?.quickPlusReason ?? DEFAULT_QUICK_REASONS.plus, minus: s?.quickMinusReason ?? DEFAULT_QUICK_REASONS.minus });
 }

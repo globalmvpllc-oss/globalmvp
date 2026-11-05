@@ -2,7 +2,7 @@ import 'server-only';
 import Decimal from 'decimal.js';
 import { prisma } from '@/lib/db';
 import type { TxClient } from '@/lib/invoice-number';
-import { can, stockLevel, UNDO_WINDOW_MS, type MovementReason } from './rules';
+import { can, stockLevel, planEntry, UNDO_WINDOW_MS, type MovementReason } from './rules';
 import type { StockActor } from './actor';
 
 /**
@@ -128,6 +128,66 @@ export async function moveStockTx(tx: TxClient, input: MoveInput): Promise<MoveR
 
 export function moveStock(input: MoveInput): Promise<MoveResult> {
   return prisma.$transaction((tx: TxClient) => moveStockTx(tx, input));
+}
+
+/** The entry needs the person's confirmation first (large amount and/or stock going below zero). */
+export class EntryConfirmationNeeded extends Error {
+  constructor(readonly details: { large: boolean; negative: boolean; quantity: number; after: number; current: number }) {
+    super('CONFIRM');
+    this.name = 'EntryConfirmationNeeded';
+  }
+}
+
+export interface EntryInput {
+  companyId: string;
+  productId: string;
+  /** Always positive (a count may be 0); the reason decides the direction. */
+  quantity: number;
+  reason: MovementReason;
+  note?: string | null;
+  actor: Pick<StockActor, 'name' | 'userId' | 'staffId'>;
+  /** The person already answered "Emin misiniz?" / "Stok eksiye düşecek". */
+  confirmed?: boolean;
+}
+
+export type EntryResult = MoveResult | { unchanged: true; quantityAfter: number };
+
+/**
+ * A hand entry from the stock screen. The product row is locked, the change
+ * is worked out from the reason against the stock as it is now (a count sets
+ * it to the counted amount), and a large amount or a drop below zero is
+ * refused unless already confirmed. Throws NOT_FOUND, INVALID_REASON,
+ * INVALID_QUANTITY or EntryConfirmationNeeded.
+ */
+export function enterStock(input: EntryInput): Promise<EntryResult> {
+  return prisma.$transaction(async (tx: TxClient) => {
+    const rows = await tx.$queryRaw<Array<{ quantity: string }>>`
+      SELECT quantity::text AS quantity FROM "StockProduct"
+      WHERE id = ${input.productId} AND "companyId" = ${input.companyId} AND "isActive" = true
+      FOR UPDATE`;
+    if (rows.length === 0) throw new Error('NOT_FOUND');
+    const current = new Decimal(rows[0].quantity);
+    const plan = planEntry(current, input.quantity, input.reason);
+    if (!plan.ok) throw new Error(plan.code);
+    if ((plan.large || plan.negative) && !input.confirmed) {
+      throw new EntryConfirmationNeeded({
+        large: plan.large,
+        negative: plan.negative,
+        quantity: input.quantity,
+        after: plan.after.toNumber(),
+        current: current.toNumber(),
+      });
+    }
+    if (plan.delta.isZero()) return { unchanged: true as const, quantityAfter: current.toNumber() };
+    return moveStockTx(tx, {
+      companyId: input.companyId,
+      productId: input.productId,
+      delta: plan.delta,
+      reason: input.reason,
+      note: input.note ?? null,
+      actor: input.actor,
+    });
+  });
 }
 
 /**

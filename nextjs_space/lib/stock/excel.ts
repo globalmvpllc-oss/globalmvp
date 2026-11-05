@@ -212,6 +212,12 @@ function number(value: string | undefined, field: string, errors: string[]): num
   if (value === undefined) return undefined;
   if (value === '' || value === '-') return null;
   const v = value.replace(/\s/g, '');
+  // A minus sign (ASCII or the typographic "−") is never valid: no stock,
+  // price or minimum can be below zero.
+  if (/^[-−–]\s*\d/.test(v)) {
+    errors.push(`${field}:negative`);
+    return undefined;
+  }
   // "1.234" / "1.234,5" → Turkish thousands dots; "12,5" → decimal comma;
   // anything else (e.g. "0.125", "12.5") is read with a decimal point.
   const n = /^[1-9]\d{0,2}(\.\d{3})+(,\d+)?$/.test(v)

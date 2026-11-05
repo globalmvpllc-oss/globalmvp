@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
-import { MANUAL_REASONS, isResetWord } from '@/lib/stock/rules';
+import { INCREASE_REASONS, DECREASE_REASONS, isResetWord } from '@/lib/stock/rules';
 
 /**
  * KolayStok settings (manager). One section per job, each with one clear
@@ -93,7 +93,7 @@ export default function KsSettings() {
     <label className="block">
       <span className="mb-1 block text-base font-medium">{t(label)}</span>
       <select value={settings?.[key] ?? ''} onChange={(e) => put('/api/stock/settings', { [key]: e.target.value })} className="h-12 w-full rounded-xl border-2 bg-white px-3 text-lg">
-        {MANUAL_REASONS.map((r) => <option key={r} value={r}>{t(`ks.reason.${r}` as TranslationKey)}</option>)}
+        {(key === 'quickPlusReason' ? INCREASE_REASONS : DECREASE_REASONS).map((r) => <option key={r} value={r}>{t(`ks.reason.${r}` as TranslationKey)}</option>)}
       </select>
     </label>
   );

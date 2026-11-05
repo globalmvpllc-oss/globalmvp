@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
-import { isManualReason, USAGE_MODES } from '@/lib/stock/rules';
+import { isIncreaseReason, isDecreaseReason, USAGE_MODES } from '@/lib/stock/rules';
 import { ensureStockSettings, getQuickReasons } from '@/lib/stock/settings';
 import { telegramBotUsername, telegramConfigured } from '@/lib/stock/telegram';
 
@@ -43,8 +43,9 @@ export async function GET() {
 const schema = z.object({
   alertEmails: z.array(z.string().trim().toLowerCase().email().max(255)).max(10).optional(),
   usageMode: z.enum(USAGE_MODES).optional(),
-  quickPlusReason: z.string().refine(isManualReason).optional(),
-  quickMinusReason: z.string().refine(isManualReason).optional(),
+  // + must add (Mal kabul, İade); − must take away (Satış, Fire, Üretim).
+  quickPlusReason: z.string().refine(isIncreaseReason).optional(),
+  quickMinusReason: z.string().refine(isDecreaseReason).optional(),
 });
 
 /** PUT — alert recipients, usage mode (account managers only), one-tap reasons. */

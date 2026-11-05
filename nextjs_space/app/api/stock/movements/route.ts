@@ -6,8 +6,8 @@ import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { parseCalendarRange } from '@/lib/calendar-range';
 import { requireStockActor } from '@/lib/stock/actor';
-import { isManualReason } from '@/lib/stock/rules';
-import { moveStock, startOfStockDay } from '@/lib/stock/service';
+import { entryDirection, isManualReason } from '@/lib/stock/rules';
+import { enterStock, EntryConfirmationNeeded, startOfStockDay } from '@/lib/stock/service';
 import { notifyLowStock } from '@/lib/stock/alerts';
 
 /**
@@ -72,30 +72,58 @@ export async function GET(request: Request) {
 
 const schema = z.object({
   productId: z.string().min(1),
-  delta: z.number().finite().refine((v) => v !== 0 && Math.abs(v) < 1e9, 'Invalid quantity'),
+  /** Always positive (a count may be 0). The reason decides add / take away / set. */
+  quantity: z.number().finite().optional(),
+  /** Older screens sent a signed change; accepted only when its sign matches the reason. */
+  delta: z.number().finite().optional(),
   reason: z.string().refine(isManualReason, 'Invalid reason'),
   note: z.string().trim().max(500).nullable().optional(),
+  confirmed: z.boolean().optional(),
 });
 
-/** POST { productId, delta, reason, note } — + / − and quantity changes (staff and up). */
+/** The positive amount of an entry, from the new field or an older signed change. */
+function entryQuantity(data: z.infer<typeof schema>): number | null {
+  if (data.quantity !== undefined) return data.quantity;
+  if (data.delta === undefined) return null;
+  const direction = entryDirection(data.reason);
+  if (direction === 'in' && data.delta > 0) return data.delta;
+  if (direction === 'out' && data.delta < 0) return -data.delta;
+  return null; // a sign against the reason, or a count sent as a change
+}
+
+/**
+ * POST { productId, quantity, reason, note, confirmed } — a hand entry (staff and up).
+ *
+ * The amount is positive; Mal kabul / İade add, Satış / Fire / Üretim take
+ * away, Sayım düzeltmesi sets the stock to the counted amount. More than 500
+ * (or more than 3 × the stock) and anything that would take the stock below
+ * zero answer 409 CONFIRM with the numbers, until sent again with confirmed.
+ */
 export async function POST(request: Request) {
   try {
     const { actor, error } = await requireStockActor('move');
     if (error) return error;
     const parsed = schema.safeParse(await request.json().catch(() => null));
-    if (!parsed.success) return NextResponse.json({ error: 'Check the quantity and reason.', code: 'INVALID' }, { status: 400 });
-    const result = await moveStock({
+    const quantity = parsed.success ? entryQuantity(parsed.data) : null;
+    if (!parsed.success || quantity === null) return NextResponse.json({ error: 'Check the quantity and reason.', code: 'INVALID' }, { status: 400 });
+    const result = await enterStock({
       companyId: actor.companyId,
       productId: parsed.data.productId,
-      delta: parsed.data.delta,
+      quantity,
       reason: parsed.data.reason as any,
       note: parsed.data.note ?? null,
       actor,
+      confirmed: parsed.data.confirmed === true,
     });
+    if ('unchanged' in result) return NextResponse.json({ movementId: null, quantity: result.quantityAfter, unchanged: true });
     if (result.alert) await notifyLowStock(actor.companyId, result.product);
     return NextResponse.json({ movementId: result.movementId, quantity: result.quantityAfter }, { status: 201 });
   } catch (error) {
+    if (error instanceof EntryConfirmationNeeded) return NextResponse.json({ error: 'Please confirm.', code: 'CONFIRM', ...error.details }, { status: 409 });
     if (error instanceof Error && error.message === 'NOT_FOUND') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (error instanceof Error && (error.message === 'INVALID_QUANTITY' || error.message === 'INVALID_REASON')) {
+      return NextResponse.json({ error: 'Check the quantity and reason.', code: 'INVALID' }, { status: 400 });
+    }
     return handleApiError('stock:movements:POST', error, { fallbackMessage: 'Could not save.' });
   }
 }
