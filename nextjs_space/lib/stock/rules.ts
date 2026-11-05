@@ -249,6 +249,27 @@ export function planEntry(current: Decimal.Value, quantity: unknown, reason: unk
   return { ok: true, direction, delta, after, large: isLargeEntry(q, c), negative: after.lt(0) };
 }
 
+/** In a stock count, a difference above this many units asks "Doğru mu?". */
+export const COUNT_CONFIRM_UNITS = 50;
+
+/**
+ * Sayım: the counted number differs from the stock in the system by more than
+ * 50 units, or by more than half of the stock (so on an empty product any
+ * find asks). The screen never shows the system number otherwise — people
+ * count what they see.
+ */
+export function countNeedsConfirmation(counted: Decimal.Value, system: Decimal.Value): boolean {
+  const s = new Decimal(system);
+  const diff = new Decimal(counted).minus(s).abs();
+  return diff.gt(COUNT_CONFIRM_UNITS) || diff.gt(s.abs().div(2));
+}
+
+/** "+5" / "−12" / "0" — a difference with its sign, for the count question. */
+export function signedDifference(counted: Decimal.Value, system: Decimal.Value): { value: number; sign: '+' | '−' | '' } {
+  const d = new Decimal(counted).minus(new Decimal(system));
+  return { value: d.abs().toNumber(), sign: d.gt(0) ? '+' : d.lt(0) ? '−' : '' };
+}
+
 /** Quick + / − reasons, kept to the right direction (stored values from before are corrected). */
 export function sanitizeQuickReasons(stored: { plus?: string | null; minus?: string | null }): { plus: MovementReason; minus: MovementReason } {
   return {

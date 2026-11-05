@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handleApiError } from '@/lib/api-error';
 import { requireStockActor } from '@/lib/stock/actor';
+import { countNeedsConfirmation } from '@/lib/stock/rules';
 
 async function openCount(id: string, companyId: string) {
   return prisma.stockCount.findFirst({ where: { id, companyId, status: 'open' }, select: { id: true, categoryId: true, position: true } });
@@ -52,11 +53,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 const lineSchema = z.object({
   productId: z.string().min(1),
+  // A plain number, zero or more: no minus, no text (a string "12" is refused too).
   counted: z.number().finite().min(0).max(1e9),
   position: z.number().int().min(0).max(100000),
+  /** The person answered "Sayılan: X, sistemde: Y, fark: ±Z. Doğru mu?". */
+  confirmed: z.boolean().optional(),
 });
 
-/** PUT { productId, counted, position } — save one counted number and the place. */
+/**
+ * PUT { productId, counted, position, confirmed } — save one counted number and
+ * the place. A difference from the system stock of more than 50 units, or of
+ * more than half the stock, answers 409 CONFIRM_COUNT with the numbers until
+ * sent again with confirmed — only then does the screen learn the system
+ * number.
+ */
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
     const { actor, error } = await requireStockActor('count');
@@ -67,9 +77,16 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (!count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const product = await prisma.stockProduct.findFirst({
       where: { id: parsed.data.productId, companyId: actor.companyId, isActive: true },
-      select: { id: true },
+      select: { id: true, quantity: true },
     });
     if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (!parsed.data.confirmed && countNeedsConfirmation(parsed.data.counted, product.quantity)) {
+      const system = Number(product.quantity);
+      return NextResponse.json(
+        { error: 'Please confirm.', code: 'CONFIRM_COUNT', counted: parsed.data.counted, system, difference: parsed.data.counted - system },
+        { status: 409 }
+      );
+    }
     await prisma.$transaction([
       prisma.stockCountLine.upsert({
         where: { countId_productId: { countId: count.id, productId: product.id } },

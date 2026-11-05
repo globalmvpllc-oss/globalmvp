@@ -6,12 +6,16 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
 import { ProductLabel } from '@/components/kolaystok/product-label';
+import { signedDifference } from '@/lib/stock/rules';
 
 /**
  * Sayım (stock count). Pick a category (or resume a count left open), then one
  * product at a time: type the number, press Enter (or "Next"), and the next
  * product comes up. Every number is saved as you go, so a count can be left
  * and continued later. "Finish" writes the differences as "Sayım düzeltmesi".
+ * The field takes digits only (no minus, no letters). A big difference from
+ * the system stock (> 50 units or > half of it) asks "Doğru mu?" first — the
+ * server decides and sends the numbers, so the count stays blind otherwise.
  */
 interface CountProduct { id: string; code: string; name: string; size: string | null; unit: string; shelf: string | null; hasPhoto: boolean; counted: number | null }
 
@@ -26,6 +30,14 @@ export default function KsCount() {
   const [saving, setSaving] = useState(false);
   const [finished, setFinished] = useState<{ counted: number; changed: number } | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const [question, setQuestion] = useState<{ counted: number; system: number; resolve: (yes: boolean) => void } | null>(null);
+  const fmt = (n: number) => new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US', { maximumFractionDigits: 3 }).format(n);
+  const askCount = (counted: number, system: number) => new Promise<boolean>((resolve) => setQuestion({ counted, system, resolve }));
+  const answer = (yes: boolean) => {
+    question?.resolve(yes);
+    setQuestion(null);
+    if (!yes) setTimeout(() => input.current?.select(), 0);
+  };
 
   const loadLists = useCallback(() => {
     fetch('/api/stock/categories').then((r) => (r.ok ? r.json() : null)).then((d) => d && setCategories(d.categories)).catch(() => {});
@@ -78,11 +90,19 @@ export default function KsCount() {
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/stock/counts/${countId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, counted: n, position: Math.min(index + 1, products.length - 1) }),
-      });
+      const send = (confirmed: boolean) =>
+        fetch(`/api/stock/counts/${countId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: product.id, counted: n, position: Math.min(index + 1, products.length - 1), confirmed }),
+        });
+      let res = await send(false);
+      if (res.status === 409) {
+        const d = await res.json().catch(() => null);
+        if (d?.code !== 'CONFIRM_COUNT') { toast.error(t('ks.saveFailed')); return; }
+        if (!(await askCount(Number(d.counted), Number(d.system)))) return; // stay on this product to correct it
+        res = await send(true);
+      }
       if (!res.ok) { toast.error(t('ks.saveFailed')); return; }
       setProducts((prev) => prev.map((p, i) => (i === index ? { ...p, counted: n } : p)));
       if (index < products.length - 1) go(index + 1);
@@ -212,6 +232,27 @@ export default function KsCount() {
         <button type="button" onClick={cancel} className="h-11 text-base text-red-600">{t('ks.count.cancel')}</button>
       </div>
       <p className="text-center text-sm text-slate-500" lang={locale}>{t('ks.count.hint')}</p>
+
+      {question && (() => {
+        const d = signedDifference(question.counted, question.system);
+        return (
+          <div className="fixed inset-0 z-50 flex items-end bg-black/50" role="alertdialog" aria-modal="true">
+            <div className="w-full rounded-t-2xl bg-white p-5 pb-8">
+              <p className="mb-5 text-2xl font-bold text-slate-900">
+                {fill('ks.count.confirmDiff', { counted: fmt(question.counted), system: fmt(question.system), diff: `${d.sign}${fmt(d.value)}` })}
+              </p>
+              <div className="grid gap-3">
+                <button type="button" autoFocus onClick={() => answer(true)} className="h-16 rounded-xl bg-teal-700 text-xl font-bold text-white">
+                  {t('ks.count.confirmYes')}
+                </button>
+                <button type="button" onClick={() => answer(false)} className="h-16 rounded-xl bg-slate-100 text-xl font-semibold">
+                  {t('ks.count.confirmNo')}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
