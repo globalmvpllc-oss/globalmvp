@@ -7,6 +7,7 @@ import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
 import { useKsDialog } from '@/components/kolaystok/ks-dialog';
+import { CompanyInfo } from '@/components/kolaystok/company-info';
 import { INCREASE_REASONS, DECREASE_REASONS, isResetWord } from '@/lib/stock/rules';
 
 /**
@@ -117,6 +118,9 @@ export default function KsSettings() {
           <a href="/settings" className="mt-3 flex h-12 items-center justify-center rounded-xl border-2 text-lg font-medium">{t('ks.mode.account')}</a>
         </Section>
       )}
+
+      {/* Company details (same record as CorpControl settings; the quote PDF header). Account owner only. */}
+      {settings?.canChangeMode && <CompanyInfo />}
 
       <Section title={t('ks.set.staff')} hint={fill('ks.set.staffHint', { max })}>
         {link && (

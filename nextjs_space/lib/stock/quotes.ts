@@ -164,8 +164,25 @@ async function photoThumb(address: string | null | undefined): Promise<DocLogo |
  * totals) with a product table — small photo, code, name and size, quantity,
  * unit price, amount. Without VAT it says "Fiyatlara KDV dahil değildir".
  */
+/**
+ * Logos are saved as WebP by the browser, which the PDF format cannot embed
+ * (the logo silently disappeared). The quote PDF gets a PNG copy instead.
+ */
+export async function pdfReadyLogo(logoUrl: string | null | undefined): Promise<string | null> {
+  if (!logoUrl) return null;
+  const webp = logoUrl.match(/^data:image\/webp;base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!webp) return logoUrl;
+  try {
+    const png = await sharp(Buffer.from(webp[1], 'base64')).png().toBuffer();
+    return `data:image/png;base64,${png.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function renderStockQuotePdf(companyId: string, quote: QuoteLike, addVat: boolean): Promise<Uint8Array> {
-  const company = await loadDocumentCompany(companyId);
+  const loaded = await loadDocumentCompany(companyId);
+  const company = loaded ? { ...loaded, logoUrl: await pdfReadyLogo(loaded.logoUrl) } : loaded;
   const locale = documentLocaleFor(quote.customer, company);
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   const money = (v: Decimal.Value) =>
