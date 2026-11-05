@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
+import { useKsDialog } from '@/components/kolaystok/ks-dialog';
 
 /**
  * Add or edit a product (manager). /kolaystok/app/products/new adds; any
@@ -20,6 +21,7 @@ const EMPTY = {
 
 export default function KsProductForm({ params }: { params: { id: string } }) {
   const { t, fill } = useI18n();
+  const dialog = useKsDialog();
   const ks = useKs();
   const router = useRouter();
   const isNew = params.id === 'new';
@@ -81,7 +83,7 @@ export default function KsProductForm({ params }: { params: { id: string } }) {
   };
 
   const remove = async () => {
-    if (!window.confirm(fill('ks.product.deactivateConfirm', { name: form.name }))) return;
+    if (!(await dialog.confirm(fill('ks.product.deactivateConfirm', { name: form.name }), { tone: 'danger', yes: 'ks.dialog.removeYes' }))) return;
     const res = await fetch(`/api/stock/products/${encodeURIComponent(params.id)}`, { method: 'DELETE' });
     if (res.ok) {
       toast.success(t('ks.product.deactivated'));
@@ -148,6 +150,7 @@ export default function KsProductForm({ params }: { params: { id: string } }) {
           </button>
         )}
       </form>
+      {dialog.element}
     </div>
   );
 }

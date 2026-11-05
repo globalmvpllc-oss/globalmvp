@@ -7,6 +7,7 @@ import { useI18n } from '@/components/i18n-provider';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
 import { ProductLabel } from '@/components/kolaystok/product-label';
 import { signedDifference } from '@/lib/stock/rules';
+import { useKsDialog } from '@/components/kolaystok/ks-dialog';
 
 /**
  * Sayım (stock count). Pick a category (or resume a count left open), then one
@@ -30,13 +31,17 @@ export default function KsCount() {
   const [saving, setSaving] = useState(false);
   const [finished, setFinished] = useState<{ counted: number; changed: number } | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const [question, setQuestion] = useState<{ counted: number; system: number; resolve: (yes: boolean) => void } | null>(null);
+  const dialog = useKsDialog();
   const fmt = (n: number) => new Intl.NumberFormat(locale === 'tr' ? 'tr-TR' : 'en-US', { maximumFractionDigits: 3 }).format(n);
-  const askCount = (counted: number, system: number) => new Promise<boolean>((resolve) => setQuestion({ counted, system, resolve }));
-  const answer = (yes: boolean) => {
-    question?.resolve(yes);
-    setQuestion(null);
+  /** "Sayılan: X, sistemde: Y, fark: ±Z. Doğru mu?" — on "no" the field is selected for correcting. */
+  const askCount = async (counted: number, system: number) => {
+    const d = signedDifference(counted, system);
+    const yes = await dialog.confirm(
+      fill('ks.count.confirmDiff', { counted: fmt(counted), system: fmt(system), diff: `${d.sign}${fmt(d.value)}` }),
+      { tone: 'warn', yes: 'ks.count.confirmYes', no: 'ks.count.confirmNo' }
+    );
     if (!yes) setTimeout(() => input.current?.select(), 0);
+    return yes;
   };
 
   const loadLists = useCallback(() => {
@@ -114,7 +119,7 @@ export default function KsCount() {
   const finish = async () => {
     if (!countId) return;
     const done = products.filter((p) => p.counted !== null).length;
-    if (!window.confirm(fill('ks.count.finishConfirm', { done, total: products.length }))) return;
+    if (!(await dialog.confirm(fill('ks.count.finishConfirm', { done, total: products.length }), { yes: 'ks.count.finishYes' }))) return;
     const res = await fetch(`/api/stock/counts/${countId}/finish`, { method: 'POST' });
     if (!res.ok) { toast.error(t('ks.saveFailed')); return; }
     setFinished(await res.json());
@@ -123,7 +128,7 @@ export default function KsCount() {
   };
 
   const cancel = async () => {
-    if (!countId || !window.confirm(t('ks.count.cancelConfirm'))) return;
+    if (!countId || !(await dialog.confirm(t('ks.count.cancelConfirm'), { tone: 'danger', yes: 'ks.count.cancelYes' }))) return;
     await fetch(`/api/stock/counts/${countId}`, { method: 'DELETE' });
     setCountId(null);
     loadLists();
@@ -233,26 +238,7 @@ export default function KsCount() {
       </div>
       <p className="text-center text-sm text-slate-500" lang={locale}>{t('ks.count.hint')}</p>
 
-      {question && (() => {
-        const d = signedDifference(question.counted, question.system);
-        return (
-          <div className="fixed inset-0 z-50 flex items-end bg-black/50" role="alertdialog" aria-modal="true">
-            <div className="w-full rounded-t-2xl bg-white p-5 pb-8">
-              <p className="mb-5 text-2xl font-bold text-slate-900">
-                {fill('ks.count.confirmDiff', { counted: fmt(question.counted), system: fmt(question.system), diff: `${d.sign}${fmt(d.value)}` })}
-              </p>
-              <div className="grid gap-3">
-                <button type="button" autoFocus onClick={() => answer(true)} className="h-16 rounded-xl bg-teal-700 text-xl font-bold text-white">
-                  {t('ks.count.confirmYes')}
-                </button>
-                <button type="button" onClick={() => answer(false)} className="h-16 rounded-xl bg-slate-100 text-xl font-semibold">
-                  {t('ks.count.confirmNo')}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {dialog.element}
     </div>
   );
 }

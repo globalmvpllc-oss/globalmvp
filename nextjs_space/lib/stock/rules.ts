@@ -246,7 +246,9 @@ export function planEntry(current: Decimal.Value, quantity: unknown, reason: unk
   const c = new Decimal(current);
   const delta = direction === 'in' ? q : direction === 'out' ? q.negated() : q.minus(c);
   const after = c.plus(delta);
-  return { ok: true, direction, delta, after, large: isLargeEntry(q, c), negative: after.lt(0) };
+  // A count (Sayım düzeltmesi) asks like the count screen: difference > 50 or > half the stock.
+  const large = direction === 'set' ? countNeedsConfirmation(q, c) : isLargeEntry(q, c);
+  return { ok: true, direction, delta, after, large, negative: after.lt(0) };
 }
 
 /** In a stock count, a difference above this many units asks "Doğru mu?". */

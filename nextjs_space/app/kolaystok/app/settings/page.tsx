@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/i18n-provider';
 import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
+import { useKsDialog } from '@/components/kolaystok/ks-dialog';
 import { INCREASE_REASONS, DECREASE_REASONS, isResetWord } from '@/lib/stock/rules';
 
 /**
@@ -25,6 +26,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 
 export default function KsSettings() {
   const { t, fill, locale } = useI18n();
+  const dialog = useKsDialog();
   const ks = useKs();
   const [settings, setSettings] = useState<any>(null);
   const [staff, setStaff] = useState<Array<{ id: string; name: string; role: string; locked: boolean }>>([]);
@@ -84,7 +86,7 @@ export default function KsSettings() {
   };
 
   const undoReset = async () => {
-    if (!window.confirm(t('ks.reset.undoConfirm'))) return;
+    if (!(await dialog.confirm(t('ks.reset.undoConfirm'), { tone: 'warn', yes: 'ks.reset.undoYes' }))) return;
     const data = await put('/api/stock/reset/undo', undefined, 'POST');
     if (data) toast.success(fill('ks.reset.undone', { n: data.restored }));
   };
@@ -124,7 +126,7 @@ export default function KsSettings() {
             <p className="text-sm text-slate-600">{t('ks.set.linkHint')}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => { navigator.clipboard?.writeText(link); toast.success(t('ks.set.copied')); }} className="h-11 rounded-xl bg-teal-700 px-4 text-base font-semibold text-white">{t('ks.set.copy')}</button>
-              <button type="button" onClick={async () => { if (window.confirm(t('ks.set.renewConfirm')) && (await put('/api/stock/staff/link', undefined, 'POST'))) toast.success(t('ks.set.renewed')); }} className="h-11 rounded-xl border-2 border-teal-700 px-4 text-base font-semibold text-teal-800">{t('ks.set.renewLink')}</button>
+              <button type="button" onClick={async () => { if ((await dialog.confirm(t('ks.set.renewConfirm'), { tone: 'warn', yes: 'ks.set.renewYes' })) && (await put('/api/stock/staff/link', undefined, 'POST'))) toast.success(t('ks.set.renewed')); }} className="h-11 rounded-xl border-2 border-teal-700 px-4 text-base font-semibold text-teal-800">{t('ks.set.renewLink')}</button>
             </div>
           </div>
         )}
@@ -136,13 +138,13 @@ export default function KsSettings() {
               <div className="flex flex-wrap gap-2">
                 {settings?.canManageStaff && (
                   <>
-                    <button type="button" onClick={() => { const p = window.prompt(t('ks.set.newPin')); if (p && /^\d{4}$/.test(p)) put(`/api/stock/staff/${s.id}`, { pin: p }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.newPin')}</button>
+                    <button type="button" onClick={async () => { const p = await dialog.askPin(fill('ks.set.newPinFor', { name: s.name })); if (p && /^\d{4}$/.test(p)) put(`/api/stock/staff/${s.id}`, { pin: p }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.newPin')}</button>
                     <button type="button" onClick={() => put(`/api/stock/staff/${s.id}`, { role: s.role === 'manager' ? 'staff' : 'manager' })} className="h-11 rounded-xl border px-3 text-base">{t(s.role === 'manager' ? 'ks.set.role.staff' : 'ks.set.role.manager')}</button>
                   </>
                 )}
                 {s.locked && <button type="button" onClick={() => put(`/api/stock/staff/${s.id}`, { unlock: true })} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.unlock')}</button>}
-                <button type="button" onClick={() => { if (window.confirm(fill('ks.set.signOutConfirm', { name: s.name }))) put(`/api/stock/staff/${s.id}`, { signOut: true }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.signOut')}</button>
-                {settings?.canManageStaff && <button type="button" onClick={() => { if (window.confirm(fill('ks.set.removeConfirm', { name: s.name }))) put(`/api/stock/staff/${s.id}`, undefined, 'DELETE'); }} className="h-11 rounded-xl border border-red-200 px-3 text-base text-red-700">{t('ks.set.remove')}</button>}
+                <button type="button" onClick={async () => { if (await dialog.confirm(fill('ks.set.signOutConfirm', { name: s.name }), { tone: 'warn', yes: 'ks.set.signOutYes' })) put(`/api/stock/staff/${s.id}`, { signOut: true }); }} className="h-11 rounded-xl border px-3 text-base">{t('ks.set.signOut')}</button>
+                {settings?.canManageStaff && <button type="button" onClick={async () => { if (await dialog.confirm(fill('ks.set.removeConfirm', { name: s.name }), { tone: 'danger', yes: 'ks.dialog.removeYes' })) put(`/api/stock/staff/${s.id}`, undefined, 'DELETE'); }} className="h-11 rounded-xl border border-red-200 px-3 text-base text-red-700">{t('ks.set.remove')}</button>}
               </div>
             </li>
           ))}
@@ -244,6 +246,7 @@ export default function KsSettings() {
           </form>
         </Section>
       )}
+      {dialog.element}
     </div>
   );
 }

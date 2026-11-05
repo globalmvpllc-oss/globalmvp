@@ -10,7 +10,8 @@ import type { TranslationKey } from '@/lib/i18n';
 import { useKs } from '@/components/kolaystok/ks-context';
 import { ProductPhoto } from '@/components/kolaystok/product-photo';
 import { ProductLabel } from '@/components/kolaystok/product-label';
-import { INCREASE_REASONS, DECREASE_REASONS, entryDirection, planEntry } from '@/lib/stock/rules';
+import { INCREASE_REASONS, DECREASE_REASONS, entryDirection, planEntry, signedDifference } from '@/lib/stock/rules';
+import { useKsDialog } from '@/components/kolaystok/ks-dialog';
 
 /**
  * Avc KolayStok — home. Built for one hand on a phone:
@@ -58,19 +59,22 @@ export default function KolayStokHome() {
   const [failed, setFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [question, setQuestion] = useState<{ text: string; tone: 'warn' | 'danger'; resolve: (yes: boolean) => void } | null>(null);
+  const dialog = useKsDialog();
   const requestId = useRef(0);
 
-  const ask = (text: string, tone: 'warn' | 'danger') => new Promise<boolean>((resolve) => setQuestion({ text, tone, resolve }));
-  const answer = (yes: boolean) => {
-    question?.resolve(yes);
-    setQuestion(null);
-  };
 
-  /** "Emin misiniz? X adet" and/or "Stok eksiye düşecek (−X)" — true only if every question got a yes. */
-  const confirmEntry = async (product: Product, quantity: number, large: boolean, negative: boolean, after: number) => {
-    if (large && !(await ask(fill('ks.qty.confirmLarge', { qty: `${fmt(quantity, locale)} ${product.unit}` }), 'warn'))) return false;
-    if (negative && !(await ask(fill('ks.qty.confirmNegative', { qty: fmt(Math.abs(after), locale) }), 'danger'))) return false;
+  /**
+   * The questions before an entry — true only if every one got a yes:
+   * a count far from the system stock: "Sayılan: X, sistemde: Y, fark: ±Z. Doğru mu?";
+   * a large amount: "Emin misiniz? X adet"; a drop below zero: "Stok eksiye düşecek (−X)".
+   */
+  const confirmEntry = async (product: Product, quantity: number, reason: string, large: boolean, negative: boolean, after: number, current: number) => {
+    if (large && entryDirection(reason) === 'set') {
+      const d = signedDifference(quantity, current);
+      const text = fill('ks.count.confirmDiff', { counted: fmt(quantity, locale), system: fmt(current, locale), diff: `${d.sign}${fmt(d.value, locale)}` });
+      if (!(await dialog.confirm(text, { tone: 'warn', yes: 'ks.count.confirmYes', no: 'ks.count.confirmNo' }))) return false;
+    } else if (large && !(await dialog.confirm(fill('ks.qty.confirmLarge', { qty: `${fmt(quantity, locale)} ${product.unit}` }), { tone: 'warn', yes: 'ks.qty.yes' }))) return false;
+    if (negative && !(await dialog.confirm(fill('ks.qty.confirmNegative', { qty: fmt(Math.abs(after), locale) }), { tone: 'danger', yes: 'ks.qty.yes' }))) return false;
     return true;
   };
 
@@ -130,7 +134,7 @@ export default function KolayStokHome() {
       return;
     }
     if (!confirmed && (plan.large || plan.negative)) {
-      if (!(await confirmEntry(product, quantity, plan.large, plan.negative, plan.after.toNumber()))) return;
+      if (!(await confirmEntry(product, quantity, reason, plan.large, plan.negative, plan.after.toNumber(), product.quantity))) return;
       confirmed = true;
     }
     setBusyId(product.id);
@@ -146,7 +150,7 @@ export default function KolayStokHome() {
         const d = await res.json().catch(() => null);
         if (d?.code === 'CONFIRM') {
           applyQuantity(product.id, Number(d.current));
-          retry = await confirmEntry(product, quantity, Boolean(d.large), Boolean(d.negative), Number(d.after));
+          retry = await confirmEntry(product, quantity, reason, Boolean(d.large), Boolean(d.negative), Number(d.after), Number(d.current));
         } else toast.error(t('ks.saveFailed'));
         return;
       }
@@ -319,26 +323,7 @@ export default function KolayStokHome() {
         />
       )}
 
-      {question && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50" role="alertdialog" aria-modal="true" aria-label={question.text}>
-          <div className="w-full rounded-t-2xl bg-white p-5 pb-8">
-            <p className={`mb-5 text-2xl font-bold ${question.tone === 'danger' ? 'text-red-700' : 'text-slate-900'}`}>{question.text}</p>
-            <div className="grid gap-3">
-              <button
-                type="button"
-                autoFocus
-                onClick={() => answer(true)}
-                className={`h-16 rounded-xl text-xl font-bold text-white ${question.tone === 'danger' ? 'bg-red-700' : 'bg-teal-700'}`}
-              >
-                {t('ks.qty.yes')}
-              </button>
-              <button type="button" onClick={() => answer(false)} className="h-16 rounded-xl bg-slate-100 text-xl font-semibold">
-                {t('ks.qty.cancel')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {dialog.element}
     </div>
   );
 }

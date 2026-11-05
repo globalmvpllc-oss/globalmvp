@@ -328,3 +328,79 @@ describe('labels carry the sign; old "Üretim (−)" movements keep their meanin
     expect(home).toContain('col-span-2 h-14');
   });
 });
+
+// --- 5 Nov 2026, third round: Sayım düzeltmesi on the home screen uses the count rule ---
+import { readdirSync, statSync } from 'fs';
+
+describe('Sayım düzeltmesi (=) asks like the count screen', () => {
+  it('a difference above 50 or above half the stock asks; a small one does not', () => {
+    const big = planEntry(100, 160, 'count');
+    const half = planEntry(10, 4, 'count');
+    const small = planEntry(100, 120, 'count');
+    expect(big.ok && big.large).toBe(true);
+    expect(half.ok && half.large).toBe(true); // the old 500 / 3× rule would not have asked
+    expect(small.ok && small.large).toBe(false);
+  });
+
+  it('the server refuses an unconfirmed count far from the stock', async () => {
+    const attempt = enterStock({ companyId: 'c1', productId: 'p1', quantity: 30, reason: 'count', actor });
+    await expect(attempt).rejects.toBeInstanceOf(EntryConfirmationNeeded);
+    await attempt.catch((e: EntryConfirmationNeeded) => expect(e.details).toMatchObject({ large: true, current: 100, after: 30 }));
+    expect(db.movements).toHaveLength(0);
+    const ok: any = await enterStock({ companyId: 'c1', productId: 'p1', quantity: 30, reason: 'count', actor, confirmed: true });
+    expect(ok.quantityAfter).toBe(30);
+  });
+
+  it('the home screen asks the count question for a count', () => {
+    const home = src('app/kolaystok/app/page.tsx');
+    expect(home).toContain("entryDirection(reason) === 'set'");
+    expect(home).toContain('ks.count.confirmDiff');
+  });
+});
+
+describe('no browser confirm / alert / prompt anywhere in KolayStok', () => {
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(path.join(root, dir))) {
+      const rel = path.join(dir, name);
+      if (statSync(path.join(root, rel)).isDirectory()) walk(rel);
+      else if (/\.(tsx?|jsx?)$/.test(name)) files.push(rel);
+    }
+  };
+  walk('app/kolaystok');
+  walk('components/kolaystok');
+
+  it('every screen uses the in-app question window', () => {
+    expect(files.length).toBeGreaterThan(10);
+    for (const f of files) {
+      const code = src(f);
+      expect(code, f).not.toMatch(/\bwindow\.(confirm|alert|prompt)\s*\(/);
+      expect(code, f).not.toMatch(/(^|[^.\w])(confirm|alert|prompt)\s*\(\s*(t\(|fill\(|['"`])/);
+    }
+  });
+
+  it('the former browser boxes now go through useKsDialog', () => {
+    expect(src('app/kolaystok/app/count/page.tsx')).toMatch(/dialog\.confirm\(fill\('ks\.count\.finishConfirm'/);
+    expect(src('app/kolaystok/app/count/page.tsx')).toMatch(/dialog\.confirm\(t\('ks\.count\.cancelConfirm'\)/);
+    expect(src('app/kolaystok/app/products/[id]/page.tsx')).toContain("dialog.confirm(fill('ks.product.deactivateConfirm'");
+    const settings = src('app/kolaystok/app/settings/page.tsx');
+    for (const key of ['ks.reset.undoConfirm', 'ks.set.renewConfirm', 'ks.set.signOutConfirm', 'ks.set.removeConfirm']) expect(settings).toContain(key);
+    expect(settings).toContain('dialog.askPin(');
+    for (const f of ['app/kolaystok/app/page.tsx', 'app/kolaystok/app/count/page.tsx', 'app/kolaystok/app/products/[id]/page.tsx', 'app/kolaystok/app/settings/page.tsx']) {
+      expect(src(f), f).toContain('{dialog.element}');
+    }
+  });
+
+  it('the window: big buttons, PIN digits only and exactly four, texts in both languages', () => {
+    const dialog = src('components/kolaystok/ks-dialog.tsx');
+    expect(dialog).toContain('h-16');
+    expect(dialog).toContain(String.raw`.replace(/\D/g, '').slice(0, 4)`);
+    expect(dialog).toContain(String.raw`/^\d{4}$/.test(pin)`);
+    const tr = src('lib/i18n/tr.ts');
+    const en = src('lib/i18n/en.ts');
+    for (const key of ['ks.dialog.yes', 'ks.dialog.removeYes', 'ks.count.finishYes', 'ks.count.cancelYes', 'ks.reset.undoYes', 'ks.set.renewYes', 'ks.set.signOutYes', 'ks.set.newPinFor']) {
+      expect(tr, key).toContain(`'${key}'`);
+      expect(en, key).toContain(`'${key}'`);
+    }
+  });
+});
